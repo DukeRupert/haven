@@ -67,4 +67,3 @@ type UpdateScheduleParams struct {
 	RDOs   []int     `json:"rdos"`
 	Anchor time.Time `json:"anchor"`
 }
-

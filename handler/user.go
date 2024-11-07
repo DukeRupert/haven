@@ -6,8 +6,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type UserHandler struct{
-    db *pgxpool.Pool
+type UserHandler struct {
+	db *pgxpool.Pool
 }
 
 func (h UserHandler) HandleUserShow(c echo.Context) error {

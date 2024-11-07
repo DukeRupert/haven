@@ -12,8 +12,6 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-
-
 func main() {
 	// Load configuration
 	config, err := config.Load()
@@ -40,9 +38,11 @@ func main() {
 	e.Use(logger.Middleware())
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
-	//FIXME e.Use(middleware.CORS())
+	// FIXME e.Use(middleware.CORS())
 
 	userHandler := handler.UserHandler{}
+	authHandler := handler.AuthHandler{}
+	e.GET("/login", authHandler.HandleLogin)
 	e.GET("/user", userHandler.HandleUserShow)
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Hello, World! Welcome to Haven.")

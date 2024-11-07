@@ -1,8 +1,12 @@
 # run templ generation in watch mode to detect all .templ files and 
 # re-create _templ.txt files on change, then send reload event to browser. 
 # Default url: http://localhost:7331
+# Define variables
+GOPATH ?= $(shell go env GOPATH)
+TEMPL = $(GOPATH)/bin/templ
+
 live/templ:
-	templ generate --watch --proxy="http://localhost:8080" --open-browser=false -v
+	$(TEMPL) generate --watch --proxy="http://localhost:8080" --open-browser=false -v
 
 # run air to detect any go file changes to re-build and re-run the server.
 live/server:
