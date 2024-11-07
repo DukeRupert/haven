@@ -1,9 +1,11 @@
 package user
 
 import (
-  "github.com/labstack/echo/v4"
+	"github.com/DukeRupert/haven/view/layout"
 )
 
 templ Show() {
-    <h1>Hello from the user page</h1>
+  @layout.BaseLayout() {
+    <h1 class="text-green-500">Hello from the user page</h1>
   }
+}

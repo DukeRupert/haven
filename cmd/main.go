@@ -9,6 +9,7 @@ import (
 
 func main() {
 	e := echo.New()
+	e.Static("/static", "assets")
 
 	userHandler := handler.UserHandler{}
 	e.GET("/user", userHandler.HandleUserShow)
