@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background circle representing a planet/haven -->
+  <circle cx="100" cy="100" r="90" fill="#1A2533" />
+  
+  <!-- Sharp 'H' in rusty orange -->
+  <path d="M70 60 L70 140 M70 100 L130 100 M130 60 L130 140" 
+        stroke="#D35400" 
+        stroke-width="12" 
+        stroke-linecap="butt" 
+        fill="none" />
+  
+  <!-- Stars/dots in white with random positions -->
+  <circle cx="43" cy="67" r="2.5" fill="#ECF0F1" />
+  <circle cx="157" cy="45" r="1.5" fill="#ECF0F1" />
+  <circle cx="62" cy="142" r="2" fill="#ECF0F1" />
+  <circle cx="138" cy="163" r="1.8" fill="#ECF0F1" />
+  <circle cx="35" cy="112" r="1.2" fill="#ECF0F1" />
+  <circle cx="168" cy="89" r="2.2" fill="#ECF0F1" />
+  <circle cx="92" cy="31" r="1.7" fill="#ECF0F1" />
+  <circle cx="113" cy="158" r="1.4" fill="#ECF0F1" />
+  <circle cx="83" cy="82" r="1.3" fill="#ECF0F1" />
+  <circle cx="142" cy="118" r="1.9" fill="#ECF0F1" />
+  <circle cx="58" cy="134" r="1.6" fill="#ECF0F1" />
+  <circle cx="147" cy="56" r="2.1" fill="#ECF0F1" />
+  
+  <!-- Central dot in white -->
+  <circle cx="100" cy="100" r="4" fill="#ECF0F1" />
+</svg>
