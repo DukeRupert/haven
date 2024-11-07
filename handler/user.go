@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/DukeRupert/Haven/view/user"
+	"github.com/DukeRupert/haven/view/user"
 	"github.com/labstack/echo/v4"
 )
 
