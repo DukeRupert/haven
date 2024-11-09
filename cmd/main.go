@@ -6,10 +6,11 @@ import (
 
 	"github.com/DukeRupert/haven/config"
 	"github.com/DukeRupert/haven/db"
-	"github.com/DukeRupert/haven/handler"
-	"github.com/DukeRupert/haven/logger"
+
+	// "github.com/DukeRupert/haven/logger"
+	"github.com/DukeRupert/haven/middleware"
+
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
@@ -20,7 +21,7 @@ func main() {
 	}
 
 	// Initialize logger
-	logger := logger.Initialize(config.Environment)
+	// logger := logger.Initialize(config.Environment)
 
 	// Initialize database with custom configuration
 	dbConfig := db.DefaultConfig()
@@ -33,19 +34,21 @@ func main() {
 	// Initialize Echo instance
 	e := echo.New()
 	e.Static("/static", "assets")
-
+	// Apply the middleware
+	middleware.InitStore([]byte("supersecret"))
+	cfg := middleware.DefaultSessionConfig()
+	e.Use(middleware.NewSessionMiddleware(cfg))
 	// Initialize Middleware
-	e.Use(logger.Middleware())
-	e.Use(middleware.Recover())
-	e.Use(middleware.RequestID())
+	// e.Use(logger.Middleware())
 	// FIXME e.Use(middleware.CORS())
 
-	userHandler := handler.UserHandler{}
-	authHandler := handler.AuthHandler{}
-	e.GET("/login", authHandler.HandleLogin)
-	e.GET("/user", userHandler.HandleUserShow)
+	// userHandler := handler.UserHandler{}
+	// authHandler := handler.AuthHandler{}
+	// e.GET("/login", authHandler.HandleLogin)
+	// e.GET("/user", userHandler.HandleUserShow)
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Hello, World! Welcome to Haven.")
 	})
-	e.Logger.Fatal(e.Start(":1323"))
+
+	e.Logger.Fatal(e.Start(":8080"))
 }
