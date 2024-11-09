@@ -1,111 +1,73 @@
 package middleware
 
 import (
-	"net/http"
 	"time"
 
-	"github.com/gorilla/sessions"
+	"github.com/DukeRupert/haven/store"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
 )
 
-// Global singleton
-var store *sessions.CookieStore
-
-// Initialize store with secret key
-
-func InitStore(secret []byte) {
-	store = sessions.NewCookieStore(secret)
-}
-
-type SessionConfig struct {
-	Name     string
-	MaxAge   int
-	Path     string
-	HttpOnly bool
-	Secure   bool
-	Domain   string
-}
-
-// DefaultSessionConfig returns default configuration
-func DefaultSessionConfig() SessionConfig {
-	return SessionConfig{
-		Name:     "session",
-		MaxAge:   86400 * 7, // 7 days
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   false,
-	}
-}
-
-func NewSessionMiddleware(config SessionConfig) echo.MiddlewareFunc {
-	if store == nil {
-		log.Fatal().Msg("Session store not initialized. Call InitStore() first")
-	}
-
+// SessionMiddleware creates a new middleware for handling sessions with pgstore
+func SessionMiddleware(store *store.PGStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			start := time.Now()
+			requestID := c.Request().Header.Get("X-Request-ID")
+			path := c.Request().URL.Path
+			method := c.Request().Method
+
 			logger := log.With().
 				Str("middleware", "session").
-				Str("session_name", config.Name).
+				Str("request_id", requestID).
+				Str("path", path).
+				Str("method", method).
 				Logger()
 
-			// Try to get the session
-			sess, err := store.Get(c.Request(), config.Name)
+			logger.Debug().Msg("Processing request with session middleware")
+
+			// Get a session using the store
+			session, err := store.Get(c.Request(), "session-key")
 			if err != nil {
-				// Log the error
-				logger.Warn().
-					Err(err).
-					Msg("Failed to get existing session, creating new one")
-
-				// Clear the invalid cookie
-				c.SetCookie(&http.Cookie{
-					Name:   config.Name,
-					Value:  "",
-					Path:   "/",
-					MaxAge: -1,
-				})
-
-				// Create a new session
-				sess, err = store.New(c.Request(), config.Name)
-				if err != nil {
-					logger.Error().
-						Err(err).
-						Msg("Failed to create new session")
-					return c.NoContent(http.StatusInternalServerError)
-				}
-			}
-
-			// Configure session options
-			sess.Options = &sessions.Options{
-				Path:     config.Path,
-				MaxAge:   config.MaxAge,
-				HttpOnly: config.HttpOnly,
-				Secure:   config.Secure,
-				Domain:   config.Domain,
-			}
-
-			// Add the session to the context
-			c.Set("session", sess)
-
-			// Continue with the next handler
-			err = next(c)
-
-			// Save the session after processing
-			if err := sess.Save(c.Request(), c.Response().Writer); err != nil {
 				logger.Error().
 					Err(err).
-					Msg("Failed to save session")
-				return err
+					Msg("Failed to get session")
+				return echo.NewHTTPError(500, "Error getting session")
 			}
 
 			logger.Debug().
-				Dur("duration", time.Since(start)).
-				Bool("is_new_session", sess.IsNew).
+				Bool("is_new_session", session.IsNew).
+				Int("values_count", len(session.Values)).
+				Msg("Session retrieved")
+
+			// Add the session to the context
+			c.Set("session", session)
+
+			// Continue with the next handler
+			err = next(c)
+			if err != nil {
+				logger.Error().
+					Err(err).
+					Msg("Handler error occurred")
+				return err
+			}
+
+			// Save the session after the handler is done
+			if err := session.Save(c.Request(), c.Response()); err != nil {
+				logger.Error().
+					Err(err).
+					Msg("Failed to save session")
+				return echo.NewHTTPError(500, "Error saving session")
+			}
+
+			// Log completion metrics
+			logger.Info().
+				Dur("duration_ms", time.Since(start)).
+				Int("status", c.Response().Status).
+				Bool("session_modified", len(session.Values) > 0).
 				Msg("Session middleware completed")
 
-			return err
+			return nil
 		}
 	}
 }

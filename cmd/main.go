@@ -1,15 +1,15 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
 	"github.com/DukeRupert/haven/config"
 	"github.com/DukeRupert/haven/db"
+	"github.com/DukeRupert/haven/store"
 
-	// "github.com/DukeRupert/haven/logger"
 	"github.com/DukeRupert/haven/middleware"
-
 	"github.com/labstack/echo/v4"
 )
 
@@ -34,10 +34,18 @@ func main() {
 	// Initialize Echo instance
 	e := echo.New()
 	e.Static("/static", "assets")
-	// Apply the middleware
-	middleware.InitStore([]byte("supersecret"))
-	cfg := middleware.DefaultSessionConfig()
-	e.Use(middleware.NewSessionMiddleware(cfg))
+
+	// Initialize session store
+	ctx := context.Background()
+	store, err := store.NewPGStoreFromPool(ctx, pool, []byte("tU0bNcAgjeUNHIUYCvdyL7EsSeT6W4bo"), []byte("e9EamH55rqvPHoPtEam3GbeW7HE5DIpY"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer store.Close()
+
+	e.Use(middleware.SessionMiddleware(store))
+
+	// Add test routes
 	// Initialize Middleware
 	// e.Use(logger.Middleware())
 	// FIXME e.Use(middleware.CORS())
