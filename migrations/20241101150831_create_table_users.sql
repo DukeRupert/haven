@@ -1,15 +1,11 @@
 -- +goose Up
 -- +goose StatementBegin
-DO $$ 
-BEGIN 
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
-        CREATE TYPE user_role AS ENUM ('admin', 'user', 'super');
-    END IF;
-END $$;
+CREATE TYPE user_role AS ENUM ('super', 'admin', 'user');
 
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     initials VARCHAR(10) NOT NULL,
@@ -17,8 +13,6 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     facility_id INTEGER NOT NULL,
     role user_role NOT NULL,
-    
-    -- Add foreign key constraint for facility_id
     CONSTRAINT fk_facility
         FOREIGN KEY (facility_id)
         REFERENCES facilities(id)
@@ -27,12 +21,28 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_facility ON users(facility_id);
+
+-- Create updated_at trigger
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP INDEX IF EXISTS idx_users_email;
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+DROP FUNCTION IF EXISTS update_updated_at_column();
 DROP INDEX IF EXISTS idx_users_facility;
+DROP INDEX IF EXISTS idx_users_email;
 DROP TABLE IF EXISTS users;
 DROP TYPE IF EXISTS user_role;
 -- +goose StatementEnd
