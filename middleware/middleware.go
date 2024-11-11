@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DukeRupert/haven/models"
 	"github.com/gorilla/sessions"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -37,6 +38,7 @@ type LoginResponse struct {
 	User    User   `json:"user"`
 	Message string `json:"message"`
 }
+
 type AuthHandler struct {
 	pool  *pgxpool.Pool
 	store sessions.Store // Add store to the handler
@@ -55,6 +57,17 @@ func NewAuthHandler(pool *pgxpool.Pool, store sessions.Store) *AuthHandler {
 	}
 }
 
+// SessionMiddleware handles session management for all HTTP requests.
+// It performs the following tasks:
+// 1. Retrieves or creates a session for each request
+// 2. Logs session and cookie information for debugging
+// 3. Configures default session options for new sessions
+// 4. Makes the session available to subsequent handlers via context
+// 5. Automatically saves any session changes after the handler completes
+//
+// Usage:
+//
+//	e.Use(authHandler.SessionMiddleware())
 func (h *AuthHandler) SessionMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -125,6 +138,68 @@ func (h *AuthHandler) SessionMiddleware() echo.MiddlewareFunc {
 			return nil
 		}
 	}
+}
+
+// AuthMiddleware protects routes by verifying user authentication.
+// It expects a session to be present in the context (set by SessionMiddleware).
+// Unauthenticated requests are redirected to the login page or receive 401 for API requests.
+func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			logger := log.With().
+				Str("middleware", "auth").
+				Str("path", c.Path()).
+				Logger()
+
+			// Get session from context (previously set by SessionMiddleware)
+			sess, ok := c.Get("session").(*sessions.Session)
+			if !ok {
+				logger.Error().Msg("no session found in context")
+				return redirectToLogin(c)
+			}
+
+			// Check if user is authenticated
+			userID, ok := sess.Values["user_id"].(int)
+			if !ok || userID == 0 {
+				logger.Debug().Msg("no valid user_id in session")
+				return redirectToLogin(c)
+			}
+
+			// Check role if present
+			role, ok := sess.Values["role"].(models.UserRole)
+			if !ok {
+				logger.Debug().Msg("no valid role in session")
+				return redirectToLogin(c)
+			}
+
+			// Add user info to context for use in handlers
+			c.Set("user_id", userID)
+			c.Set("user_role", role)
+
+			return next(c)
+		}
+	}
+}
+
+func redirectToLogin(c echo.Context) error {
+	// If it's an API request, return 401
+	if isAPIRequest(c) {
+		return echo.NewHTTPError(http.StatusUnauthorized, "authentication required")
+	}
+	// For regular requests, redirect to login
+	return c.Redirect(http.StatusTemporaryRedirect, "/login")
+}
+
+func isAPIRequest(c echo.Context) bool {
+	// Check Accept header
+	if c.Request().Header.Get("Accept") == "application/json" {
+		return true
+	}
+	// Check if it's an XHR request
+	if c.Request().Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		return true
+	}
+	return false
 }
 
 const (

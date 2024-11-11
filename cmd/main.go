@@ -30,6 +30,10 @@ func main() {
 		log.Fatalf("Error loading config: %v", err)
 	}
 
+	// Initialize Echo instance
+	e := echo.New()
+	e.Static("/static", "assets")
+
 	// Initialize database
 	dbConfig := db.DefaultConfig()
 	pool, err := db.InitDBWithConfig(config.DatabaseURL, dbConfig)
@@ -44,10 +48,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Initialize Echo instance
-	e := echo.New()
-	e.Static("/static", "assets")
-
 	// Add middleware
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
@@ -55,12 +55,13 @@ func main() {
 	e.Use(middleware.Logger())
 
 	// Initialize session middleware
+	authHandler := auth.NewAuthHandler(pool, store, logger)
+	// e.Use(authHandler.SessionMiddleware())
 	e.Use(session.MiddlewareWithConfig(session.Config{
 		Skipper: middleware.DefaultSkipper,
 		Store:   store,
 	}))
 
-	authHandler := auth.NewAuthHandler(pool, logger)
 	e.POST("/login", authHandler.LoginHandler())
 	// Example routes
 	e.GET("/create-session", createSession)
@@ -81,6 +82,7 @@ func main() {
 
 	// Protected routes
 	app := e.Group("/app")
+	app.Use(authHandler.AuthMiddleware())
 	// app.Use(authHandler.RequireAuth())
 	// app.Use(authHandler.RoleBasedMiddleware())
 
