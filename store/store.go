@@ -36,6 +36,10 @@ type PgxStore struct {
 	Options *sessions.Options
 }
 
+const (
+	DefaultSessionName = "session" // Use this consistently across your application
+)
+
 var logger zerolog.Logger
 
 func init() {
@@ -105,10 +109,26 @@ func (s *PgxStore) New(r *http.Request, name string) (*sessions.Session, error) 
 
 // Save saves the session to the database
 func (s *PgxStore) Save(r *http.Request, w http.ResponseWriter, session *sessions.Session) error {
+	logger := zerolog.Ctx(r.Context()).With().
+		Str("method", "Save").
+		Str("session_id", session.ID).
+		Logger()
+
 	if session.Options.MaxAge < 0 {
-		if err := s.destroy(r.Context(), session); err != nil {
-			return err
+		logger.Debug().Msg("deleting session due to negative MaxAge")
+
+		if session.ID != "" {
+			if err := s.destroy(r.Context(), session); err != nil {
+				logger.Error().
+					Err(err).
+					Msg("failed to destroy session")
+				return err
+			}
+			logger.Debug().Msg("session destroyed successfully")
+		} else {
+			logger.Warn().Msg("attempted to delete session with empty ID")
 		}
+
 		http.SetCookie(w, sessions.NewCookie(session.Name(), "", session.Options))
 		return nil
 	}
@@ -118,6 +138,9 @@ func (s *PgxStore) Save(r *http.Request, w http.ResponseWriter, session *session
 			base32.StdEncoding.EncodeToString(
 				securecookie.GenerateRandomKey(32),
 			), "=")
+		logger.Debug().
+			Str("session_id", session.ID).
+			Msg("generated new session ID")
 	}
 
 	if err := s.save(r.Context(), session); err != nil {
@@ -212,8 +235,29 @@ func (s *PgxStore) load(ctx context.Context, session *sessions.Session) error {
 }
 
 func (s *PgxStore) destroy(ctx context.Context, session *sessions.Session) error {
-	_, err := s.db.Exec(ctx, "DELETE FROM http_sessions WHERE key = $1", session.ID)
-	return err
+	logger := zerolog.Ctx(ctx).With().
+		Str("method", "destroy").
+		Str("session_id", session.ID).
+		Logger()
+
+	logger.Debug().Msg("attempting to destroy session")
+
+	result, err := s.db.Exec(ctx, "DELETE FROM http_sessions WHERE key = $1", session.ID)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Str("session_id", session.ID).
+			Msg("failed to delete session from database")
+		return err
+	}
+
+	rowsAffected := result.RowsAffected()
+	logger.Debug().
+		Str("session_id", session.ID).
+		Int64("rows_affected", rowsAffected).
+		Msg("session destroy completed")
+
+	return nil
 }
 
 func (s *PgxStore) createSessionsTable() error {

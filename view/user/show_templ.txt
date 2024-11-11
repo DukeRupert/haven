@@ -1,1 +1,1 @@
-<h1 class=\"text-blue-500\">Hello from the user page</h1>
+<h1 class=\"text-blue-500\">Hello from the user page</h1><div class=\"container\"><h1 class=\"title\">Logout from Haven</h1><form id=\"logoutForm\" method=\"POST\" action=\"/logout\"><button type=\"submit\" class=\"logout-btn\">Logout</button></form></div>

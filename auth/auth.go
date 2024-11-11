@@ -47,6 +47,10 @@ type AuthHandler struct {
 	logger zerolog.Logger
 }
 
+const (
+	DefaultSessionName = "session"
+)
+
 func init() {
 	// Register types that will be stored in sessions
 	gob.Register(time.Time{})
@@ -70,7 +74,7 @@ type LoginParams struct {
 func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		// Get session using echo-contrib/session
-		sess, err := session.Get("session", c)
+		sess, err := session.Get(DefaultSessionName, c)
 		if err != nil {
 			h.logger.Error().Err(err).Msg("Failed to get session")
 			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
@@ -140,82 +144,68 @@ func authenticateUser(ctx context.Context, db *pgxpool.Pool, email, password str
 	return &user, nil
 }
 
-// SessionMiddleware handles session management for all HTTP requests.
-// It performs the following tasks:
-// 1. Retrieves or creates a session for each request
-// 2. Logs session and cookie information for debugging
-// 3. Configures default session options for new sessions
-// 4. Makes the session available to subsequent handlers via context
-// 5. Automatically saves any session changes after the handler completes
-//
-// Usage:
-//
-//	e.Use(authHandler.SessionMiddleware())
-func (h *AuthHandler) SessionMiddleware() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			logger := h.logger.With().
-				Str("middleware", "session").
-				Str("path", c.Path()).
-				Str("method", c.Request().Method).
-				Logger()
+func (h *AuthHandler) LogoutHandler() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		logger := h.logger.With().Str("handler", "LogoutHandler").Logger()
 
-			// Log all cookies for debugging
-			cookies := c.Request().Cookies()
-			for _, cookie := range cookies {
-				logger.Debug().
-					Str("cookie_name", cookie.Name).
-					Str("cookie_value", cookie.Value).
-					Msg("Request cookie found")
-			}
+		// Try to get the existing session by name
+		sess, err := session.Get(DefaultSessionName, c)
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to get session")
+			return c.Redirect(http.StatusTemporaryRedirect, "/login")
+		}
 
-			// Get or create session from store
-			sess, err := session.Get("session", c)
-			// sess, err := h.store.Get(c.Request(), "session-key")
-			if err != nil {
-				logger.Error().
-					Err(err).
-					Msg("Failed to get/create session")
+		// Log full session state for debugging
+		logger.Debug().
+			Bool("is_new", sess.IsNew).
+			Str("session_id", sess.ID).
+			Interface("values", convertSessionValues(sess.Values)).
+			Interface("options", sess.Options).
+			Msg("current session state")
 
-				// Try to create a new session
-				sess, err = h.store.New(c.Request(), "session-key")
-				if err != nil {
-					logger.Error().
-						Err(err).
-						Msg("Failed to create new session")
-					return echo.NewHTTPError(http.StatusInternalServerError, "Session error")
-				}
+		// If we don't have a valid session, just redirect to login
+		if sess.IsNew {
+			logger.Debug().Msg("no existing session found")
+			return c.Redirect(http.StatusTemporaryRedirect, "/login")
+		}
 
-				// Configure new session
-				sess.Options = &sessions.Options{
-					Path:     "/",
-					MaxAge:   86400 * 7,
-					HttpOnly: true,
-					Secure:   false, // Set to true in production with HTTPS
-					SameSite: http.SameSiteLaxMode,
-				}
-			}
+		// We have a valid session, proceed with logout
+		logger.Debug().
+			Str("session_id", sess.ID).
+			Msg("proceeding with session deletion")
 
-			// Add session to context
-			c.Set("session", sess)
+		// Clear all session values
+		sess.Values = make(map[interface{}]interface{})
 
-			// Execute next handler
-			if err := next(c); err != nil {
-				return err
-			}
+		// Set the session to expire
+		sess.Options.MaxAge = -1
 
-			// Save any changes made to the session
-			if err := sess.Save(c.Request(), c.Response()); err != nil {
-				logger.Error().
-					Err(err).
-					Interface("session_values", sess.Values).
-					Msg("Failed to save session")
-				return echo.NewHTTPError(http.StatusInternalServerError, "Failed to save session")
-			}
+		// Save the session (this will trigger deletion due to MaxAge = -1)
+		if err = sess.Save(c.Request(), c.Response()); err != nil {
+			logger.Error().
+				Err(err).
+				Str("session_id", sess.ID).
+				Msg("failed to delete session")
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to logout")
+		}
 
-			return nil
+		logger.Debug().
+			Str("session_id", sess.ID).
+			Msg("logout successful")
+
+		return c.Redirect(http.StatusTemporaryRedirect, "/login")
+	}
+}
+
+// Helper function to convert session values for logging
+func convertSessionValues(values map[interface{}]interface{}) map[string]interface{} {
+	converted := make(map[string]interface{})
+	for k, v := range values {
+		if key, ok := k.(string); ok {
+			converted[key] = v
 		}
 	}
+	return converted
 }
 
 // AuthMiddleware protects routes by verifying user authentication.
@@ -230,7 +220,7 @@ func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
 				Logger()
 
 			// Get session from context (previously set by SessionMiddleware)
-			sess, err := session.Get("session", c)
+			sess, err := session.Get(DefaultSessionName, c)
 			// sess, ok := c.Get("session").(*sessions.Session)
 			if err != nil {
 				logger.Error().Msg("no session found in context")
