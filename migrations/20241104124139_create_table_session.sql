@@ -2,17 +2,15 @@
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS http_sessions (
     id BIGSERIAL PRIMARY KEY,
-    key BYTEA NOT NULL,
+    key VARCHAR(255) NOT NULL,  -- Changed from BYTEA to VARCHAR
     data BYTEA NOT NULL,
     created_on TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     modified_on TIMESTAMPTZ,
     expires_on TIMESTAMPTZ
 );
 
--- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS http_sessions_key_idx ON http_sessions (key);
 CREATE INDEX IF NOT EXISTS http_sessions_expiry_idx ON http_sessions (expires_on);
-
 -- Add comment to table
 COMMENT ON TABLE http_sessions IS 'Stores web session data for user authentication';
 
