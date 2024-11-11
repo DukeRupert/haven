@@ -7,6 +7,9 @@ To execute database migrations, first ensure your environment variables are prop
 ```bash
 export $(cat .env | grep -v '#' | xargs) && goose up
 ```
+```bash
+GOOSE_DBSTRING=postgresql://postgres.kovrchxpqjntxeicmgtc:[YOUR-PASSWORD]@aws-0-us-east-2.pooler.supabase.com:5432/postgres?sslmode=disable GOOSE_DRIVER=postgres goose reset
+```
 
 This command:
 1. Reads the `.env` file (`cat .env`)
