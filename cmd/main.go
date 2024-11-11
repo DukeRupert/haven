@@ -17,10 +17,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-const (
-	SessionSecret = "tU0bNcAgjeUNHIUYCvdyL7EsSeT6W4bo"
-)
-
 func main() {
 	// Initialize logger
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -45,7 +41,7 @@ func main() {
 	defer pool.Close()
 
 	// Initialize session store
-	store, err := store.NewPgxStore(pool, []byte(SessionSecret))
+	store, err := store.NewPgxStore(pool, []byte(config.SessionKey))
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to create session store")
 	}
