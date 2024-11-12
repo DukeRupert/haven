@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/models"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 )
 
@@ -31,7 +31,7 @@ type HTTPSession struct {
 
 // PgxStore represents the session store backed by PostgreSQL
 type PgxStore struct {
-	db      *pgxpool.Pool
+	db      *db.DB
 	Codecs  []securecookie.Codec
 	Options *sessions.Options
 }
@@ -54,7 +54,7 @@ func init() {
 }
 
 // NewPgxStore creates a new PgxStore instance
-func NewPgxStore(db *pgxpool.Pool, keyPairs ...[]byte) (*PgxStore, error) {
+func NewPgxStore(db *db.DB, keyPairs ...[]byte) (*PgxStore, error) {
 	store := &PgxStore{
 		db:     db,
 		Codecs: securecookie.CodecsFromPairs(keyPairs...),

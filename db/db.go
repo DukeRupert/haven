@@ -1,3 +1,4 @@
+// db/db.go
 package db
 
 import (
@@ -6,8 +7,16 @@ import (
 	"log"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// DB represents a database instance with its connection pool
+type DB struct {
+	pool   *pgxpool.Pool
+	config Config
+}
 
 // Config holds database configuration
 type Config struct {
@@ -22,22 +31,17 @@ type Config struct {
 // DefaultConfig returns sensible default configuration
 func DefaultConfig() Config {
 	return Config{
-		MaxConns:     25,         // Maximum number of connections
-		MinConns:     5,          // Minimum number of connections
+		MaxConns:     25,
+		MinConns:     5,
 		MaxConnIdle:  30 * time.Minute,
 		MaxConnLife:  24 * time.Hour,
-		MaxConnTries: 5,          // Number of connection attempts
-		RetryDelay:   time.Second, // Delay between retries
+		MaxConnTries: 5,
+		RetryDelay:   time.Second,
 	}
 }
 
-// InitDB initializes and returns a connection pool
-func InitDB(databaseURL string) (*pgxpool.Pool, error) {
-	return InitDBWithConfig(databaseURL, DefaultConfig())
-}
-
-// InitDBWithConfig initializes and returns a connection pool with custom configuration
-func InitDBWithConfig(databaseURL string, config Config) (*pgxpool.Pool, error) {
+// New creates a new DB instance with the given configuration
+func New(databaseURL string, config Config) (*DB, error) {
 	ctx := context.Background()
 
 	poolConfig, err := pgxpool.ParseConfig(databaseURL)
@@ -63,7 +67,10 @@ func InitDBWithConfig(databaseURL string, config Config) (*pgxpool.Pool, error) 
 			if err == nil {
 				log.Printf("Successfully connected to database (attempt %d/%d)",
 					tries+1, config.MaxConnTries)
-				return pool, nil
+				return &DB{
+					pool:   pool,
+					config: config,
+				}, nil
 			}
 		}
 
@@ -81,10 +88,66 @@ func InitDBWithConfig(databaseURL string, config Config) (*pgxpool.Pool, error) 
 		config.MaxConnTries, lastErr)
 }
 
+// Close closes the database connection pool
+func (db *DB) Close() {
+	if db.pool != nil {
+		db.pool.Close()
+	}
+}
+
+// Pool returns the underlying connection pool
+func (db *DB) Pool() *pgxpool.Pool {
+	return db.pool
+}
+
 // HealthCheck performs a health check on the database
-func HealthCheck(pool *pgxpool.Pool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (db *DB) HealthCheck(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	return pool.Ping(ctx)
+	return db.pool.Ping(ctx)
+}
+
+// QueryRow executes a query that is expected to return at most one row
+func (db *DB) QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row {
+	return db.pool.QueryRow(ctx, query, args...)
+}
+
+// Query executes a query that returns rows
+func (db *DB) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
+	return db.pool.Query(ctx, query, args...)
+}
+
+// Exec executes a query that doesn't return rows
+func (db *DB) Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error) {
+	return db.pool.Exec(ctx, query, args...)
+}
+
+// GetContext returns a context with timeout
+func (db *DB) GetContext(timeout time.Duration) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), timeout)
+}
+
+// Transaction executes operations within a transaction
+func (db *DB) Transaction(ctx context.Context, fn func(pgx.Tx) error) error {
+    tx, err := db.pool.Begin(ctx)
+    if err != nil {
+        return fmt.Errorf("begin transaction: %w", err)
+    }
+    
+    defer func() {
+        if err != nil {
+            tx.Rollback(ctx)
+        }
+    }()
+
+    if err = fn(tx); err != nil {
+        return err
+    }
+
+    if err = tx.Commit(ctx); err != nil {
+        return fmt.Errorf("commit transaction: %w", err)
+    }
+
+    return nil
 }

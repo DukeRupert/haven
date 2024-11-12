@@ -1,20 +1,20 @@
 package handler
 
 import (
+	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/view/auth"
 	"github.com/DukeRupert/haven/view/user"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 )
 
 type UserHandler struct {
-	db *pgxpool.Pool
+	db *db.DB
 }
 
 // NewUserHandler creates a new handler with both pool and store
-func NewUserHandler(pool *pgxpool.Pool) *UserHandler {
+func NewUserHandler(db *db.DB) *UserHandler {
 	return &UserHandler{
-		db: pool,
+		db: db,
 	}
 }
 

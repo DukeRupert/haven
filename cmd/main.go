@@ -34,14 +34,14 @@ func main() {
 
 	// Initialize database
 	dbConfig := db.DefaultConfig()
-	pool, err := db.InitDBWithConfig(config.DatabaseURL, dbConfig)
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
-	defer pool.Close()
+    database, err := db.New(config.DatabaseURL, dbConfig)
+    if err != nil {
+        log.Fatalf("Failed to initialize database: %v", err)
+    }
+    defer database.Close()
 
 	// Initialize session store
-	store, err := store.NewPgxStore(pool, []byte(config.SessionKey))
+	store, err := store.NewPgxStore(database, []byte(config.SessionKey))
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to create session store")
 	}
@@ -58,15 +58,16 @@ func main() {
 	// Add basic middleware
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
-	e.Use(middleware.Secure())
+	// e.Use(middleware.Secure())
 	e.Use(middleware.Logger())
 
 	// Initialize session middleware first
 	e.Use(session.Middleware(store))
 
 	// Initialize handlers after session middleware
-	authHandler := auth.NewAuthHandler(pool, store, logger)
-	userHandler := handler.NewUserHandler(pool)
+	authHandler := auth.NewAuthHandler(database, store, logger)
+	userHandler := handler.NewUserHandler(database)
+	superHandler := handler.NewSuperHandler(database)
 
 	// Public routes
 	e.GET("/", func(c echo.Context) error {
@@ -95,6 +96,7 @@ func main() {
 	super.GET("", func(c echo.Context) error {
 		return c.String(http.StatusOK, "You have access to Super routes")
 	})
+	super.GET("/facilities", superHandler.GetFacilities)
 
 	// Start server
 	logger.Info().Msg("Starting server on :8080")

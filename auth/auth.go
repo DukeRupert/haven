@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/models"
 	"github.com/gorilla/sessions"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
@@ -42,7 +42,7 @@ type LoginResponse struct {
 }
 
 type AuthHandler struct {
-	db     *pgxpool.Pool
+	db     *db.DB
 	store  sessions.Store // Add store to the handler
 	logger zerolog.Logger
 }
@@ -56,7 +56,7 @@ func init() {
 	gob.Register(time.Time{})
 }
 
-func NewAuthHandler(pool *pgxpool.Pool, store sessions.Store, logger zerolog.Logger) *AuthHandler {
+func NewAuthHandler(pool *db.DB, store sessions.Store, logger zerolog.Logger) *AuthHandler {
 	return &AuthHandler{
 		db:     pool,
 		store:  store,
@@ -112,7 +112,7 @@ func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
 // authenticateUser verifies the email and password combination
-func authenticateUser(ctx context.Context, db *pgxpool.Pool, email, password string) (*models.User, error) {
+func authenticateUser(ctx context.Context, db *db.DB, email, password string) (*models.User, error) {
 	log := zerolog.Ctx(ctx).With().Str("method", "authenticateUser").Logger()
 
 	var user models.User
