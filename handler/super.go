@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/DukeRupert/haven/db"
+	"github.com/DukeRupert/haven/view/alert"
 	"github.com/DukeRupert/haven/view/super"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
@@ -37,61 +38,39 @@ func (h *SuperHandler) GetFacilities(c echo.Context) error {
 
 // Create handles POST /super/facilities
 func (h *SuperHandler) Create(c echo.Context) error {
-	logger := h.logger
-
-	// Log request details
-	logger.Debug().
-		Str("content_type", c.Request().Header.Get("Content-Type")).
-		Str("method", c.Request().Method).
-		Interface("headers", c.Request().Header).
-		Msg("received request")
-
-	// Parse form data
-	if err := c.Request().ParseForm(); err != nil {
-		logger.Error().
-			Err(err).
-			Msg("failed to parse form data")
-	}
-
-	formData := c.Request().Form
-	logger.Debug().
-		Interface("raw_form_data", formData).
-		Interface("post_form", c.Request().PostForm).
-		Msg("received form data")
+	logger := zerolog.Ctx(c.Request().Context())
 
 	var params db.CreateFacilityParams
 	if err := c.Bind(&params); err != nil {
 		logger.Error().
 			Err(err).
-			Interface("raw_form_data", formData).
-			Interface("post_form", c.Request().PostForm).
-			Type("params_type", params).
 			Msg("failed to bind request payload")
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
+
+		return render(c, alert.Error(
+			"Invalid request",
+			[]string{"The submitted form data was invalid"},
+		))
 	}
 
-	logger.Debug().
-		Str("name", params.Name).
-		Str("code", params.Code).
-		Interface("bound_params", params).
-		Msg("bound parameters")
-
-	// Validate input with more context
+	// Collect validation errors
+	var errors []string
 	if params.Name == "" {
-		logger.Error().
-			Interface("raw_form_data", formData).
-			Interface("post_form", c.Request().PostForm).
-			Interface("bound_params", params).
-			Msg("facility name is required but was empty after binding")
-		return echo.NewHTTPError(http.StatusBadRequest, "Name is required")
+		errors = append(errors, "Facility name is required")
 	}
 	if params.Code == "" {
+		errors = append(errors, "Facility code is required")
+	}
+	if len(errors) > 0 {
 		logger.Error().
-			Interface("raw_form_data", formData).
-			Interface("post_form", c.Request().PostForm).
-			Interface("bound_params", params).
-			Msg("facility code is required but was empty after binding")
-		return echo.NewHTTPError(http.StatusBadRequest, "Code is required")
+			Strs("validation_errors", errors).
+			Msg("validation failed")
+
+		heading := "There was 1 error with your submission"
+		if len(errors) > 1 {
+			heading = fmt.Sprintf("There were %d errors with your submission", len(errors))
+		}
+
+		return render(c, alert.Error(heading, errors))
 	}
 
 	facility, err := h.db.CreateFacility(c.Request().Context(), params)
@@ -100,7 +79,8 @@ func (h *SuperHandler) Create(c echo.Context) error {
 			Err(err).
 			Interface("params", params).
 			Msg("failed to create facility in database")
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create facility")
+		return render(c, alert.Error("System error",
+			[]string{"Failed to create facility. Please try again later"}))
 	}
 
 	logger.Info().
