@@ -1,6 +1,10 @@
-package models
+package db
 
-import "time"
+import (
+	"context"
+	"fmt"
+	"time"
+)
 
 // UserRole is a custom type for the user_role enum
 type UserRole string
@@ -35,21 +39,43 @@ type CreateUserParams struct {
 	Role       UserRole `json:"role" validate:"required,oneof=super admin user"`
 }
 
-type Schedule struct {
-	ID           int       `json:"id"`
-	CreatedAt    time.Time `json:"created_at"`
-	RDOs         []int     `json:"rdos"`
-	Anchor       time.Time `json:"anchor"`
-	ControllerID int       `json:"controller_id"`
-}
+func (db *DB) GetUsersByFacilityCode(ctx context.Context, facilityCode string) ([]User, error) {
+	rows, err := db.pool.Query(ctx, `
+        SELECT u.id, u.created_at, u.updated_at, u.first_name, u.last_name, 
+               u.initials, u.email, u.facility_id, u.role
+        FROM users u
+        JOIN facilities f ON u.facility_id = f.id
+        WHERE f.code = $1
+        ORDER BY u.last_name, u.first_name ASC
+    `, facilityCode)
+	if err != nil {
+		return nil, fmt.Errorf("error getting users by facility code: %w", err)
+	}
+	defer rows.Close()
 
-type CreateScheduleParams struct {
-	RDOs         []int     `json:"rdos"`
-	Anchor       time.Time `json:"anchor"`
-	ControllerID int       `json:"controller_id"`
-}
+	var users []User
+	for rows.Next() {
+		var user User
+		err := rows.Scan(
+			&user.ID,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+			&user.FirstName,
+			&user.LastName,
+			&user.Initials,
+			&user.Email,
+			&user.FacilityID,
+			&user.Role,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning user row: %w", err)
+		}
+		users = append(users, user)
+	}
 
-type UpdateScheduleParams struct {
-	RDOs   []int     `json:"rdos"`
-	Anchor time.Time `json:"anchor"`
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating user rows: %w", err)
+	}
+
+	return users, nil
 }

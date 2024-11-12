@@ -66,7 +66,7 @@ func main() {
 
 	// Initialize handlers after session middleware
 	authHandler := auth.NewAuthHandler(database, store, logger)
-	userHandler := handler.NewUserHandler(database)
+	userHandler := handler.NewUserHandler(database, logger)
 	superHandler := handler.NewSuperHandler(database, logger)
 
 	// Public routes
@@ -90,6 +90,7 @@ func main() {
 	admin.GET("", func(c echo.Context) error {
 		return c.String(http.StatusOK, "You have access to Admin routes")
 	})
+	admin.GET("/:code", userHandler.GetUsersByFacility)
 
 	// Super admin routes
 	super := app.Group("/super")

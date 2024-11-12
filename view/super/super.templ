@@ -43,12 +43,13 @@ templ FacilityListItem(f db.Facility) {
         <button hx-get={fmt.Sprintf("/super/facilities/%d/edit", f.ID)} class="text-indigo-600 hover:text-indigo-900">
           Edit <span class="sr-only">{f.Name}</span>
         </button>
+        
     </div>
 </li>
 }
 
 templ CreateFacilityForm() {
-  <li id="create-facility-form" hx-target="this" hx-swap="outerHTML" class="flex flex-col sm:flex-row justify-between gap-x-6 gap-y-4 py-5">
+  <li id="create-facility-form" hx-target="this" hx-target-error="#global-alert" hx-swap="outerHTML" class="flex flex-col sm:flex-row justify-between gap-x-6 gap-y-4 py-5">
   <form hx-post="./facilities" hx-status="400, 500" class="w-full flex flex-col sm:flex-row justify-between  gap-y-4 gap-x-6 mb-0">   
       <div class="w-full">
         <label for="name" class="block text-sm/6 font-medium text-gray-900">Facility Name</label>
