@@ -34,11 +34,11 @@ func main() {
 
 	// Initialize database
 	dbConfig := db.DefaultConfig()
-    database, err := db.New(config.DatabaseURL, dbConfig)
-    if err != nil {
-        log.Fatalf("Failed to initialize database: %v", err)
-    }
-    defer database.Close()
+	database, err := db.New(config.DatabaseURL, dbConfig)
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer database.Close()
 
 	// Initialize session store
 	store, err := store.NewPgxStore(database, []byte(config.SessionKey))
@@ -67,7 +67,7 @@ func main() {
 	// Initialize handlers after session middleware
 	authHandler := auth.NewAuthHandler(database, store, logger)
 	userHandler := handler.NewUserHandler(database)
-	superHandler := handler.NewSuperHandler(database)
+	superHandler := handler.NewSuperHandler(database, logger)
 
 	// Public routes
 	e.GET("/", func(c echo.Context) error {

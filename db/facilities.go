@@ -10,17 +10,17 @@ import (
 
 // Facility represents a facility in the database
 type Facility struct {
-	ID        int       `json:"id" db:"id"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
-	Name      string    `json:"name" db:"name"`
-	Code      string    `json:"code" db:"code"`
+	ID        int       `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Name      string    `json:"name"`
+	Code      string    `json:"code"`
 }
 
 // CreateFacilityParams holds the parameters needed to create a new facility
 type CreateFacilityParams struct {
-    Name string `json:"name" form:"name"`  // Add form tag
-    Code string `json:"code" form:"code"`  // Add form tag
+	Name string `json:"name" form:"name"` // Add form tag
+	Code string `json:"code" form:"code"` // Add form tag
 }
 
 // UpdateFacilityParams holds the parameters needed to update a facility
@@ -96,22 +96,20 @@ func (db *DB) CreateFacility(ctx context.Context, params CreateFacilityParams) (
 
 	var facility Facility
 	now := time.Now()
-
 	err = db.QueryRow(ctx, `
-		INSERT INTO facilities (created_at, name, code)
+		INSERT INTO facilities (created_at, updated_at, name, code)  -- Added updated_at
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at, updated_at, name, code
 	`, now, now, params.Name, params.Code).Scan(
 		&facility.ID,
 		&facility.CreatedAt,
+		&facility.UpdatedAt, // Add this field to match RETURNING clause
 		&facility.Name,
 		&facility.Code,
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("error creating facility: %w", err)
 	}
-
 	return &facility, nil
 }
 
@@ -127,29 +125,28 @@ func (db *DB) UpdateFacility(ctx context.Context, id int, params UpdateFacilityP
 	}
 
 	var facility Facility
-    now := time.Now()
+	now := time.Now()
 
-    err = db.QueryRow(ctx, `
+	err = db.QueryRow(ctx, `
         UPDATE facilities
         SET updated_at = $1, name = $2, code = $3
         WHERE id = $4
         RETURNING id, created_at, updated_at, name, code
     `, now, params.Name, params.Code, id).Scan(
-        &facility.ID,
-        &facility.CreatedAt,
-        &facility.UpdatedAt,
-        &facility.Name,
-        &facility.Code,
-    )
+		&facility.ID,
+		&facility.CreatedAt,
+		&facility.UpdatedAt,
+		&facility.Name,
+		&facility.Code,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, ErrFacilityNotFound
+		}
+		return nil, fmt.Errorf("error updating facility: %w", err)
+	}
 
-    if err != nil {
-        if err == pgx.ErrNoRows {
-            return nil, ErrFacilityNotFound
-        }
-        return nil, fmt.Errorf("error updating facility: %w", err)
-    }
-
-    return &facility, nil
+	return &facility, nil
 }
 
 // Custom errors for better error handling
