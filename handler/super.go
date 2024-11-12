@@ -25,5 +25,5 @@ func (h *SuperHandler) GetFacilities(c echo.Context) error {
         return echo.NewHTTPError(http.StatusInternalServerError, 
             "Failed to retrieve facilities")
     }
-	return render(c, super.ShowFacilities(facs))
+	return render(c, super.ShowFacilities("facilities", facs))
 }

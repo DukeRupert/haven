@@ -6,9 +6,10 @@ import (
   "github.com/DukeRupert/haven/view/layout"
 )
 
-templ ShowFacilities(facs []db.Facility) {
+templ ShowFacilities(pageTitle string, facs []db.Facility) {
   @layout.BaseLayout() {
-	<div class="px-4 sm:px-6 lg:px-8">
+    @layout.AppLayout(pageTitle) {
+      <div class="px-4 sm:px-6 lg:px-8">
   <div class="sm:flex sm:items-center">
     <div class="sm:flex-auto">
       <h1 class="text-base font-semibold text-gray-900">Facilities</h1>
@@ -26,6 +27,7 @@ templ ShowFacilities(facs []db.Facility) {
     }
   </ul>
 </div>
+    }
   }
 }
 
