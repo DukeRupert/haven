@@ -97,6 +97,9 @@ func main() {
 		return c.String(http.StatusOK, "You have access to Super routes")
 	})
 	super.GET("/facilities", superHandler.GetFacilities)
+	super.POST("/facilities", superHandler.Create)
+	super.GET("/facilities/create", superHandler.CreateFacilityForm)
+	super.POST("/facilities/:id", superHandler.Update)
 
 	// Start server
 	logger.Info().Msg("Starting server on :8080")

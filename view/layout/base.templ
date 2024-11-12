@@ -14,6 +14,11 @@ templ BaseLayout() {
     <body class="preload" style="height: 100%;">
         {children...}
     </body>
+    <script>
+    document.addEventListener('htmx:load', function(evt) {
+        console.log('HTMX loaded successfully');
+    });
+</script>
     </html>
 }
 
