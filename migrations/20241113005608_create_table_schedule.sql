@@ -5,15 +5,14 @@ CREATE TABLE IF NOT EXISTS schedules (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    first_day INTEGER NOT NULL CHECK (first_day >= 0 AND first_day <= 6),
-    second_day INTEGER NOT NULL CHECK (second_day >= 0 AND second_day <= 6),
+    first_weekday INTEGER NOT NULL CHECK (first_weekday >= 0 AND first_weekday <= 6),
+    second_weekday INTEGER NOT NULL CHECK (second_weekday >= 0 AND second_weekday <= 6),
     start_date DATE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS protected_dates (
     id SERIAL PRIMARY KEY,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     schedule_id INTEGER NOT NULL REFERENCES schedules(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     available BOOLEAN NOT NULL DEFAULT FALSE

@@ -7,13 +7,13 @@ import (
 )
 
 type Schedule struct {
-	ID        int         `db:"id" json:"id"`
-	CreatedAt time.Time   `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time   `db:"updated_at" json:"updated_at"`
-	UserID    int         `db:"user_id" json:"user_id" validate:"required"`
-	FirstDay  time.Weekday `db:"first_day" json:"first_day" validate:"required,min=0,max=6"`
-	SecondDay time.Weekday `db:"second_day" json:"second_day" validate:"required,min=0,max=6"`
-	StartDate time.Time   `db:"start_date" json:"start_date" validate:"required"`
+    ID            int         `db:"id" json:"id"`
+    CreatedAt     time.Time   `db:"created_at" json:"created_at"`
+    UpdatedAt     time.Time   `db:"updated_at" json:"updated_at"`
+    UserID        int         `db:"user_id" json:"user_id" validate:"required"`
+    FirstWeekday  time.Weekday `db:"first_weekday" json:"first_weekday" validate:"required,min=0,max=6"`
+    SecondWeekday time.Weekday `db:"second_weekday" json:"second_weekday" validate:"required,min=0,max=6"`
+    StartDate     time.Time   `db:"start_date" json:"start_date" validate:"required"`
 }
 
 type CreateScheduleParams struct {
@@ -32,93 +32,12 @@ type ProtectedDate struct {
 	Available  bool      `db:"available" json:"available"`
 }
 
-// CreateSchedule creates a new schedule in the database
-func (db *DB) CreateSchedule(ctx context.Context, params CreateScheduleParams) (*Schedule, error) {
-    // First check if user already has a schedule
-    var count int
-    err := db.pool.QueryRow(ctx, `
-        SELECT COUNT(*) 
-        FROM schedules 
-        WHERE user_id = $1
-    `, params.UserID).Scan(&count)
-    if err != nil {
-        return nil, fmt.Errorf("error checking existing schedule: %w", err)
-    }
-    if count > 0 {
-        return nil, fmt.Errorf("user already has a schedule: %d", params.UserID)
-    }
-
-    var schedule Schedule
-    now := time.Now()
-    err = db.pool.QueryRow(ctx, `
-        INSERT INTO schedules (
-            created_at,
-            updated_at,
-            user_id,
-            first_day,
-            second_day,
-            start_date
-        )
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING
-            id,
-            created_at,
-            updated_at,
-            user_id,
-            first_day,
-            second_day,
-            start_date
-    `,
-        now,            // $1
-        now,            // $2
-        params.UserID,  // $3
-        params.FirstDay,    // $4
-        params.SecondDay,   // $5
-        params.StartDate,   // $6
-    ).Scan(
-        &schedule.ID,
-        &schedule.CreatedAt,
-        &schedule.UpdatedAt,
-        &schedule.UserID,
-        &schedule.FirstDay,
-        &schedule.SecondDay,
-        &schedule.StartDate,
-    )
-    if err != nil {
-        return nil, fmt.Errorf("error creating schedule: %w", err)
-    }
-
-    return &schedule, nil
-}
-
-// GetSchedule retrieves a schedule by ID
-func (db *DB) GetSchedule(ctx context.Context, id int) (*Schedule, error) {
-    var schedule Schedule
-    err := db.pool.QueryRow(ctx, `
-        SELECT 
-            id,
-            created_at,
-            updated_at,
-            user_id,
-            first_day,
-            second_day,
-            start_date
-        FROM schedules
-        WHERE id = $1
-    `, id).Scan(
-        &schedule.ID,
-        &schedule.CreatedAt,
-        &schedule.UpdatedAt,
-        &schedule.UserID,
-        &schedule.FirstDay,
-        &schedule.SecondDay,
-        &schedule.StartDate,
-    )
-    if err != nil {
-        return nil, fmt.Errorf("error getting schedule: %w", err)
-    }
-
-    return &schedule, nil
+func (s Schedule) IsZero() bool {
+    return s.ID == 0 && 
+           s.CreatedAt.IsZero() && 
+           s.UpdatedAt.IsZero() && 
+           s.UserID == 0 && 
+           s.StartDate.IsZero()
 }
 
 // GetScheduleByUserID retrieves a schedule by user ID
@@ -130,8 +49,8 @@ func (db *DB) GetScheduleByUserID(ctx context.Context, userID int) (*Schedule, e
             created_at,
             updated_at,
             user_id,
-            first_day,
-            second_day,
+            first_weekday,
+            second_weekday,
             start_date
         FROM schedules
         WHERE user_id = $1
@@ -140,12 +59,55 @@ func (db *DB) GetScheduleByUserID(ctx context.Context, userID int) (*Schedule, e
         &schedule.CreatedAt,
         &schedule.UpdatedAt,
         &schedule.UserID,
-        &schedule.FirstDay,
-        &schedule.SecondDay,
+        &schedule.FirstWeekday,
+        &schedule.SecondWeekday,
         &schedule.StartDate,
     )
     if err != nil {
         return nil, fmt.Errorf("error getting schedule by user ID: %w", err)
+    }
+
+    return &schedule, nil
+}
+
+// NewSchedule creates a new Schedule with default values
+func NewSchedule(userID int, firstWeekday, secondWeekday time.Weekday, startDate time.Time) *Schedule {
+    now := time.Now()
+    return &Schedule{
+        CreatedAt:     now,
+        UpdatedAt:     now,
+        UserID:        userID,
+        FirstWeekday:  firstWeekday,
+        SecondWeekday: secondWeekday,
+        StartDate:     startDate,
+    }
+}
+
+// GetSchedule retrieves a schedule by ID
+func (db *DB) GetSchedule(ctx context.Context, id int) (*Schedule, error) {
+    var schedule Schedule
+    err := db.pool.QueryRow(ctx, `
+        SELECT 
+            id,
+            created_at,
+            updated_at,
+            user_id,
+            first_weekday,
+            second_weekday,
+            start_date
+        FROM schedules
+        WHERE id = $1
+    `, id).Scan(
+        &schedule.ID,
+        &schedule.CreatedAt,
+        &schedule.UpdatedAt,
+        &schedule.UserID,
+        &schedule.FirstWeekday,
+        &schedule.SecondWeekday,
+        &schedule.StartDate,
+    )
+    if err != nil {
+        return nil, fmt.Errorf("error getting schedule: %w", err)
     }
 
     return &schedule, nil
@@ -160,8 +122,8 @@ func (db *DB) GetScheduleByUserInitials(ctx context.Context, initials string, fa
             s.created_at,
             s.updated_at,
             s.user_id,
-            s.first_day,
-            s.second_day,
+            s.first_weekday,
+            s.second_weekday,
             s.start_date
         FROM schedules s
         JOIN users u ON s.user_id = u.id
@@ -172,8 +134,8 @@ func (db *DB) GetScheduleByUserInitials(ctx context.Context, initials string, fa
         &schedule.CreatedAt,
         &schedule.UpdatedAt,
         &schedule.UserID,
-        &schedule.FirstDay,
-        &schedule.SecondDay,
+        &schedule.FirstWeekday,
+        &schedule.SecondWeekday,
         &schedule.StartDate,
     )
     if err != nil {
@@ -184,10 +146,10 @@ func (db *DB) GetScheduleByUserInitials(ctx context.Context, initials string, fa
 }
 
 type UpdateScheduleParams struct {
-    ID        int
-    FirstDay  time.Weekday
-    SecondDay time.Weekday
-    StartDate time.Time
+    ID            int
+    FirstWeekday  time.Weekday
+    SecondWeekday time.Weekday
+    StartDate     time.Time
 }
 
 // UpdateSchedule updates an existing schedule
@@ -198,8 +160,8 @@ func (db *DB) UpdateSchedule(ctx context.Context, params UpdateScheduleParams) (
         UPDATE schedules 
         SET 
             updated_at = $1,
-            first_day = $2,
-            second_day = $3,
+            first_weekday = $2,
+            second_weekday = $3,
             start_date = $4
         WHERE id = $5
         RETURNING
@@ -207,22 +169,22 @@ func (db *DB) UpdateSchedule(ctx context.Context, params UpdateScheduleParams) (
             created_at,
             updated_at,
             user_id,
-            first_day,
-            second_day,
+            first_weekday,
+            second_weekday,
             start_date
     `,
-        now,            // $1
-        params.FirstDay,    // $2
-        params.SecondDay,   // $3
-        params.StartDate,   // $4
-        params.ID,         // $5
+        now,                // $1
+        params.FirstWeekday,    // $2
+        params.SecondWeekday,   // $3
+        params.StartDate,       // $4
+        params.ID,              // $5
     ).Scan(
         &schedule.ID,
         &schedule.CreatedAt,
         &schedule.UpdatedAt,
         &schedule.UserID,
-        &schedule.FirstDay,
-        &schedule.SecondDay,
+        &schedule.FirstWeekday,
+        &schedule.SecondWeekday,
         &schedule.StartDate,
     )
     if err != nil {
@@ -253,8 +215,8 @@ func (db *DB) ListSchedules(ctx context.Context, facilityID int) ([]Schedule, er
             s.created_at,
             s.updated_at,
             s.user_id,
-            s.first_day,
-            s.second_day,
+            s.first_weekday,
+            s.second_weekday,
             s.start_date
         FROM schedules s
         JOIN users u ON s.user_id = u.id
@@ -274,8 +236,8 @@ func (db *DB) ListSchedules(ctx context.Context, facilityID int) ([]Schedule, er
             &schedule.CreatedAt,
             &schedule.UpdatedAt,
             &schedule.UserID,
-            &schedule.FirstDay,
-            &schedule.SecondDay,
+            &schedule.FirstWeekday,
+            &schedule.SecondWeekday,
             &schedule.StartDate,
         )
         if err != nil {

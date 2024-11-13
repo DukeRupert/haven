@@ -236,22 +236,26 @@ func (h *UserHandler) UserPage(c echo.Context) error {
         return c.String(http.StatusNotFound, "User not found")
     }
 
-    // Get the user's schedule
-    schedule, err := h.db.GetScheduleByUserID(c.Request().Context(), u.ID)
-    if err != nil {
-        // Check if it's a "not found" error - if so, we'll continue without a schedule
-        if errors.Is(err, pgx.ErrNoRows) {
-            logger.Info().
-                Int("user_id", u.ID).
-                Msg("user has no schedule")
-        } else {
-            logger.Error().
-                Err(err).
-                Int("user_id", u.ID).
-                Msg("failed to get user schedule")
-            return c.String(http.StatusInternalServerError, "Failed to get schedule")
-        }
-    }
+     // Initialize an empty schedule
+     schedule := &db.Schedule{}
+    
+     // Get the user's schedule
+     foundSchedule, err := h.db.GetScheduleByUserID(c.Request().Context(), u.ID)
+     if err != nil {
+         if errors.Is(err, pgx.ErrNoRows) {
+             logger.Info().
+                 Int("user_id", u.ID).
+                 Msg("user has no schedule")
+         } else {
+             logger.Error().
+                 Err(err).
+                 Int("user_id", u.ID).
+                 Msg("failed to get user schedule")
+             return c.String(http.StatusInternalServerError, "Failed to get schedule")
+         }
+     } else if foundSchedule != nil {
+         schedule = foundSchedule
+     }
 
     logger.Info().
         Int("user_id", u.ID).
