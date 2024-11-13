@@ -26,7 +26,7 @@ RUN templ generate
 RUN CGO_ENABLED=0 GOOS=linux go build -o app ./cmd/main.go
 
 # Final stage
-FROM alpine:3.19
+FROM golang:1.23-alpine
 
 WORKDIR /app
 
