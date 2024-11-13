@@ -23,9 +23,12 @@ bin/
 # IDE specific files
 .vscode/
 
-# Environment files
+# Ignore all .env files
 .env
-.env.local
+.env.*
+
+# But allow .env.example
+!.env.example
 
 # Log files
 *.log
