@@ -30,6 +30,7 @@ func main() {
 
 	// Initialize Echo instance
 	e := echo.New()
+	e.Pre(middleware.RemoveTrailingSlash())
 	e.Static("/static", "assets")
 
 	// Initialize database
@@ -87,11 +88,12 @@ func main() {
 
 	// Admin routes
 	admin := app.Group("/admin")
-	admin.GET("", func(c echo.Context) error {
+	admin.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "You have access to Admin routes")
 	})
 	admin.GET("/:code", userHandler.GetUsersByFacility)
-
+	admin.GET("/:code/user/create", userHandler.CreateUserForm)
+	admin.POST("/:code/user", userHandler.CreateUser)
 	// Super admin routes
 	super := app.Group("/super")
 	super.GET("", func(c echo.Context) error {

@@ -43,7 +43,9 @@ templ FacilityListItem(f db.Facility) {
         <button hx-get={fmt.Sprintf("/super/facilities/%d/edit", f.ID)} class="text-indigo-600 hover:text-indigo-900">
           Edit <span class="sr-only">{f.Name}</span>
         </button>
-        
+         <a href={templ.URL(fmt.Sprintf("/app/admin/%s/", f.Code))} class="text-indigo-600 hover:text-indigo-900">
+          Manage <span class="sr-only">{f.Name}</span>
+        </a>
     </div>
 </li>
 }

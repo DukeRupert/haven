@@ -83,6 +83,26 @@ func (db *DB) IsFacilityCodeUnique(ctx context.Context, code string, excludeID *
 	return !exists, nil
 }
 
+// GetFacilityByCode retrieves a facility from the database by its code
+func (db *DB) GetFacilityByCode(ctx context.Context, code string) (*Facility, error) {
+    var facility Facility
+    err := db.QueryRow(ctx, `
+        SELECT id, created_at, updated_at, name, code
+        FROM facilities
+        WHERE code = $1
+    `, code).Scan(
+        &facility.ID,
+        &facility.CreatedAt,
+        &facility.UpdatedAt,
+        &facility.Name,
+        &facility.Code,
+    )
+    if err != nil {
+        return nil, fmt.Errorf("error getting facility by code: %w", err)
+    }
+    return &facility, nil
+}
+
 // CreateFacility creates a new facility in the database
 func (db *DB) CreateFacility(ctx context.Context, params CreateFacilityParams) (*Facility, error) {
 	// Check for unique code first
