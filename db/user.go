@@ -2,8 +2,11 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // UserRole is a custom type for the user_role enum
@@ -14,6 +17,34 @@ const (
 	UserRoleAdmin UserRole = "admin"
 	UserRoleUser  UserRole = "user"
 )
+
+// String returns a formatted display string for the user role
+func (r UserRole) String() string {
+    switch r {
+    case UserRoleSuper:
+        return "Super Admin"
+    case UserRoleAdmin:
+        return "Admin"
+    case UserRoleUser:
+        return "User"
+    default:
+        return string(r) // fallback to the raw string value
+    }
+}
+
+// Optionally, you might also want to add a method for getting CSS classes or styles:
+func (r UserRole) BadgeClass() string {
+    switch r {
+    case UserRoleSuper:
+        return "bg-purple-100 text-purple-800"
+    case UserRoleAdmin:
+        return "bg-blue-100 text-blue-800"
+    case UserRoleUser:
+        return "bg-green-100 text-green-800"
+    default:
+        return "bg-gray-100 text-gray-800"
+    }
+}
 
 type User struct {
 	ID         int       `db:"id" json:"id"`
@@ -26,6 +57,12 @@ type User struct {
 	Password   string    `db:"password" json:"-"` // Hashed password
 	FacilityID int       `db:"facility_id" json:"facility_id"`
 	Role       UserRole  `db:"role" json:"role" validate:"required,oneof=super admin user"`
+}
+
+type UserDetails struct {
+    User     User
+    Facility Facility
+    Schedule Schedule
 }
 
 // CreateUserParams represents the parameters needed to create a new user
@@ -112,6 +149,71 @@ func (db *DB) GetUserByInitialsAndFacility(ctx context.Context, initials string,
     }
 
     return &user, nil
+}
+
+func (db *DB) GetUserDetails(ctx context.Context, initials string, facilityID int) (*UserDetails, error) {
+    // Get user first (need this to get other data)
+    user, err := db.GetUserByInitialsAndFacility(ctx, initials, facilityID)
+    if err != nil {
+        return nil, fmt.Errorf("error getting user: %w", err)
+    }
+
+    // Create channels for results
+    facilityChan := make(chan struct {
+        facility *Facility
+        err      error
+    })
+    scheduleChan := make(chan struct {
+        schedule *Schedule
+        err      error
+    })
+
+    // Get facility and schedule concurrently
+    go func() {
+        facility, err := db.GetFacilityByID(ctx, user.FacilityID)
+        facilityChan <- struct {
+            facility *Facility
+            err      error
+        }{facility, err}
+    }()
+
+    go func() {
+        schedule, err := db.GetScheduleByUserID(ctx, user.ID)
+        if err != nil && errors.Is(err, pgx.ErrNoRows) {
+            err = nil // Convert "no rows" to nil error
+        }
+        scheduleChan <- struct {
+            schedule *Schedule
+            err      error
+        }{schedule, err}
+    }()
+
+    // Wait for both results
+    facilityResult := <-facilityChan
+    if facilityResult.err != nil {
+        return nil, fmt.Errorf("error getting facility: %w", facilityResult.err)
+    }
+
+    scheduleResult := <-scheduleChan
+    if scheduleResult.err != nil {
+        return nil, fmt.Errorf("error getting schedule: %w", scheduleResult.err)
+    }
+
+    // Create the schedule - either empty or from result
+    var schedule Schedule
+    if scheduleResult.schedule == nil {
+        schedule = Schedule{
+            UserID: user.ID,  // Set only the UserID for empty schedule
+        }
+    } else {
+        schedule = *scheduleResult.schedule
+    }
+
+    return &UserDetails{
+        User:     *user,
+        Facility: *facilityResult.facility,
+        Schedule: schedule,  // Not a pointer here
+    }, nil
 }
 
 func (db *DB) CreateUser(ctx context.Context, params CreateUserParams) (*User, error) {

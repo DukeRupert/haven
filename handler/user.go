@@ -4,15 +4,12 @@ import (
 	"net/http"
 	"time"
 	"fmt"
-	"errors"
 
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/view/alert"
 	"github.com/DukeRupert/haven/view/auth"
 	"github.com/DukeRupert/haven/view/user"
-	"github.com/DukeRupert/haven/view/admin"
 	"github.com/DukeRupert/haven/view/component"
-	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/bcrypt"
@@ -155,117 +152,59 @@ func isValidRole(role db.UserRole) bool {
     return false
 }
 
-// GetUsersByFacility handles the GET /app/admin/:code endpoint
-func (h *UserHandler) GetUsersByFacility(c echo.Context) error {
-	startTime := time.Now()
-	logger := h.logger.With().
-		Str("handler", "GetUsersByFacility").
-		Str("method", "GET").
-		Str("path", "/app/admin/:code").
-		Logger()
-
-	// Get facility code from route parameter
-	code := c.Param("code")
-	if code == "" {
-		logger.Error().Msg("facility code is missing from request")
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "facility code is required",
-		})
-	}
-
-	logger = logger.With().Str("facility_code", code).Logger()
-	logger.Info().Msg("processing request to get users by facility code")
-
-	// Get users from database
-	// // Track database query duration specifically
-	queryStartTime := time.Now()
-	users, err := h.db.GetUsersByFacilityCode(c.Request().Context(), code)
-	queryDuration := time.Since(queryStartTime)
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Msg("failed to retrieve users from database")
-
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "failed to retrieve users",
-		})
-	}
-
-	// If no users found, return empty array instead of null
-	if users == nil {
-		users = []db.User{}
-	}
-
-	// Track handler duration
-	handlerDuration := time.Since(startTime)
-
-	logger.Info().
-		Int("user_count", len(users)).
-		Dur("query_duration_ms", queryDuration).
-		Dur("handler_duration_ms", handlerDuration).
-		Msg("successfully retrieved users")
-
-	return render(c, admin.ShowFacilities("Controllers", users))
-}
-
 func (h *UserHandler) UserPage(c echo.Context) error {
-    logger := h.logger
-    
+    startTime := time.Now()
+    logger := h.logger.With().
+        Str("handler", "UserPage").
+        Str("method", "GET").
+        Str("path", "/app/facility/:code/user/:initials").
+        Logger()
+
     // Get path parameters
     facilityCode := c.Param("code")
     initials := c.Param("initials")
 
-    // First get the facility to ensure it exists
+    logger = logger.With().
+        Str("facility_code", facilityCode).
+        Str("initials", initials).
+        Logger()
+
+    logger.Info().Msg("processing request to get user details")
+
+    // Get the facility first to get its ID
     facility, err := h.db.GetFacilityByCode(c.Request().Context(), facilityCode)
     if err != nil {
         logger.Error().
             Err(err).
-            Str("facility_code", facilityCode).
             Msg("failed to find facility")
         return c.String(http.StatusNotFound, "Facility not found")
     }
 
-    // Get user by initials and facility ID
-    u, err := h.db.GetUserByInitialsAndFacility(c.Request().Context(), initials, facility.ID)
+    // Get all user details in parallel queries
+    details, err := h.db.GetUserDetails(c.Request().Context(), initials, facility.ID)
     if err != nil {
         logger.Error().
             Err(err).
-            Str("initials", initials).
-            Int("facility_id", facility.ID).
-            Msg("failed to find user")
+            Msg("failed to find user details")
         return c.String(http.StatusNotFound, "User not found")
     }
 
-     // Initialize an empty schedule
-     schedule := &db.Schedule{}
+    // No need to check for nil schedule anymore since GetUserDetails 
+    // always returns a valid Schedule struct (either populated or empty)
     
-     // Get the user's schedule
-     foundSchedule, err := h.db.GetScheduleByUserID(c.Request().Context(), u.ID)
-     if err != nil {
-         if errors.Is(err, pgx.ErrNoRows) {
-             logger.Info().
-                 Int("user_id", u.ID).
-                 Msg("user has no schedule")
-         } else {
-             logger.Error().
-                 Err(err).
-                 Int("user_id", u.ID).
-                 Msg("failed to get user schedule")
-             return c.String(http.StatusInternalServerError, "Failed to get schedule")
-         }
-     } else if foundSchedule != nil {
-         schedule = foundSchedule
-     }
-
+    // Log success with performance metrics
     logger.Info().
-        Int("user_id", u.ID).
-        Str("initials", u.Initials).
-        Int("facility_id", u.FacilityID).
-        Interface("schedule", schedule).
-        Msg("user schedule page accessed")
+        Int("user_id", details.User.ID).
+        Str("initials", details.User.Initials).
+        Int("facility_id", details.User.FacilityID).
+        Bool("has_schedule", details.Schedule.ID != 0).
+        Dur("duration_ms", time.Since(startTime)).
+        Float64("duration_seconds", time.Since(startTime).Seconds()).
+        Str("performance_category", "page_load").
+        Msg("user page rendered successfully")
 
-    // Return the user schedule page
-    return render(c, user.UserPage("Profile", *u, *schedule))
+    // The template already handles the schedule.ID == 0 case
+    return render(c, user.UserPage("Profile", details.User, details.Facility, details.Schedule))
 }
 
 func (h *UserHandler) CreateUserForm(c echo.Context) error {

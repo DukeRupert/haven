@@ -91,7 +91,7 @@ func main() {
 	admin.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "You have access to Admin routes")
 	})
-	admin.GET("/:code", userHandler.GetUsersByFacility)
+	// admin.GET("/:code", userHandler.GetUsersByFacility)
 	admin.GET("/:code/user/create", userHandler.CreateUserForm)
 	admin.POST("/:code/user", userHandler.CreateUser)
 	admin.GET("/:code/:initials", userHandler.UserPage)
