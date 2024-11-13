@@ -38,3 +38,49 @@ DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@localhost:6543/postgres
 Make sure your `.env` file contains all necessary database connection details required by your migration configuration.
 
 Would you like me to add any additional sections like troubleshooting or common environment variables?
+
+## Docker 
+
+To use this configuration:
+
+1. Local development:
+```bash
+# Copy the example env file
+cp .env.example .env
+
+# Edit with your values
+nano .env
+
+# Start the services
+docker compose up --build
+```
+
+2. To run migrations manually (if needed):
+```bash
+# Enter the container
+docker compose exec web sh
+
+# Run goose commands
+goose up
+goose status
+goose reset
+```
+
+3. To test migrations:
+```bash
+# Reset and rerun migrations
+RESET_MIGRATIONS=true docker compose up --build
+```
+
+Key points about this setup:
+
+1. `GOOSE_DBSTRING` is constructed in docker-compose.yml using the individual DB_* variables. This:
+   - Makes it easier to manage
+   - Avoids duplicating sensitive information
+   - Maintains consistency with the application's database configuration
+
+2. `GOOSE_MIGRATION_DIR` points to `/app/migrations` in the container because:
+   - The Dockerfile copies migrations to this location
+   - This ensures consistency between development and production
+
+3. `GOOSE_DRIVER` is set to 'postgres' directly in docker-compose.yml since it's unlikely to change

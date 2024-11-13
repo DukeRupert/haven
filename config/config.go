@@ -10,10 +10,18 @@ import (
 )
 
 type Config struct {
-	Port         string
-	DatabaseURL  string
-	SessionKey   string
-	Environment  string
+	// Server Configuration
+	Port        string
+	Environment string
+	SessionKey  string
+
+	// Database Configuration
+	DBHost     string
+	DBPort     string
+	DBUser     string
+	DBPassword string
+	DBName     string
+	DatabaseURL string
 }
 
 // LoadConfig loads configuration from environment variables
@@ -31,16 +39,15 @@ func Load() (*Config, error) {
 	// Load and validate each configuration value
 	var missingVars []string
 
-	// Port configuration with default
+	// Server Configuration
 	config.Port = getEnvWithDefault("PORT", "8080")
 	if !isValidPort(config.Port) {
 		return nil, fmt.Errorf("invalid PORT value: %s", config.Port)
 	}
 
-	// Database URL is required
-	config.DatabaseURL = os.Getenv("DATABASE_URL")
-	if config.DatabaseURL == "" {
-		missingVars = append(missingVars, "DATABASE_URL")
+	config.Environment = strings.ToLower(getEnvWithDefault("ENVIRONMENT", "development"))
+	if !isValidEnvironment(config.Environment) {
+		return nil, fmt.Errorf("invalid ENVIRONMENT value: %s", config.Environment)
 	}
 
 	// Session key is required and must be at least 32 characters
@@ -51,11 +58,33 @@ func Load() (*Config, error) {
 		return nil, errors.New("SESSION_KEY must be at least 32 characters long")
 	}
 
-	// Environment with default and validation
-	config.Environment = strings.ToLower(getEnvWithDefault("ENVIRONMENT", "development"))
-	if !isValidEnvironment(config.Environment) {
-		return nil, fmt.Errorf("invalid ENVIRONMENT value: %s", config.Environment)
+	// Database Configuration
+	config.DBHost = getEnvWithDefault("DB_HOST", "localhost")
+	config.DBPort = getEnvWithDefault("DB_PORT", "5432")
+	config.DBUser = os.Getenv("DB_USER")
+	config.DBPassword = os.Getenv("DB_PASSWORD")
+	config.DBName = os.Getenv("DB_NAME")
+
+	// Check required database variables
+	for _, v := range []struct{ key, value string }{
+		{"DB_USER", config.DBUser},
+		{"DB_PASSWORD", config.DBPassword},
+		{"DB_NAME", config.DBName},
+	} {
+		if v.value == "" {
+			missingVars = append(missingVars, v.key)
+		}
 	}
+
+	// Construct Database URL
+	config.DatabaseURL = fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		config.DBUser,
+		config.DBPassword,
+		config.DBHost,
+		config.DBPort,
+		config.DBName,
+	)
 
 	// Check for any missing required variables
 	if len(missingVars) > 0 {
@@ -76,7 +105,6 @@ func getEnvWithDefault(key, defaultValue string) string {
 // isValidPort checks if the port value is valid
 func isValidPort(port string) bool {
 	// Add any port validation logic you need
-	// This is a simple example
 	return port != ""
 }
 
@@ -94,8 +122,20 @@ func isValidEnvironment(env string) bool {
 // Sensitive fields are redacted
 func (c *Config) String() string {
 	return fmt.Sprintf(
-		"Config{Port: %s, DatabaseURL: [REDACTED], Environment: %s}",
+		"Config{"+
+			"Port: %s, "+
+			"Environment: %s, "+
+			"DBHost: %s, "+
+			"DBPort: %s, "+
+			"DBUser: %s, "+
+			"DBName: %s, "+
+			"DatabaseURL: [REDACTED]"+
+			"}",
 		c.Port,
 		c.Environment,
+		c.DBHost,
+		c.DBPort,
+		c.DBUser,
+		c.DBName,
 	)
 }
