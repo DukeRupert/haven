@@ -80,6 +80,40 @@ func (db *DB) GetUsersByFacilityCode(ctx context.Context, facilityCode string) (
 	return users, nil
 }
 
+func (db *DB) GetUserByInitialsAndFacility(ctx context.Context, initials string, facilityID int) (*User, error) {
+    var user User
+    err := db.pool.QueryRow(ctx, `
+        SELECT 
+            id, 
+            created_at, 
+            updated_at, 
+            first_name, 
+            last_name, 
+            initials, 
+            email, 
+            facility_id, 
+            role
+        FROM users
+        WHERE initials = $1 
+        AND facility_id = $2
+    `, initials, facilityID).Scan(
+        &user.ID,
+        &user.CreatedAt,
+        &user.UpdatedAt,
+        &user.FirstName,
+        &user.LastName,
+        &user.Initials,
+        &user.Email,
+        &user.FacilityID,
+        &user.Role,
+    )
+    if err != nil {
+        return nil, fmt.Errorf("error getting user by initials and facility: %w", err)
+    }
+
+    return &user, nil
+}
+
 func (db *DB) CreateUser(ctx context.Context, params CreateUserParams) (*User, error) {
     // First check if email is unique
     var count int

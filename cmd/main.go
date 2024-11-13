@@ -94,6 +94,8 @@ func main() {
 	admin.GET("/:code", userHandler.GetUsersByFacility)
 	admin.GET("/:code/user/create", userHandler.CreateUserForm)
 	admin.POST("/:code/user", userHandler.CreateUser)
+	admin.GET("/:code/:initials", userHandler.UserPage)
+	
 	// Super admin routes
 	super := app.Group("/super")
 	super.GET("", func(c echo.Context) error {

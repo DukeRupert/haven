@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 	"fmt"
+	"errors"
 
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/view/alert"
@@ -11,6 +12,7 @@ import (
 	"github.com/DukeRupert/haven/view/user"
 	"github.com/DukeRupert/haven/view/admin"
 	"github.com/DukeRupert/haven/view/component"
+	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/bcrypt"
@@ -204,6 +206,62 @@ func (h *UserHandler) GetUsersByFacility(c echo.Context) error {
 		Msg("successfully retrieved users")
 
 	return render(c, admin.ShowFacilities("Controllers", users))
+}
+
+func (h *UserHandler) UserPage(c echo.Context) error {
+    logger := h.logger
+    
+    // Get path parameters
+    facilityCode := c.Param("code")
+    initials := c.Param("initials")
+
+    // First get the facility to ensure it exists
+    facility, err := h.db.GetFacilityByCode(c.Request().Context(), facilityCode)
+    if err != nil {
+        logger.Error().
+            Err(err).
+            Str("facility_code", facilityCode).
+            Msg("failed to find facility")
+        return c.String(http.StatusNotFound, "Facility not found")
+    }
+
+    // Get user by initials and facility ID
+    u, err := h.db.GetUserByInitialsAndFacility(c.Request().Context(), initials, facility.ID)
+    if err != nil {
+        logger.Error().
+            Err(err).
+            Str("initials", initials).
+            Int("facility_id", facility.ID).
+            Msg("failed to find user")
+        return c.String(http.StatusNotFound, "User not found")
+    }
+
+    // Get the user's schedule
+    schedule, err := h.db.GetScheduleByUserID(c.Request().Context(), u.ID)
+    if err != nil {
+        // Check if it's a "not found" error - if so, we'll continue without a schedule
+        if errors.Is(err, pgx.ErrNoRows) {
+            logger.Info().
+                Int("user_id", u.ID).
+                Msg("user has no schedule")
+        } else {
+            logger.Error().
+                Err(err).
+                Int("user_id", u.ID).
+                Msg("failed to get user schedule")
+            return c.String(http.StatusInternalServerError, "Failed to get schedule")
+        }
+    }
+
+    logger.Info().
+        Int("user_id", u.ID).
+        Str("initials", u.Initials).
+        Int("facility_id", u.FacilityID).
+        Interface("schedule", schedule).
+        Msg("user schedule page accessed")
+
+    // Return the user schedule page
+    return render(c, user.UserPage("Profile", *u, *schedule))
 }
 
 func (h *UserHandler) CreateUserForm(c echo.Context) error {
