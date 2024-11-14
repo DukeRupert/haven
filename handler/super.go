@@ -33,7 +33,7 @@ func (h *SuperHandler) GetFacilities(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError,
 			"Failed to retrieve facilities")
 	}
-	return render(c, super.ShowFacilities("facilities", facs))
+	return render(c, super.ShowFacilities("facilities", "Add a description here", facs))
 }
 
 // Create handles POST /super/facilities

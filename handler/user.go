@@ -203,7 +203,9 @@ func (h *UserHandler) GetUsersByFacility(c echo.Context) error {
 		Dur("handler_duration_ms", handlerDuration).
 		Msg("successfully retrieved users")
 
-	return render(c, admin.ShowFacilities("Controllers", users))
+    title := "Controllers"
+    description := "A list of all controllers assigned to the facility."
+	return render(c, admin.ShowFacilities(title, description, users))
 }
 
 func (h *UserHandler) UserPage(c echo.Context) error {
@@ -242,9 +244,6 @@ func (h *UserHandler) UserPage(c echo.Context) error {
             Msg("failed to find user details")
         return c.String(http.StatusNotFound, "User not found")
     }
-
-    // No need to check for nil schedule anymore since GetUserDetails 
-    // always returns a valid Schedule struct (either populated or empty)
     
     // Log success with performance metrics
     logger.Info().
@@ -257,8 +256,9 @@ func (h *UserHandler) UserPage(c echo.Context) error {
         Str("performance_category", "page_load").
         Msg("user page rendered successfully")
 
-    // The template already handles the schedule.ID == 0 case
-    return render(c, user.UserPage("Profile", details.User, details.Facility, details.Schedule))
+    title := "Profile"
+    description := "Manage your account information and schedule"
+    return render(c, user.UserPage(title, description, details.User, details.Facility, details.Schedule))
 }
 
 func (h *UserHandler) CreateUserForm(c echo.Context) error {

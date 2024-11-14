@@ -17,7 +17,7 @@ templ ScheduleCard(schedule db.Schedule) {
 						<dt class="text-sm font-medium text-gray-500">Start Date</dt>
 						<dd class="mt-1 text-sm text-gray-900">{ schedule.StartDate.Format("January 2, 2006") }</dd>
 					</div>
-					<div class="grid grid-cols-7 gap-2">
+					<div class="grid grid-cols-4 sm:grid-cols-7 gap-2">
 						for i, day := range []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"} {
 							@WeekDayBox(
 								day,
