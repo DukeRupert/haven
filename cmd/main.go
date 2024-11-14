@@ -66,6 +66,7 @@ func main() {
 	e.Use(session.Middleware(store))
 
 	// Initialize handlers after session middleware
+	h := handler.NewHandler(database, logger)
 	authHandler := auth.NewAuthHandler(database, store, logger)
 	userHandler := handler.NewUserHandler(database, logger)
 	superHandler := handler.NewSuperHandler(database, logger)
@@ -77,6 +78,12 @@ func main() {
 	e.GET("/login", userHandler.GetLogin)
 	e.POST("/login", authHandler.LoginHandler())
 	e.POST("/logout", authHandler.LogoutHandler()) // Fixed route path to include leading slash
+
+	// Api
+	api := e.Group("/api")
+	api.Use(authHandler.AuthMiddleware())
+	api.GET("/:fid/:uid/schedule/new", h.CreateScheduleForm)
+	api.POST("/:fid/:uid/schedule", h.CreateSchedule)
 
 	// Protected routes
 	app := e.Group("/app")
@@ -91,11 +98,11 @@ func main() {
 	admin.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "You have access to Admin routes")
 	})
-	// admin.GET("/:code", userHandler.GetUsersByFacility)
+	admin.GET("/:code", userHandler.GetUsersByFacility)
 	admin.GET("/:code/user/create", userHandler.CreateUserForm)
 	admin.POST("/:code/user", userHandler.CreateUser)
 	admin.GET("/:code/:initials", userHandler.UserPage)
-	
+
 	// Super admin routes
 	super := app.Group("/super")
 	super.GET("", func(c echo.Context) error {

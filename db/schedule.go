@@ -248,3 +248,81 @@ func (db *DB) ListSchedules(ctx context.Context, facilityID int) ([]Schedule, er
 
     return schedules, nil
 }
+
+func (db *DB) CreateSchedule(ctx context.Context, params CreateScheduleParams) (*Schedule, error) {
+	// Check if user exists first
+	exists, err := db.doesUserExist(ctx, params.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("error checking user existence: %w", err)
+	}
+	if !exists {
+		return nil, ErrUserNotFound
+	}
+
+	// Check if user already has a schedule
+	hasSchedule, err := db.doesUserHaveSchedule(ctx, params.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("error checking existing schedule: %w", err)
+	}
+	if hasSchedule {
+		return nil, ErrUserScheduleExists
+	}
+
+	var schedule Schedule
+	now := time.Now()
+	err = db.QueryRow(ctx, `
+		INSERT INTO schedules (
+			created_at,
+			updated_at,
+			user_id,
+			first_weekday,
+			second_weekday,
+			start_date
+		)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, created_at, updated_at, user_id, first_weekday, second_weekday, start_date
+	`, now, now, params.UserID, params.FirstDay, params.SecondDay, params.StartDate).Scan(
+		&schedule.ID,
+		&schedule.CreatedAt,
+		&schedule.UpdatedAt,
+		&schedule.UserID,
+		&schedule.FirstWeekday,
+		&schedule.SecondWeekday,
+		&schedule.StartDate,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error creating schedule: %w", err)
+	}
+
+	return &schedule, nil
+}
+
+// Helper method to check if user exists
+func (db *DB) doesUserExist(ctx context.Context, userID int) (bool, error) {
+	var exists bool
+	err := db.QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)
+	`, userID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("error checking user existence: %w", err)
+	}
+	return exists, nil
+}
+
+// Helper method to check if user already has a schedule
+func (db *DB) doesUserHaveSchedule(ctx context.Context, userID int) (bool, error) {
+	var exists bool
+	err := db.QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM schedules WHERE user_id = $1)
+	`, userID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("error checking existing schedule: %w", err)
+	}
+	return exists, nil
+}
+
+// Error definitions (add these to your errors.go file)
+var (
+	ErrUserNotFound      = fmt.Errorf("user not found")
+	ErrUserScheduleExists = fmt.Errorf("user already has a schedule")
+)

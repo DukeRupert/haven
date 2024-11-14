@@ -219,6 +219,11 @@ func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
 				Str("path", c.Path()).
 				Logger()
 
+			h.logger.Debug().
+				Str("path", c.Path()).
+				Str("method", c.Request().Method).
+				Msg("auth middleware hit")
+
 			// Get session from context (previously set by SessionMiddleware)
 			sess, err := session.Get(DefaultSessionName, c)
 			// sess, ok := c.Get("session").(*sessions.Session)
