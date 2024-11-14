@@ -69,7 +69,6 @@ func main() {
 	h := handler.NewHandler(database, logger)
 	authHandler := auth.NewAuthHandler(database, store, logger)
 	userHandler := handler.NewUserHandler(database, logger)
-	superHandler := handler.NewSuperHandler(database, logger)
 
 	// Public routes
 	e.GET("/", func(c echo.Context) error {
@@ -93,6 +92,12 @@ func main() {
 		return c.String(http.StatusOK, "You have access to User routes")
 	})
 
+	super := app.Group("", authHandler.RoleAuthMiddleware("super"))
+	super.GET("/facilities", h.GetFacilities)
+	super.POST("/facilities", h.PostFacilities)
+	super.GET("/facilities/create", h.CreateFacilityForm)
+	super.GET("/facilities/:fid/update", h.UpdateFacilityForm)
+	super.PUT("/facilities/:fid", h.UpdateFacility)
 	// Admin routes
 	admin := app.Group("/admin")
 	admin.GET("/", func(c echo.Context) error {
@@ -102,16 +107,6 @@ func main() {
 	admin.GET("/:code/user/create", userHandler.CreateUserForm)
 	admin.POST("/:code/user", userHandler.CreateUser)
 	admin.GET("/:code/:initials", userHandler.UserPage)
-
-	// Super admin routes
-	super := app.Group("/super")
-	super.GET("", func(c echo.Context) error {
-		return c.String(http.StatusOK, "You have access to Super routes")
-	})
-	super.GET("/facilities", superHandler.GetFacilities)
-	super.POST("/facilities", superHandler.Create)
-	super.GET("/facilities/create", superHandler.CreateFacilityForm)
-	super.POST("/facilities/:id", superHandler.Update)
 
 	// Start server
 	logger.Info().Msg("Starting server on :8080")

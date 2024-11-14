@@ -255,6 +255,77 @@ func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
 	}
 }
 
+// RoleAuthMiddleware protects routes by checking if the user has sufficient role permissions.
+// It verifies session auth, validates user_id and role, and enforces minimum role requirements.
+// Returns 403 Forbidden for insufficient permissions or redirects to login for auth failures.
+// Usage: e.GET("/admin", handler, h.RoleAuthMiddleware("super"))
+func (h *AuthHandler) RoleAuthMiddleware(minimumRole models.UserRole) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			logger := h.logger.With().
+				Str("middleware", "RoleAuthMiddleware()").
+				Str("path", c.Path()).
+				Logger()
+
+			logger.Debug().Msg("Executing RoleAuthMiddleware()")
+			// Get session from context
+			sess, err := session.Get(DefaultSessionName, c)
+			// sess, ok := c.Get("session").(*sessions.Session)
+			if err != nil {
+				logger.Error().Msg("no session found in context")
+				return redirectToLogin(c)
+			}
+			// Check if user is authenticated
+			userID, ok := sess.Values["user_id"].(int)
+			if !ok || userID == 0 {
+				logger.Debug().Msg("no valid user_id in session")
+				return redirectToLogin(c)
+			}
+
+			// Check role if present
+			role, ok := sess.Values["role"].(models.UserRole)
+			if !ok {
+				logger.Debug().Str("role", string(role)).Int("user_id", userID).Msg("no valid role in session")
+				return redirectToLogin(c)
+			}
+
+			// Check if user's role meets minimum required role
+			if !isAtLeastRole(string(role), string(minimumRole)) {
+				logger.Debug().
+					Str("user_role", string(role)).
+					Msg("insufficient role permissions")
+				return echo.NewHTTPError(http.StatusForbidden, "Insufficient permissions")
+			}
+
+			// Add user info to context for use in handlers
+			c.Set("user_id", userID)
+			c.Set("user_role", role)
+			return next(c)
+		}
+	}
+}
+
+// isAtLeastRole checks if the current role meets or exceeds the minimum required role
+func isAtLeastRole(currentRole string, minimumRole string) bool {
+	roleValues := map[string]int{
+		"user":  1,
+		"admin": 2,
+		"super": 3,
+	}
+
+	currentLevel, ok := roleValues[currentRole]
+	if !ok {
+		return false
+	}
+
+	requiredLevel, ok := roleValues[minimumRole]
+	if !ok {
+		return false
+	}
+
+	return currentLevel >= requiredLevel
+}
+
 func redirectToLogin(c echo.Context) error {
 	// If it's an API request, return 401
 	if isAPIRequest(c) {

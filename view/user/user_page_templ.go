@@ -60,7 +60,7 @@ func UserPage(title string, description string, user db.User, facility db.Facili
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<!-- Bento Grid --> <div class=\"grid gap-4 lg:grid-cols-3 lg:grid-rows-2\"><!-- User Profile Card - Spans 2 rows --><div class=\"relative lg:row-span-2\"><div class=\"h-full overflow-hidden rounded-lg bg-white shadow\"><div class=\"px-6 py-8\"><div class=\"flex items-center justify-between\"><div class=\"flex items-center\"><div class=\"h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center\"><span class=\"text-xl font-medium text-indigo-700\">")
+				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 1)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -73,7 +73,7 @@ func UserPage(title string, description string, user db.User, facility db.Facili
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span></div><div class=\"ml-4\"><h2 class=\"text-xl font-medium text-gray-900\">")
+				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 2)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -86,7 +86,7 @@ func UserPage(title string, description string, user db.User, facility db.Facili
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" ")
+				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 3)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -99,7 +99,7 @@ func UserPage(title string, description string, user db.User, facility db.Facili
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</h2><p class=\"text-sm text-gray-500\">")
+				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 4)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -112,7 +112,7 @@ func UserPage(title string, description string, user db.User, facility db.Facili
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div>")
+				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 5)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -121,7 +121,7 @@ func UserPage(title string, description string, user db.User, facility db.Facili
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<span class=\"")
+				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 6)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -134,7 +134,7 @@ func UserPage(title string, description string, user db.User, facility db.Facili
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">")
+				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 7)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -147,7 +147,7 @@ func UserPage(title string, description string, user db.User, facility db.Facili
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span></div><!-- Rest of user profile content --></div></div></div><!-- Schedule Card -->")
+				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 8)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -162,7 +162,7 @@ func UserPage(title string, description string, user db.User, facility db.Facili
 						return templ_7745c5c3_Err
 					}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<!-- Facility Card --><div class=\"relative lg:col-span-2\"><div class=\"h-full overflow-hidden rounded-lg bg-white shadow\"><div class=\"px-6 py-8\"><h3 class=\"text-lg font-medium text-gray-900\">Facility Information</h3><div class=\"mt-6\"><dl class=\"grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2\"><div><dt class=\"text-sm font-medium text-gray-500\">Facility Name</dt><dd class=\"mt-1 text-sm text-gray-900\">")
+				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 9)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -175,7 +175,7 @@ func UserPage(title string, description string, user db.User, facility db.Facili
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</dd></div><div><dt class=\"text-sm font-medium text-gray-500\">Facility Code</dt><dd class=\"mt-1 text-sm text-gray-900\">")
+				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 10)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -188,7 +188,7 @@ func UserPage(title string, description string, user db.User, facility db.Facili
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</dd></div></dl></div></div></div></div></div>")
+				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 11)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
