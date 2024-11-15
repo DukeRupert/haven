@@ -1,13 +1,23 @@
-package user
+package page
 
 import (
 	"github.com/DukeRupert/haven/db"
-	"github.com/DukeRupert/haven/view/component"
 	"github.com/DukeRupert/haven/view/layout"
+	"github.com/DukeRupert/haven/models"
 )
 
+type PageData struct {
+	Title string
+	Description string
+}
+
+type UserData struct {
+	ID	 int
+	Role models.UserRole
+}
+
 // "github.com/DukeRupert/haven/utils"
-templ UserPage(title string, description string, user db.User, facility db.Facility, schedule db.Schedule) {
+templ UserPage(p PageData, u UserData, d db.UserDetails) {
 	@layout.BaseLayout() {
 		@layout.AppLayout() {
 			<!-- Bento Grid -->
@@ -19,15 +29,15 @@ templ UserPage(title string, description string, user db.User, facility db.Facil
 							<div class="flex items-center justify-between">
 								<div class="flex items-center">
 									<div class="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
-										<span class="text-xl font-medium text-indigo-700">{ user.Initials }</span>
+										<span class="text-xl font-medium text-indigo-700">{ d.User.Initials }</span>
 									</div>
 									<div class="ml-4">
-										<h2 class="text-xl font-medium text-gray-900">{ user.FirstName } { user.LastName }</h2>
-										<p class="text-sm text-gray-500">{ user.Email }</p>
+										<h2 class="text-xl font-medium text-gray-900">{ d.User.FirstName } { d.User.LastName }</h2>
+										<p class="text-sm text-gray-500">{ d.User.Email }</p>
 									</div>
 								</div>
-								<span class={ "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium " + user.Role.BadgeClass() }>
-									{ user.Role.String() }
+								<span class={ "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium " + d.User.Role.BadgeClass() }>
+									{ d.User.Role.String() }
 								</span>
 							</div>
 							<!-- Rest of user profile content -->
@@ -35,10 +45,10 @@ templ UserPage(title string, description string, user db.User, facility db.Facil
 					</div>
 				</div>
 				<!-- Schedule Card -->
-				if schedule.ID == 0 {
-					@component.EmptyScheduleCard(facility.ID, user.ID)
+				if d.Schedule.ID == 0 {
+					@EmptyScheduleCard(u, d.Facility.ID, d.User.ID)
 				} else {
-					@component.ScheduleCard(schedule)
+					@ScheduleCard(u, d.Schedule)
 				}
 				<!-- Facility Card -->
 				<div class="relative lg:col-span-2">
@@ -49,11 +59,11 @@ templ UserPage(title string, description string, user db.User, facility db.Facil
 								<dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
 									<div>
 										<dt class="text-sm font-medium text-gray-500">Facility Name</dt>
-										<dd class="mt-1 text-sm text-gray-900">{ facility.Name }</dd>
+										<dd class="mt-1 text-sm text-gray-900">{ d.Facility.Name }</dd>
 									</div>
 									<div>
 										<dt class="text-sm font-medium text-gray-500">Facility Code</dt>
-										<dd class="mt-1 text-sm text-gray-900">{ facility.Code }</dd>
+										<dd class="mt-1 text-sm text-gray-900">{ d.Facility.Code }</dd>
 									</div>
 								</dl>
 							</div>

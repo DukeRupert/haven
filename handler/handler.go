@@ -7,10 +7,12 @@ import (
 	"net/http"
 
 	"github.com/DukeRupert/haven/db"
+	"github.com/DukeRupert/haven/models"
 	"github.com/DukeRupert/haven/view/alert"
 	"github.com/DukeRupert/haven/view/page"
 	"github.com/DukeRupert/haven/view/component"
 
+	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 )
@@ -196,6 +198,16 @@ func (h *Handler) CreateSchedule(c echo.Context) error {
 		))
 	}
 
+	// Get session data
+    sess, err := session.Get("session", c)
+
+	userID := sess.Values["user_id"].(int)
+    role :=  sess.Values["role"].(models.UserRole)
+
+	userData := page.UserData{
+		ID: userID,
+		Role: role,
+	}
 	logger.Info().
 		Int("schedule_id", schedule.ID).
 		Int("facility_id", fid).
@@ -205,5 +217,5 @@ func (h *Handler) CreateSchedule(c echo.Context) error {
 			schedule.FirstWeekday, schedule.SecondWeekday)
 
 	// Return the updated schedule card
-	return render(c, component.ScheduleCard(*schedule))
+	return render(c, page.ScheduleCard(userData, *schedule))
 }

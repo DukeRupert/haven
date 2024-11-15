@@ -85,11 +85,8 @@ func main() {
 	// Protected routes
 	app := e.Group("/app")
 	app.Use(authHandler.AuthMiddleware())
-	app.GET("", userHandler.HandleUserShow)
-	app.GET("/dashboard", func(c echo.Context) error {
-		return c.String(http.StatusOK, "You have access to User routes")
-	})
-
+	app.GET("/", h.PlaceholderMessage)
+	app.GET("/:code/calendar", h.PlaceholderMessage)
 	app.GET("/:code", userHandler.GetUsersByFacility)
 	app.GET("/:code/:initials", userHandler.GetUser)
 
@@ -106,13 +103,6 @@ func main() {
 	super.GET("/facilities/create", h.CreateFacilityForm)
 	super.GET("/facilities/:fid/update", h.UpdateFacilityForm)
 	super.PUT("/facilities/:fid", h.UpdateFacility)
-
-	// Admin routes
-	a := app.Group("/admin")
-	a.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "You have access to Admin routes")
-	})
-	a.GET("/:code/:initials", userHandler.GetUser)
 
 	// Start server
 	logger.Info().Msg("Starting server on :8080")

@@ -1,11 +1,12 @@
-package component
+package page
 
 import (
 	"fmt"
+
 	"github.com/DukeRupert/haven/db"
 )
 
-templ ScheduleCard(schedule db.Schedule) {
+templ ScheduleCard(u UserData, schedule db.Schedule) {
 	<div class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
@@ -43,7 +44,19 @@ templ ScheduleCard(schedule db.Schedule) {
 	</div>
 }
 
-templ EmptyScheduleCard(fid int, uid int) {
+templ WeekDayBox(day string, isSelected bool) {
+    <div class="flex flex-col items-center">
+        <div class="text-xs font-medium text-gray-500 mb-2">{ day }</div>
+        <div 
+            class={ "h-10 w-10 rounded-lg flex items-center justify-center",
+                templ.KV("bg-indigo-600 text-white font-medium", isSelected),
+                templ.KV("bg-gray-100 text-gray-500", !isSelected) }>
+            { day }
+        </div>
+    </div>
+}
+
+templ EmptyScheduleCard(u UserData, fid int, uid int) {
 	<div id="schedule-card" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
