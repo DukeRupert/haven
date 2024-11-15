@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -255,89 +254,31 @@ func (h *UserHandler) GetUsersByFacility(c echo.Context) error {
 	return render(c, page.ShowFacilities(title, description, role, users))
 }
 
-type pageContext struct {
-	facility *db.Facility
-	details  *db.UserDetails
-	userID   int
-	role     db.UserRole // Changed from db.UserRole to db.UserRole
+// UserPageData contains all data needed for user page rendering
+type UserPageData struct {
+    Title       string
+    Description string
+    Auth        *db.AuthContext
+    User        *db.UserDetails
 }
 
 func (h *UserHandler) GetUser(c echo.Context) error {
-	startTime := time.Now()
-	ctx := c.Request().Context()
+    auth, err := GetAuthContext(c)
+    if err != nil {
+        return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+    }
 
-	// Setup structured logging
-	logger := h.logger.With().
-		Str("handler", "UserPage").
-		Str("method", "GET").
-		Str("path", "/app/facility/:code/user/:initials").
-		Str("facility_code", c.Param("code")).
-		Str("initials", c.Param("initials")).
-		Logger()
+    details, err := h.db.GetUserDetails(
+        c.Request().Context(),
+        c.Param("initials"),
+        auth.FacilityID,
+    )
+    if err != nil {
+        h.logger.Error().Err(err).Msg("failed to find user details")
+        return c.String(http.StatusNotFound, "User not found")
+    }
 
-	logger.Info().Msg("processing request to get user details")
-
-	// Gather all required data
-	pc, err := h.gatherPageData(ctx, c)
-	if err != nil {
-		return err
-	}
-
-	// Construct view data
-	viewData := h.constructViewData(pc)
-
-	// Log success with performance metrics
-	logPageLoadSuccess(logger, pc.details, startTime)
-
-	return render(c, page.UserPage(viewData.pageData, viewData.userData, *pc.details))
-}
-
-func (h *UserHandler) gatherPageData(ctx context.Context, c echo.Context) (*pageContext, error) {
-	// Get facility
-	facility, err := h.db.GetFacilityByCode(ctx, c.Param("code"))
-	if err != nil {
-		h.logger.Error().Err(err).Msg("failed to find facility")
-		return nil, c.String(http.StatusNotFound, "Facility not found")
-	}
-
-	// Get user details
-	details, err := h.db.GetUserDetails(ctx, c.Param("initials"), facility.ID)
-	if err != nil {
-		h.logger.Error().Err(err).Msg("failed to find user details")
-		return nil, c.String(http.StatusNotFound, "User not found")
-	}
-
-	// Get session data
-	sess, err := session.Get("session", c)
-	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get session")
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, "session error")
-	}
-
-	return &pageContext{
-		facility: facility,
-		details:  details,
-		userID:   sess.Values["user_id"].(int),
-		role:     sess.Values["role"].(db.UserRole), // Changed to db.UserRole
-	}, nil
-}
-
-type viewData struct {
-	pageData page.PageData
-	userData page.UserData
-}
-
-func (h *UserHandler) constructViewData(pc *pageContext) viewData {
-	return viewData{
-		pageData: page.PageData{
-			Title:       "Profile",
-			Description: "Manage your account information and schedule",
-		},
-		userData: page.UserData{
-			ID:   pc.userID,
-			Role: pc.role, // Make sure user.UserData expects db.UserRole
-		},
-	}
+    return render(c, page.UserPage("Profile", "Manage your account information and schedule", auth, details))
 }
 
 func logPageLoadSuccess(logger zerolog.Logger, details *db.UserDetails, startTime time.Time) {

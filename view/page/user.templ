@@ -5,22 +5,12 @@ import (
 	"github.com/DukeRupert/haven/view/layout"
 )
 
-type PageData struct {
-	Title string
-	Description string
-}
-
-type UserData struct {
-	ID	 int
-	Role db.UserRole
-}
-
 // "github.com/DukeRupert/haven/utils"
-templ UserPage(p PageData, u UserData, d db.UserDetails) {
+templ UserPage( Title string, Description string, AuthContext *db.AuthContext, UserDetails *db.UserDetails) {
 	@layout.BaseLayout() {
 		@layout.AppLayout() {
 			<!-- Bento Grid -->
-			<div class="grid gap-4 lg:grid-cols-3 lg:grid-rows-2">
+			<div class="grid gap-4 lg:grid-cols-3 lg:grid-rows-2"> 
 				<!-- User Profile Card - Spans 2 rows -->
 				<div class="relative lg:row-span-2">
 					<div class="h-full overflow-hidden rounded-lg bg-white shadow">
@@ -28,15 +18,15 @@ templ UserPage(p PageData, u UserData, d db.UserDetails) {
 							<div class="flex items-center justify-between">
 								<div class="flex items-center">
 									<div class="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
-										<span class="text-xl font-medium text-indigo-700">{ d.User.Initials }</span>
+										<span class="text-xl font-medium text-indigo-700">{ UserDetails.User.Initials }</span>
 									</div>
 									<div class="ml-4">
-										<h2 class="text-xl font-medium text-gray-900">{ d.User.FirstName } { d.User.LastName }</h2>
-										<p class="text-sm text-gray-500">{ d.User.Email }</p>
+										<h2 class="text-xl font-medium text-gray-900">{ UserDetails.User.FirstName } { UserDetails.User.LastName }</h2>
+										<p class="text-sm text-gray-500">{ UserDetails.User.Email }</p>
 									</div>
 								</div>
-								<span class={ "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium " + d.User.Role.BadgeClass() }>
-									{ d.User.Role.String() }
+								<span class={ "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium " + UserDetails.User.Role.BadgeClass() }>
+									{ UserDetails.User.Role.String() }
 								</span>
 							</div>
 							<!-- Rest of user profile content -->
@@ -44,10 +34,10 @@ templ UserPage(p PageData, u UserData, d db.UserDetails) {
 					</div>
 				</div>
 				<!-- Schedule Card -->
-				if d.Schedule.ID == 0 {
-					@EmptyScheduleCard(u, d.Facility.ID, d.User.ID)
+				if UserDetails.Schedule.ID == 0 {
+					@EmptyScheduleCard(*AuthContext, UserDetails.Schedule, UserDetails.Schedule.UserID, UserDetails.User.FacilityID)
 				} else {
-					@ScheduleCard(u, d.Schedule)
+					@ScheduleCard(*AuthContext, UserDetails.Schedule, UserDetails.Schedule.UserID, UserDetails.User.FacilityID)
 				}
 				<!-- Facility Card -->
 				<div class="relative lg:col-span-2">
@@ -58,11 +48,11 @@ templ UserPage(p PageData, u UserData, d db.UserDetails) {
 								<dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
 									<div>
 										<dt class="text-sm font-medium text-gray-500">Facility Name</dt>
-										<dd class="mt-1 text-sm text-gray-900">{ d.Facility.Name }</dd>
+										<dd class="mt-1 text-sm text-gray-900">{ UserDetails.Facility.Name }</dd>
 									</div>
 									<div>
 										<dt class="text-sm font-medium text-gray-500">Facility Code</dt>
-										<dd class="mt-1 text-sm text-gray-900">{ d.Facility.Code }</dd>
+										<dd class="mt-1 text-sm text-gray-900">{ UserDetails.Facility.Code }</dd>
 									</div>
 								</dl>
 							</div>

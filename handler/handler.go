@@ -250,15 +250,11 @@ func (h *Handler) CreateSchedule(c echo.Context) error {
 	}
 
 	// Get session data
-	sess, err := session.Get("session", c)
+	auth, err := GetAuthContext(c)
+    if err != nil {
+        return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+    }
 
-	userID := sess.Values["user_id"].(int)
-	role := sess.Values["role"].(db.UserRole)
-
-	userData := page.UserData{
-		ID:   userID,
-		Role: role,
-	}
 	logger.Info().
 		Int("schedule_id", schedule.ID).
 		Int("facility_id", fid).
@@ -268,5 +264,5 @@ func (h *Handler) CreateSchedule(c echo.Context) error {
 			schedule.FirstWeekday, schedule.SecondWeekday)
 
 	// Return the updated schedule card
-	return render(c, page.ScheduleCard(userData, *schedule))
+	return render(c, page.ScheduleCard(*auth, *schedule, uid, fid))
 }
