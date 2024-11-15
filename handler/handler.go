@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+	"net/http"
 
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/view/alert"
+	"github.com/DukeRupert/haven/view/page"
 	"github.com/DukeRupert/haven/view/component"
 
 	"github.com/labstack/echo/v4"
@@ -24,6 +26,18 @@ func NewHandler(db *db.DB, logger zerolog.Logger) *Handler {
 		db:     db,
 		logger: logger.With().Str("component", "superHandler").Logger(),
 	}
+}
+
+func (h *Handler) ShowHome(c echo.Context) error {
+		return render(c, page.Landing())
+	}
+
+// PlaceholderMessage handles rendering a simple string message
+func (h *Handler) PlaceholderMessage(c echo.Context) error {
+
+	// Here you would typically have your component.PlaceholderMessage
+	// For this example, we'll return the raw message
+	return c.String(http.StatusOK, "Fix me. I need some love.")
 }
 
 func (h *Handler) CreateScheduleForm(c echo.Context) error {

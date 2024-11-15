@@ -1,16 +1,19 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
-	"fmt"
 
 	"github.com/DukeRupert/haven/db"
+	"github.com/DukeRupert/haven/models"
+	"github.com/DukeRupert/haven/validation"
+	"github.com/DukeRupert/haven/view/page"
 	"github.com/DukeRupert/haven/view/alert"
 	"github.com/DukeRupert/haven/view/auth"
-	"github.com/DukeRupert/haven/view/user"
-    "github.com/DukeRupert/haven/view/admin"
 	"github.com/DukeRupert/haven/view/component"
+	"github.com/DukeRupert/haven/view/user"
+	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/bcrypt"
@@ -31,135 +34,159 @@ func NewUserHandler(db *db.DB, logger zerolog.Logger) *UserHandler {
 
 // Create handles POST app/admin/:code/users
 func (h *UserHandler) CreateUser(c echo.Context) error {
-    logger := h.logger
+	logger := h.logger
 
-    var params db.CreateUserParams
-    if err := c.Bind(&params); err != nil {
-        logger.Error().
-            Err(err).
-            Msg("failed to bind request payload")
+	var params db.CreateUserParams
+	if err := c.Bind(&params); err != nil {
+		logger.Error().
+			Err(err).
+			Msg("failed to bind request payload")
 
-        return render(c, alert.Error(
-            "Invalid request",
-            []string{"The submitted form data was invalid"},
-        ))
-    }
+		return render(c, alert.Error(
+			"Invalid request",
+			[]string{"The submitted form data was invalid"},
+		))
+	}
 
-    // Get facility code from request
-    facilityCode := c.FormValue("facility_code")
-    if facilityCode == "" {
-        return render(c, alert.Error(
-            "Invalid request",
-            []string{"Facility code is required"},
-        ))
-    }
+	// Get facility code from request
+	facilityCode := c.FormValue("facility_code")
+	if facilityCode == "" {
+		return render(c, alert.Error(
+			"Invalid request",
+			[]string{"Facility code is required"},
+		))
+	}
 
-    // Look up facility ID by code
-    facility, err := h.db.GetFacilityByCode(c.Request().Context(), facilityCode)
-    if err != nil {
-        logger.Error().
-            Err(err).
-            Str("facility_code", facilityCode).
-            Msg("failed to find facility by code")
-        return render(c, alert.Error(
-            "Invalid facility",
-            []string{"The specified facility code was not found"},
-        ))
-    }
+	// Look up facility ID by code
+	facility, err := h.db.GetFacilityByCode(c.Request().Context(), facilityCode)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Str("facility_code", facilityCode).
+			Msg("failed to find facility by code")
+		return render(c, alert.Error(
+			"Invalid facility",
+			[]string{"The specified facility code was not found"},
+		))
+	}
 
-    // Set the facility ID in the params
-    params.FacilityID = facility.ID
+	// Set the facility ID in the params
+	params.FacilityID = facility.ID
 
-    // Collect validation errors
-    var errors []string
-    if params.FirstName == "" {
-        errors = append(errors, "First name is required")
-    }
-    if params.LastName == "" {
-        errors = append(errors, "Last name is required")
-    }
-    if params.Initials == "" {
-        errors = append(errors, "Initials are required")
-    }
-    if len(params.Initials) > 10 {
-        errors = append(errors, "Initials must not exceed 10 characters")
-    }
-    if params.Email == "" {
-        errors = append(errors, "Email is required")
-    }
-    if params.Password == "" {
-        errors = append(errors, "Password is required")
-    }
-    if len(params.Password) < 8 {
-        errors = append(errors, "Password must be at least 8 characters")
-    }
-    if !isValidRole(params.Role) {
-        errors = append(errors, "Invalid role specified")
-    }
+	// Collect validation errors
+	var errors []string
 
-    if len(errors) > 0 {
-        logger.Error().
-            Strs("validation_errors", errors).
-            Msg("validation failed")
+	// Validate first name
+	firstName, err := validation.ValidateUserName(params.FirstName, "First name")
+	if err != nil {
+		errors = append(errors, err.Error())
+	} else {
+		params.FirstName = string(firstName)
+	}
 
-        heading := "There was 1 error with your submission"
-        if len(errors) > 1 {
-            heading = fmt.Sprintf("There were %d errors with your submission", len(errors))
-        }
+	// Validate last name
+	lastName, err := validation.ValidateUserName(params.LastName, "Last name")
+	if err != nil {
+		errors = append(errors, err.Error())
+	} else {
+		params.LastName = string(lastName)
+	}
 
-        return render(c, alert.Error(heading, errors))
-    }
+	// Validate initials
+	initials, err := validation.ValidateUserInitials(params.Initials)
+	if err != nil {
+		errors = append(errors, err.Error())
+	} else {
+		params.Initials = string(initials)
+	}
 
-    // Hash the password before storing
-    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.DefaultCost)
-    if err != nil {
-        logger.Error().
-            Err(err).
-            Msg("failed to hash password")
-        return render(c, alert.Error("System error",
-            []string{"Failed to create user. Please try again later"}))
-    }
-    params.Password = string(hashedPassword)
+	// Validate email
+	email, err := validation.ValidateUserEmail(params.Email)
+	if err != nil {
+		errors = append(errors, err.Error())
+	} else {
+		params.Email = string(email)
+	}
 
-    // Create the user
-    user, err := h.db.CreateUser(c.Request().Context(), params)
-    if err != nil {
-        logger.Error().
-            Err(err).
-            Interface("params", params).
-            Msg("failed to create user in database")
-        return render(c, alert.Error("System error",
-            []string{"Failed to create user. Please try again later"}))
-    }
+	// Validate password
+	password, err := validation.ValidateUserPassword(params.Password)
+	if err != nil {
+		errors = append(errors, err.Error())
+	} else {
+		params.Password = string(password)
+	}
 
-    logger.Info().
-        Int("user_id", user.ID).
-        Str("email", user.Email).
-        Int("facility_id", user.FacilityID).
-        Str("role", string(user.Role)).
-        Msg("user created successfully")
+	// Validate role
+	validatedRole, err := validation.ValidateUserRole(string(params.Role))
+	if err != nil {
+		errors = append(errors, err.Error())
+	} else {
+		params.Role = validatedRole
+	}
 
-    return render(c, component.UserListItem(*user))
+	if len(errors) > 0 {
+		logger.Error().
+			Strs("validation_errors", errors).
+			Msg("validation failed")
+
+		heading := "There was 1 error with your submission"
+		if len(errors) > 1 {
+			heading = fmt.Sprintf("There were %d errors with your submission", len(errors))
+		}
+
+		return render(c, alert.Error(heading, errors))
+	}
+
+	// Hash the password before storing
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.DefaultCost)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Msg("failed to hash password")
+		return render(c, alert.Error("System error",
+			[]string{"Failed to create user. Please try again later"}))
+	}
+	params.Password = string(hashedPassword)
+
+	// Create the user
+	user, err := h.db.CreateUser(c.Request().Context(), params)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Interface("params", params).
+			Msg("failed to create user in database")
+		return render(c, alert.Error("System error",
+			[]string{"Failed to create user. Please try again later"}))
+	}
+
+	logger.Info().
+		Int("user_id", user.ID).
+		Str("email", user.Email).
+		Int("facility_id", user.FacilityID).
+		Str("role", string(user.Role)).
+		Msg("user created successfully")
+
+	return render(c, page.UserListItem(*user))
 }
 
 // Helper function to validate role
 func isValidRole(role db.UserRole) bool {
-    validRoles := []db.UserRole{"super", "admin", "user"}
-    for _, r := range validRoles {
-        if role == r {
-            return true
-        }
-    }
-    return false
+	validRoles := []db.UserRole{"super", "admin", "user"}
+	for _, r := range validRoles {
+		if role == r {
+			return true
+		}
+	}
+	return false
 }
 
-// GetUsersByFacility handles the GET /app/admin/:code endpoint
+// GetUsersByFacility handles the GET /app/:code endpoint
 func (h *UserHandler) GetUsersByFacility(c echo.Context) error {
 	startTime := time.Now()
 	logger := h.logger.With().
 		Str("handler", "GetUsersByFacility").
 		Str("method", "GET").
-		Str("path", "/app/admin/:code").
+		Str("path", "/app/:code").
 		Logger()
 
 	// Get facility code from route parameter
@@ -194,6 +221,20 @@ func (h *UserHandler) GetUsersByFacility(c echo.Context) error {
 		users = []db.User{}
 	}
 
+	// Get session
+	sess, err := session.Get("session", c)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get session")
+		return echo.NewHTTPError(http.StatusInternalServerError, "session error")
+	}
+
+	// Check role if present
+	role, ok := sess.Values["role"].(models.UserRole)
+	if !ok {
+		logger.Debug().Str("role", string(role)).Msg("no valid role in session")
+		role = "user"
+	}
+
 	// Track handler duration
 	handlerDuration := time.Since(startTime)
 
@@ -203,62 +244,62 @@ func (h *UserHandler) GetUsersByFacility(c echo.Context) error {
 		Dur("handler_duration_ms", handlerDuration).
 		Msg("successfully retrieved users")
 
-    title := "Controllers"
-    description := "A list of all controllers assigned to the facility."
-	return render(c, admin.ShowFacilities(title, description, users))
+	title := "Controllers"
+	description := "A list of all controllers assigned to the facility."
+	return render(c, page.ShowFacilities(title, description, role, users))
 }
 
-func (h *UserHandler) UserPage(c echo.Context) error {
-    startTime := time.Now()
-    logger := h.logger.With().
-        Str("handler", "UserPage").
-        Str("method", "GET").
-        Str("path", "/app/facility/:code/user/:initials").
-        Logger()
+func (h *UserHandler) GetUser(c echo.Context) error {
+	startTime := time.Now()
+	logger := h.logger.With().
+		Str("handler", "UserPage").
+		Str("method", "GET").
+		Str("path", "/app/facility/:code/user/:initials").
+		Logger()
 
-    // Get path parameters
-    facilityCode := c.Param("code")
-    initials := c.Param("initials")
+	// Get path parameters
+	facilityCode := c.Param("code")
+	initials := c.Param("initials")
 
-    logger = logger.With().
-        Str("facility_code", facilityCode).
-        Str("initials", initials).
-        Logger()
+	logger = logger.With().
+		Str("facility_code", facilityCode).
+		Str("initials", initials).
+		Logger()
 
-    logger.Info().Msg("processing request to get user details")
+	logger.Info().Msg("processing request to get user details")
 
-    // Get the facility first to get its ID
-    facility, err := h.db.GetFacilityByCode(c.Request().Context(), facilityCode)
-    if err != nil {
-        logger.Error().
-            Err(err).
-            Msg("failed to find facility")
-        return c.String(http.StatusNotFound, "Facility not found")
-    }
+	// Get the facility first to get its ID
+	facility, err := h.db.GetFacilityByCode(c.Request().Context(), facilityCode)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Msg("failed to find facility")
+		return c.String(http.StatusNotFound, "Facility not found")
+	}
 
-    // Get all user details in parallel queries
-    details, err := h.db.GetUserDetails(c.Request().Context(), initials, facility.ID)
-    if err != nil {
-        logger.Error().
-            Err(err).
-            Msg("failed to find user details")
-        return c.String(http.StatusNotFound, "User not found")
-    }
-    
-    // Log success with performance metrics
-    logger.Info().
-        Int("user_id", details.User.ID).
-        Str("initials", details.User.Initials).
-        Int("facility_id", details.User.FacilityID).
-        Bool("has_schedule", details.Schedule.ID != 0).
-        Dur("duration_ms", time.Since(startTime)).
-        Float64("duration_seconds", time.Since(startTime).Seconds()).
-        Str("performance_category", "page_load").
-        Msg("user page rendered successfully")
+	// Get all user details in parallel queries
+	details, err := h.db.GetUserDetails(c.Request().Context(), initials, facility.ID)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Msg("failed to find user details")
+		return c.String(http.StatusNotFound, "User not found")
+	}
 
-    title := "Profile"
-    description := "Manage your account information and schedule"
-    return render(c, user.UserPage(title, description, details.User, details.Facility, details.Schedule))
+	// Log success with performance metrics
+	logger.Info().
+		Int("user_id", details.User.ID).
+		Str("initials", details.User.Initials).
+		Int("facility_id", details.User.FacilityID).
+		Bool("has_schedule", details.Schedule.ID != 0).
+		Dur("duration_ms", time.Since(startTime)).
+		Float64("duration_seconds", time.Since(startTime).Seconds()).
+		Str("performance_category", "page_load").
+		Msg("user page rendered successfully")
+
+	title := "Profile"
+	description := "Manage your account information and schedule"
+	return render(c, user.UserPage(title, description, details.User, details.Facility, details.Schedule))
 }
 
 func (h *UserHandler) CreateUserForm(c echo.Context) error {

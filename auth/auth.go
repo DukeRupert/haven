@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"time"
+	"fmt"
 
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/models"
@@ -14,7 +15,6 @@ import (
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -73,7 +73,7 @@ type LoginParams struct {
 // LoginHandler handles user login requests
 func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		// Get session using echo-contrib/session
+		// Get session
 		sess, err := session.Get(DefaultSessionName, c)
 		if err != nil {
 			h.logger.Error().Err(err).Msg("Failed to get session")
@@ -92,7 +92,28 @@ func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
 		}
 
-		log.Debug().Int("user_id", user.ID).Str("role", string(user.Role)).Msg("Setting session values")
+		// Query facility information if user has an associated facility
+		var facility *db.Facility
+
+		facility, err = h.db.GetFacilityByID(c.Request().Context(), user.FacilityID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				h.logger.Warn().
+					Int("facility_id", user.FacilityID).
+					Msg("Facility not found for authenticated user")
+			} else {
+				h.logger.Error().
+					Err(err).
+					Int("facility_id", user.FacilityID).
+					Msg("Failed to query facility information")
+				return echo.NewHTTPError(http.StatusInternalServerError, "database error")
+			}
+		} else {
+			// Add facility to session if found
+			sess.Values["facility_id"] = facility.ID
+			sess.Values["facility_name"] = facility.Name
+			sess.Values["facility_code"] = facility.Code
+		}
 
 		// Set session values
 		sess.Values["user_id"] = user.ID
@@ -105,7 +126,9 @@ func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
 		}
 
-		return c.JSON(http.StatusOK, user)
+		 // Redirect to facility page
+        redirectURL := fmt.Sprintf("/app/%s/", facility.Code)
+        return c.Redirect(http.StatusSeeOther, redirectURL)
 	}
 }
 
@@ -193,7 +216,7 @@ func (h *AuthHandler) LogoutHandler() echo.HandlerFunc {
 			Str("session_id", sess.ID).
 			Msg("logout successful")
 
-		return c.Redirect(http.StatusTemporaryRedirect, "/login")
+		return c.Redirect(http.StatusOK, "/login")
 	}
 }
 
@@ -226,7 +249,6 @@ func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
 
 			// Get session from context (previously set by SessionMiddleware)
 			sess, err := session.Get(DefaultSessionName, c)
-			// sess, ok := c.Get("session").(*sessions.Session)
 			if err != nil {
 				logger.Error().Msg("no session found in context")
 				return redirectToLogin(c)
@@ -305,6 +327,55 @@ func (h *AuthHandler) RoleAuthMiddleware(minimumRole models.UserRole) echo.Middl
 	}
 }
 
+// RedirectIfAuthenticated middleware checks if a user is already logged in when accessing the login page
+// and redirects them to their facility page if they are.
+func (h *AuthHandler) RedirectIfAuthenticated() echo.MiddlewareFunc {
+    return func(next echo.HandlerFunc) echo.HandlerFunc {
+        return func(c echo.Context) error {
+            logger := h.logger.With().
+                Str("middleware", "RedirectIfAuthenticated()").
+                Str("path", c.Path()).
+                Logger()
+
+            logger.Debug().
+                Str("method", c.Request().Method).
+                Msg("redirect middleware hit")
+
+            // Get session
+            sess, err := session.Get(DefaultSessionName, c)
+            if err != nil {
+                logger.Debug().Err(err).Msg("no valid session found")
+                return next(c)
+            }
+
+            // Check if user is authenticated
+            userID, ok := sess.Values["user_id"].(int)
+            if !ok || userID == 0 {
+                logger.Debug().Msg("no valid user_id in session")
+                return next(c)
+            }
+
+            // Check if facility code exists in session
+            facilityCode, ok := sess.Values["facility_code"].(string)
+            if !ok || facilityCode == "" {
+                logger.Debug().
+                    Int("user_id", userID).
+                    Msg("no valid facility code in session")
+                return next(c)
+            }
+
+            // User is authenticated and has facility, redirect to facility page
+            logger.Debug().
+                Int("user_id", userID).
+                Str("facility_id", facilityCode).
+                Msg("redirecting authenticated user from login page to facility")
+
+            redirectURL := fmt.Sprintf("/app/%s/", facilityCode)
+            return c.Redirect(http.StatusSeeOther, redirectURL)
+        }
+    }
+}
+
 // isAtLeastRole checks if the current role meets or exceeds the minimum required role
 func isAtLeastRole(currentRole string, minimumRole string) bool {
 	roleValues := map[string]int{
@@ -332,7 +403,7 @@ func redirectToLogin(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "authentication required")
 	}
 	// For regular requests, redirect to login
-	return c.Redirect(http.StatusTemporaryRedirect, "/login")
+	return c.Redirect(http.StatusOK, "/login")
 }
 
 func isAPIRequest(c echo.Context) bool {

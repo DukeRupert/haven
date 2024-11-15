@@ -71,12 +71,10 @@ func main() {
 	userHandler := handler.NewUserHandler(database, logger)
 
 	// Public routes
-	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Hello, World! Welcome to Haven.")
-	})
-	e.GET("/login", userHandler.GetLogin)
+	e.GET("/", h.ShowHome)
+	e.GET("/login", userHandler.GetLogin, authHandler.RedirectIfAuthenticated())
 	e.POST("/login", authHandler.LoginHandler())
-	e.POST("/logout", authHandler.LogoutHandler()) // Fixed route path to include leading slash
+	e.POST("/logout", authHandler.LogoutHandler())
 
 	// Api
 	api := e.Group("/api")
@@ -92,21 +90,29 @@ func main() {
 		return c.String(http.StatusOK, "You have access to User routes")
 	})
 
+	app.GET("/:code", userHandler.GetUsersByFacility)
+	app.GET("/:code/:initials", userHandler.GetUser)
+
+	admin := app.Group("", authHandler.RoleAuthMiddleware("admin"))
+	admin.POST("/:code", userHandler.CreateUser)
+	admin.GET("/:code/create", userHandler.CreateUserForm)
+	admin.PUT("/:code/:initials", h.PlaceholderMessage)
+	admin.GET("/:code/:initials/update", userHandler.CreateUserForm)
+	
+
 	super := app.Group("", authHandler.RoleAuthMiddleware("super"))
 	super.GET("/facilities", h.GetFacilities)
 	super.POST("/facilities", h.PostFacilities)
 	super.GET("/facilities/create", h.CreateFacilityForm)
 	super.GET("/facilities/:fid/update", h.UpdateFacilityForm)
 	super.PUT("/facilities/:fid", h.UpdateFacility)
+
 	// Admin routes
-	admin := app.Group("/admin")
-	admin.GET("/", func(c echo.Context) error {
+	a := app.Group("/admin")
+	a.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "You have access to Admin routes")
 	})
-	admin.GET("/:code", userHandler.GetUsersByFacility)
-	admin.GET("/:code/user/create", userHandler.CreateUserForm)
-	admin.POST("/:code/user", userHandler.CreateUser)
-	admin.GET("/:code/:initials", userHandler.UserPage)
+	a.GET("/:code/:initials", userHandler.GetUser)
 
 	// Start server
 	logger.Info().Msg("Starting server on :8080")
