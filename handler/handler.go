@@ -2,15 +2,15 @@ package handler
 
 import (
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
-	"net/http"
 
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/models"
 	"github.com/DukeRupert/haven/view/alert"
-	"github.com/DukeRupert/haven/view/page"
 	"github.com/DukeRupert/haven/view/component"
+	"github.com/DukeRupert/haven/view/page"
 
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
@@ -30,13 +30,24 @@ func NewHandler(db *db.DB, logger zerolog.Logger) *Handler {
 	}
 }
 
-func (h *Handler) ShowHome(c echo.Context) error {
-		return render(c, page.Landing())
+// handlers/context.go
+func GetAuthContext(c echo.Context) (*models.AuthContext, error) {
+	auth := &models.AuthContext{
+		UserID:       c.Get("user_id").(int),
+		Role:         c.Get("user_role").(models.UserRole),
+		Initials:     c.Get("user_initials").(string),
+		FacilityID:   c.Get("facility_id").(int),
+		FacilityCode: c.Get("facility_code").(string),
 	}
+	return auth, nil
+}
+
+func (h *Handler) ShowHome(c echo.Context) error {
+	return render(c, page.Landing())
+}
 
 // PlaceholderMessage handles rendering a simple string message
 func (h *Handler) PlaceholderMessage(c echo.Context) error {
-
 	// Here you would typically have your component.PlaceholderMessage
 	// For this example, we'll return the raw message
 	return c.String(http.StatusOK, "Fix me. I need some love.")
@@ -199,13 +210,13 @@ func (h *Handler) CreateSchedule(c echo.Context) error {
 	}
 
 	// Get session data
-    sess, err := session.Get("session", c)
+	sess, err := session.Get("session", c)
 
 	userID := sess.Values["user_id"].(int)
-    role :=  sess.Values["role"].(models.UserRole)
+	role := sess.Values["role"].(models.UserRole)
 
 	userData := page.UserData{
-		ID: userID,
+		ID:   userID,
 		Role: role,
 	}
 	logger.Info().

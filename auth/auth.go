@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
-	"fmt"
 
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/models"
@@ -126,9 +126,9 @@ func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
 		}
 
-		 // Redirect to facility page
-        redirectURL := fmt.Sprintf("/app/%s/", facility.Code)
-        return c.Redirect(http.StatusSeeOther, redirectURL)
+		// Redirect to facility page
+		redirectURL := fmt.Sprintf("/app/%s/", facility.Code)
+		return c.Redirect(http.StatusSeeOther, redirectURL)
 	}
 }
 
@@ -318,10 +318,6 @@ func (h *AuthHandler) RoleAuthMiddleware(minimumRole models.UserRole) echo.Middl
 					Msg("insufficient role permissions")
 				return echo.NewHTTPError(http.StatusForbidden, "Insufficient permissions")
 			}
-
-			// Add user info to context for use in handlers
-			c.Set("user_id", userID)
-			c.Set("user_role", role)
 			return next(c)
 		}
 	}
@@ -330,50 +326,50 @@ func (h *AuthHandler) RoleAuthMiddleware(minimumRole models.UserRole) echo.Middl
 // RedirectIfAuthenticated middleware checks if a user is already logged in when accessing the login page
 // and redirects them to their facility page if they are.
 func (h *AuthHandler) RedirectIfAuthenticated() echo.MiddlewareFunc {
-    return func(next echo.HandlerFunc) echo.HandlerFunc {
-        return func(c echo.Context) error {
-            logger := h.logger.With().
-                Str("middleware", "RedirectIfAuthenticated()").
-                Str("path", c.Path()).
-                Logger()
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			logger := h.logger.With().
+				Str("middleware", "RedirectIfAuthenticated()").
+				Str("path", c.Path()).
+				Logger()
 
-            logger.Debug().
-                Str("method", c.Request().Method).
-                Msg("redirect middleware hit")
+			logger.Debug().
+				Str("method", c.Request().Method).
+				Msg("redirect middleware hit")
 
-            // Get session
-            sess, err := session.Get(DefaultSessionName, c)
-            if err != nil {
-                logger.Debug().Err(err).Msg("no valid session found")
-                return next(c)
-            }
+			// Get session
+			sess, err := session.Get(DefaultSessionName, c)
+			if err != nil {
+				logger.Debug().Err(err).Msg("no valid session found")
+				return next(c)
+			}
 
-            // Check if user is authenticated
-            userID, ok := sess.Values["user_id"].(int)
-            if !ok || userID == 0 {
-                logger.Debug().Msg("no valid user_id in session")
-                return next(c)
-            }
+			// Check if user is authenticated
+			userID, ok := sess.Values["user_id"].(int)
+			if !ok || userID == 0 {
+				logger.Debug().Msg("no valid user_id in session")
+				return next(c)
+			}
 
-            // Check if facility code exists in session
-            facilityCode, ok := sess.Values["facility_code"].(string)
-            if !ok || facilityCode == "" {
-                logger.Debug().
-                    Int("user_id", userID).
-                    Msg("no valid facility code in session")
-                return next(c)
-            }
+			// Check if facility code exists in session
+			facilityCode, ok := sess.Values["facility_code"].(string)
+			if !ok || facilityCode == "" {
+				logger.Debug().
+					Int("user_id", userID).
+					Msg("no valid facility code in session")
+				return next(c)
+			}
 
-            // User is authenticated and has facility, redirect to facility page
-            logger.Debug().
-                Int("user_id", userID).
-                Str("facility_id", facilityCode).
-                Msg("redirecting authenticated user from login page to facility")
+			// User is authenticated and has facility, redirect to facility page
+			logger.Debug().
+				Int("user_id", userID).
+				Str("facility_id", facilityCode).
+				Msg("redirecting authenticated user from login page to facility")
 
-            redirectURL := fmt.Sprintf("/app/%s/", facilityCode)
-            return c.Redirect(http.StatusSeeOther, redirectURL)
-        }
-    }
+			redirectURL := fmt.Sprintf("/app/%s/", facilityCode)
+			return c.Redirect(http.StatusSeeOther, redirectURL)
+		}
+	}
 }
 
 // isAtLeastRole checks if the current role meets or exceeds the minimum required role

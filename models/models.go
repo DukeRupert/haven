@@ -53,3 +53,11 @@ type UpdateScheduleParams struct {
 	RDOs   []int     `json:"rdos"`
 	Anchor time.Time `json:"anchor"`
 }
+
+type AuthContext struct {
+	UserID       int
+	Role         UserRole
+	Initials     string
+	FacilityID   int
+	FacilityCode string
+}
