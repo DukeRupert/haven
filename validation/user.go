@@ -104,18 +104,18 @@ func ValidateUserPassword(password string) (UserPassword, error) {
 
 // Update the return type to match your db package
 func ValidateUserRole(role string) (db.UserRole, error) {
-    normalizedRole := strings.ToLower(strings.TrimSpace(role))
-    
-    if normalizedRole == "" {
-        return "", ErrEmptyRole
-    }
+	normalizedRole := strings.ToLower(strings.TrimSpace(role))
 
-    switch normalizedRole {
-    case "super", "admin", "user":
-        return db.UserRole(normalizedRole), nil
-    default:
-        return "", ErrInvalidRole
-    }
+	if normalizedRole == "" {
+		return "", ErrEmptyRole
+	}
+
+	switch normalizedRole {
+	case "super", "admin", "user":
+		return db.UserRole(normalizedRole), nil
+	default:
+		return "", ErrInvalidRole
+	}
 }
 
 // Helper functions

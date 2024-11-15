@@ -1,13 +1,12 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
-	"context"
 
 	"github.com/DukeRupert/haven/db"
-	"github.com/DukeRupert/haven/models"
 	"github.com/DukeRupert/haven/validation"
 	"github.com/DukeRupert/haven/view/alert"
 	"github.com/DukeRupert/haven/view/auth"
@@ -190,6 +189,12 @@ func (h *UserHandler) GetUsersByFacility(c echo.Context) error {
 		Str("path", "/app/:code").
 		Logger()
 
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+	}
+	LogAuthContext(h.logger, auth)
+
 	// Get facility code from route parameter
 	code := c.Param("code")
 	if code == "" {
@@ -230,7 +235,7 @@ func (h *UserHandler) GetUsersByFacility(c echo.Context) error {
 	}
 
 	// Check role if present
-	role, ok := sess.Values["role"].(models.UserRole)
+	role, ok := sess.Values["role"].(db.UserRole)
 	if !ok {
 		logger.Debug().Str("role", string(role)).Msg("no valid role in session")
 		role = "user"
@@ -251,101 +256,101 @@ func (h *UserHandler) GetUsersByFacility(c echo.Context) error {
 }
 
 type pageContext struct {
-    facility *db.Facility
-    details  *db.UserDetails
-    userID   int
-    role     models.UserRole  // Changed from db.UserRole to models.UserRole
+	facility *db.Facility
+	details  *db.UserDetails
+	userID   int
+	role     db.UserRole // Changed from db.UserRole to db.UserRole
 }
 
 func (h *UserHandler) GetUser(c echo.Context) error {
-    startTime := time.Now()
-    ctx := c.Request().Context()
-    
-    // Setup structured logging
-    logger := h.logger.With().
-        Str("handler", "UserPage").
-        Str("method", "GET").
-        Str("path", "/app/facility/:code/user/:initials").
-        Str("facility_code", c.Param("code")).
-        Str("initials", c.Param("initials")).
-        Logger()
+	startTime := time.Now()
+	ctx := c.Request().Context()
 
-    logger.Info().Msg("processing request to get user details")
+	// Setup structured logging
+	logger := h.logger.With().
+		Str("handler", "UserPage").
+		Str("method", "GET").
+		Str("path", "/app/facility/:code/user/:initials").
+		Str("facility_code", c.Param("code")).
+		Str("initials", c.Param("initials")).
+		Logger()
 
-    // Gather all required data
-    pc, err := h.gatherPageData(ctx, c)
-    if err != nil {
-        return err
-    }
+	logger.Info().Msg("processing request to get user details")
 
-    // Construct view data
-    viewData := h.constructViewData(pc)
+	// Gather all required data
+	pc, err := h.gatherPageData(ctx, c)
+	if err != nil {
+		return err
+	}
 
-    // Log success with performance metrics
-    logPageLoadSuccess(logger, pc.details, startTime)
+	// Construct view data
+	viewData := h.constructViewData(pc)
 
-    return render(c, page.UserPage(viewData.pageData, viewData.userData, *pc.details))
+	// Log success with performance metrics
+	logPageLoadSuccess(logger, pc.details, startTime)
+
+	return render(c, page.UserPage(viewData.pageData, viewData.userData, *pc.details))
 }
 
 func (h *UserHandler) gatherPageData(ctx context.Context, c echo.Context) (*pageContext, error) {
-    // Get facility
-    facility, err := h.db.GetFacilityByCode(ctx, c.Param("code"))
-    if err != nil {
-        h.logger.Error().Err(err).Msg("failed to find facility")
-        return nil, c.String(http.StatusNotFound, "Facility not found")
-    }
+	// Get facility
+	facility, err := h.db.GetFacilityByCode(ctx, c.Param("code"))
+	if err != nil {
+		h.logger.Error().Err(err).Msg("failed to find facility")
+		return nil, c.String(http.StatusNotFound, "Facility not found")
+	}
 
-    // Get user details
-    details, err := h.db.GetUserDetails(ctx, c.Param("initials"), facility.ID)
-    if err != nil {
-        h.logger.Error().Err(err).Msg("failed to find user details")
-        return nil, c.String(http.StatusNotFound, "User not found")
-    }
+	// Get user details
+	details, err := h.db.GetUserDetails(ctx, c.Param("initials"), facility.ID)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("failed to find user details")
+		return nil, c.String(http.StatusNotFound, "User not found")
+	}
 
-    // Get session data
-    sess, err := session.Get("session", c)
-    if err != nil {
-        h.logger.Error().Err(err).Msg("Failed to get session")
-        return nil, echo.NewHTTPError(http.StatusInternalServerError, "session error")
-    }
+	// Get session data
+	sess, err := session.Get("session", c)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get session")
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, "session error")
+	}
 
-    return &pageContext{
-        facility: facility,
-        details:  details,
-        userID:   sess.Values["user_id"].(int),
-        role:     sess.Values["role"].(models.UserRole),  // Changed to models.UserRole
-    }, nil
+	return &pageContext{
+		facility: facility,
+		details:  details,
+		userID:   sess.Values["user_id"].(int),
+		role:     sess.Values["role"].(db.UserRole), // Changed to db.UserRole
+	}, nil
 }
 
 type viewData struct {
-    pageData page.PageData
-    userData page.UserData
+	pageData page.PageData
+	userData page.UserData
 }
 
 func (h *UserHandler) constructViewData(pc *pageContext) viewData {
-    return viewData{
-        pageData: page.PageData{
-            Title:       "Profile",
-            Description: "Manage your account information and schedule",
-        },
-        userData: page.UserData{
-            ID: pc.userID,
-            Role:   pc.role,  // Make sure user.UserData expects models.UserRole
-        },
-    }
+	return viewData{
+		pageData: page.PageData{
+			Title:       "Profile",
+			Description: "Manage your account information and schedule",
+		},
+		userData: page.UserData{
+			ID:   pc.userID,
+			Role: pc.role, // Make sure user.UserData expects db.UserRole
+		},
+	}
 }
 
 func logPageLoadSuccess(logger zerolog.Logger, details *db.UserDetails, startTime time.Time) {
-    duration := time.Since(startTime)
-    logger.Info().
-        Int("user_id", details.User.ID).
-        Str("initials", details.User.Initials).
-        Int("facility_id", details.User.FacilityID).
-        Bool("has_schedule", details.Schedule.ID != 0).
-        Dur("duration_ms", duration).
-        Float64("duration_seconds", duration.Seconds()).
-        Str("performance_category", "page_load").
-        Msg("user page rendered successfully")
+	duration := time.Since(startTime)
+	logger.Info().
+		Int("user_id", details.User.ID).
+		Str("initials", details.User.Initials).
+		Int("facility_id", details.User.FacilityID).
+		Bool("has_schedule", details.Schedule.ID != 0).
+		Dur("duration_ms", duration).
+		Float64("duration_seconds", duration.Seconds()).
+		Str("performance_category", "page_load").
+		Msg("user page rendered successfully")
 }
 
 func (h *UserHandler) CreateUserForm(c echo.Context) error {

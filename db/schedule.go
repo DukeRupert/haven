@@ -6,40 +6,6 @@ import (
 	"context"
 )
 
-type Schedule struct {
-    ID            int         `db:"id" json:"id"`
-    CreatedAt     time.Time   `db:"created_at" json:"created_at"`
-    UpdatedAt     time.Time   `db:"updated_at" json:"updated_at"`
-    UserID        int         `db:"user_id" json:"user_id" validate:"required"`
-    FirstWeekday  time.Weekday `db:"first_weekday" json:"first_weekday" validate:"required,min=0,max=6"`
-    SecondWeekday time.Weekday `db:"second_weekday" json:"second_weekday" validate:"required,min=0,max=6"`
-    StartDate     time.Time   `db:"start_date" json:"start_date" validate:"required"`
-}
-
-type CreateScheduleParams struct {
-    UserID    int
-    FirstDay  time.Weekday
-    SecondDay time.Weekday
-    StartDate time.Time
-}
-
-type ProtectedDate struct {
-	ID         int       `db:"id" json:"id"`
-	CreatedAt  time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt  time.Time `db:"updated_at" json:"updated_at"`
-	ScheduleID int       `db:"schedule_id" json:"schedule_id" validate:"required"`
-	Date       time.Time `db:"date" json:"date" validate:"required"`
-	Available  bool      `db:"available" json:"available"`
-}
-
-func (s Schedule) IsZero() bool {
-    return s.ID == 0 && 
-           s.CreatedAt.IsZero() && 
-           s.UpdatedAt.IsZero() && 
-           s.UserID == 0 && 
-           s.StartDate.IsZero()
-}
-
 // GetScheduleByUserID retrieves a schedule by user ID
 func (db *DB) GetScheduleByUserID(ctx context.Context, userID int) (*Schedule, error) {
     var schedule Schedule
@@ -143,13 +109,6 @@ func (db *DB) GetScheduleByUserInitials(ctx context.Context, initials string, fa
     }
 
     return &schedule, nil
-}
-
-type UpdateScheduleParams struct {
-    ID            int
-    FirstWeekday  time.Weekday
-    SecondWeekday time.Weekday
-    StartDate     time.Time
 }
 
 // UpdateSchedule updates an existing schedule

@@ -3,7 +3,6 @@ package page
 import (
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/view/layout"
-	"github.com/DukeRupert/haven/models"
 )
 
 type PageData struct {
@@ -13,7 +12,7 @@ type PageData struct {
 
 type UserData struct {
 	ID	 int
-	Role models.UserRole
+	Role db.UserRole
 }
 
 // "github.com/DukeRupert/haven/utils"

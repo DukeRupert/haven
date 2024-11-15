@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/DukeRupert/haven/db"
-	"github.com/DukeRupert/haven/models"
 	"github.com/gorilla/sessions"
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo-contrib/session"
@@ -42,7 +41,7 @@ type LoginResponse struct {
 }
 
 type AuthHandler struct {
-	db     *db.DB
+	database     *db.DB
 	store  sessions.Store // Add store to the handler
 	logger zerolog.Logger
 }
@@ -54,11 +53,12 @@ const (
 func init() {
 	// Register types that will be stored in sessions
 	gob.Register(time.Time{})
+	gob.Register(db.UserRole(""))
 }
 
 func NewAuthHandler(pool *db.DB, store sessions.Store, logger zerolog.Logger) *AuthHandler {
 	return &AuthHandler{
-		db:     pool,
+		database:     pool,
 		store:  store,
 		logger: logger.With().Str("component", "auth").Logger(),
 	}
@@ -70,76 +70,57 @@ type LoginParams struct {
 	Password string `json:"password" validate:"required"`
 }
 
-// LoginHandler handles user login requests
+// LoginHandler processes user login requests and establishes authenticated sessions.
+// It performs the following:
+// - Validates login credentials (email/password)
+// - Creates new session with core auth values (user_id, role)
+// - Redirects to app landing page
+//
+// Session values set:
+// - user_id: int
+// - role: db.UserRole
+//
+// Note: Additional user/facility data is populated by AuthMiddleware on redirect
 func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		// Get session
-		sess, err := session.Get(DefaultSessionName, c)
-		if err != nil {
-			h.logger.Error().Err(err).Msg("Failed to get session")
-			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
-		}
+    return func(c echo.Context) error {
+        sess, err := session.Get(DefaultSessionName, c)
+        if err != nil {
+            h.logger.Error().Err(err).Msg("Failed to get session")
+            return echo.NewHTTPError(http.StatusInternalServerError, "session error")
+        }
 
-		// Parse login params
-		params := new(LoginParams)
-		if err := c.Bind(params); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
-		}
+        params := new(LoginParams)
+        if err := c.Bind(params); err != nil {
+            return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
+        }
 
-		// Authenticate user
-		user, err := authenticateUser(c.Request().Context(), h.db, params.Email, params.Password)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
-		}
+        user, err := authenticateUser(c.Request().Context(), h.database, params.Email, params.Password)
+        if err != nil {
+            return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
+        }
 
-		// Query facility information if user has an associated facility
-		var facility *db.Facility
+        // Set minimum required session values
+        sess.Values["user_id"] = user.ID
+        sess.Values["role"] = user.Role
 
-		facility, err = h.db.GetFacilityByID(c.Request().Context(), user.FacilityID)
-		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				h.logger.Warn().
-					Int("facility_id", user.FacilityID).
-					Msg("Facility not found for authenticated user")
-			} else {
-				h.logger.Error().
-					Err(err).
-					Int("facility_id", user.FacilityID).
-					Msg("Failed to query facility information")
-				return echo.NewHTTPError(http.StatusInternalServerError, "database error")
-			}
-		} else {
-			// Add facility to session if found
-			sess.Values["facility_id"] = facility.ID
-			sess.Values["facility_name"] = facility.Name
-			sess.Values["facility_code"] = facility.Code
-		}
+        if err := sess.Save(c.Request(), c.Response()); err != nil {
+            h.logger.Error().Err(err).Msg("Failed to save session")
+            return echo.NewHTTPError(http.StatusInternalServerError, "session error")
+        }
 
-		// Set session values
-		sess.Values["user_id"] = user.ID
-		sess.Values["role"] = user.Role
-		sess.Values["last_access"] = time.Now()
-
-		// Save session
-		if err := sess.Save(c.Request(), c.Response()); err != nil {
-			h.logger.Error().Err(err).Msg("Failed to save session")
-			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
-		}
-
-		// Redirect to facility page
-		redirectURL := fmt.Sprintf("/app/%s/", facility.Code)
-		return c.Redirect(http.StatusSeeOther, redirectURL)
-	}
+        // Let AuthMiddleware handle facility data on redirect
+        return c.Redirect(http.StatusSeeOther, "/app/")
+    }
 }
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
 // authenticateUser verifies the email and password combination
-func authenticateUser(ctx context.Context, db *db.DB, email, password string) (*models.User, error) {
+func authenticateUser(ctx context.Context, database *db.DB, email, password string) (*db.User, error) {
 	log := zerolog.Ctx(ctx).With().Str("method", "authenticateUser").Logger()
 
-	var user models.User
-	err := db.QueryRow(ctx,
+	var user db.User
+	err := database.QueryRow(ctx,
 		`SELECT id, created_at, updated_at, first_name, last_name, 
                 initials, email, password, facility_id, role 
          FROM users 
@@ -231,57 +212,94 @@ func convertSessionValues(values map[interface{}]interface{}) map[string]interfa
 	return converted
 }
 
-// AuthMiddleware protects routes by verifying user authentication.
-// It expects a session to be present in the context (set by SessionMiddleware).
-// Unauthenticated requests are redirected to the login page or receive 401 for API requests.
+// AuthMiddleware ensures requests are authenticated and maintains session state.
+// It performs the following:
+// - Validates session exists and contains valid user_id
+// - Fetches fresh user data from database
+// - Fetches associated facility data if applicable
+// - Updates session with current user/facility information
+// - Sets user/facility data in request context for handlers
+// - Redirects unauthenticated requests to login
+//
+// Context values set:
+// - user_id: int
+// - user_role: db.UserRole
+// - user_initials: string
+// - facility_id: int (if user has facility)
+// - facility_code: string (if user has facility)
 func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			logger := h.logger.With().
-				Str("middleware", "AuthMiddleware()").
-				Str("path", c.Path()).
-				Logger()
+    return func(next echo.HandlerFunc) echo.HandlerFunc {
+        return func(c echo.Context) error {
+            logger := h.logger.With().
+                Str("middleware", "AuthMiddleware()").
+                Str("path", c.Path()).
+                Logger()
 
-			h.logger.Debug().
-				Str("path", c.Path()).
-				Str("method", c.Request().Method).
-				Msg("auth middleware hit")
+            sess, err := session.Get(DefaultSessionName, c)
+            if err != nil {
+                logger.Error().Msg("no session found in context")
+                return redirectToLogin(c)
+            }
 
-			// Get session from context (previously set by SessionMiddleware)
-			sess, err := session.Get(DefaultSessionName, c)
-			if err != nil {
-				logger.Error().Msg("no session found in context")
-				return redirectToLogin(c)
-			}
+            // Validate user authentication
+            userID, ok := sess.Values["user_id"].(int)
+            if !ok || userID == 0 {
+                logger.Debug().Msg("no valid user_id in session")
+                return redirectToLogin(c)
+            }
 
-			// Check if user is authenticated
-			userID, ok := sess.Values["user_id"].(int)
-			if !ok || userID == 0 {
-				logger.Debug().Msg("no valid user_id in session")
-				return redirectToLogin(c)
-			}
+            // Fetch fresh user data
+            user, err := h.database.GetUserByID(c.Request().Context(), userID)
+            if err != nil {
+                logger.Error().Err(err).Int("user_id", userID).Msg("failed to fetch user data")
+                return redirectToLogin(c)
+            }
 
-			// Check role if present
-			role, ok := sess.Values["role"].(models.UserRole)
-			if !ok {
-				logger.Debug().Str("role", string(role)).Int("user_id", userID).Msg("no valid role in session")
-				return redirectToLogin(c)
-			}
+            // Fetch facility data if user has facility association
+            var facility *db.Facility
+            if user.FacilityID != 0 {
+                facility, err = h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
+                if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+                    logger.Error().Err(err).Int("facility_id", user.FacilityID).Msg("failed to fetch facility")
+                    return echo.NewHTTPError(http.StatusInternalServerError, "database error")
+                }
+            }
 
-			// Add user info to context for use in handlers
-			c.Set("user_id", userID)
-			c.Set("user_role", role)
+            // Update session with fresh data
+            sess.Values["user_id"] = user.ID
+            sess.Values["role"] = user.Role
+            sess.Values["initials"] = user.Initials
+            sess.Values["last_access"] = time.Now()
 
-			return next(c)
-		}
-	}
+            if facility != nil {
+                sess.Values["facility_id"] = facility.ID
+                sess.Values["facility_code"] = facility.Code
+            }
+
+            if err := sess.Save(c.Request(), c.Response()); err != nil {
+                logger.Error().Err(err).Msg("failed to save session")
+                return echo.NewHTTPError(http.StatusInternalServerError, "session error")
+            }
+
+            // Set context values for handlers
+            c.Set("user_id", user.ID)
+            c.Set("user_role", user.Role)
+            c.Set("user_initials", user.Initials)
+            if facility != nil {
+                c.Set("facility_id", facility.ID)
+                c.Set("facility_code", facility.Code)
+            }
+
+            return next(c)
+        }
+    }
 }
 
 // RoleAuthMiddleware protects routes by checking if the user has sufficient role permissions.
 // It verifies session auth, validates user_id and role, and enforces minimum role requirements.
 // Returns 403 Forbidden for insufficient permissions or redirects to login for auth failures.
 // Usage: e.GET("/admin", handler, h.RoleAuthMiddleware("super"))
-func (h *AuthHandler) RoleAuthMiddleware(minimumRole models.UserRole) echo.MiddlewareFunc {
+func (h *AuthHandler) RoleAuthMiddleware(minimumRole db.UserRole) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			logger := h.logger.With().
@@ -305,7 +323,7 @@ func (h *AuthHandler) RoleAuthMiddleware(minimumRole models.UserRole) echo.Middl
 			}
 
 			// Check role if present
-			role, ok := sess.Values["role"].(models.UserRole)
+			role, ok := sess.Values["role"].(db.UserRole)
 			if !ok {
 				logger.Debug().Str("role", string(role)).Int("user_id", userID).Msg("no valid role in session")
 				return redirectToLogin(c)

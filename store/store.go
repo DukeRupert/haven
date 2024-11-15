@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/DukeRupert/haven/db"
-	"github.com/DukeRupert/haven/models"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"github.com/jackc/pgx/v5"
@@ -49,7 +48,7 @@ func init() {
 
 	// Register types for session storage
 	gob.Register(time.Time{})
-	gob.Register(models.UserRole(""))
+	gob.Register(db.UserRole(""))
 	logger.Debug().Msg("registered time.Time with gob encoder")
 }
 

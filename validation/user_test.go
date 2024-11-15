@@ -2,9 +2,9 @@
 package validation
 
 import (
+	"errors"
 	"strings"
 	"testing"
-	"errors"
 
 	"github.com/DukeRupert/haven/db"
 )

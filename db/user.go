@@ -9,71 +9,10 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// UserRole is a custom type for the user_role enum
-type UserRole string
-
-const (
-	UserRoleSuper UserRole = "super"
-	UserRoleAdmin UserRole = "admin"
-	UserRoleUser  UserRole = "user"
-)
-
-// String returns a formatted display string for the user role
-func (r UserRole) String() string {
-	switch r {
-	case UserRoleSuper:
-		return "Super Admin"
-	case UserRoleAdmin:
-		return "Admin"
-	case UserRoleUser:
-		return "User"
-	default:
-		return string(r) // fallback to the raw string value
-	}
-}
-
-// Optionally, you might also want to add a method for getting CSS classes or styles:
-func (r UserRole) BadgeClass() string {
-	switch r {
-	case UserRoleSuper:
-		return "bg-purple-100 text-purple-800"
-	case UserRoleAdmin:
-		return "bg-blue-100 text-blue-800"
-	case UserRoleUser:
-		return "bg-green-100 text-green-800"
-	default:
-		return "bg-gray-100 text-gray-800"
-	}
-}
-
-type User struct {
-	ID         int       `db:"id" json:"id"`
-	CreatedAt  time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt  time.Time `db:"updated_at" json:"updated_at"`
-	FirstName  string    `db:"first_name" json:"first_name"`
-	LastName   string    `db:"last_name" json:"last_name"`
-	Initials   string    `db:"initials" json:"initials"`
-	Email      string    `db:"email" json:"email"`
-	Password   string    `db:"password" json:"-"` // Hashed password
-	FacilityID int       `db:"facility_id" json:"facility_id"`
-	Role       UserRole  `db:"role" json:"role" validate:"required,oneof=super admin user"`
-}
-
 type UserDetails struct {
 	User     User
 	Facility Facility
 	Schedule Schedule
-}
-
-// CreateUserParams represents the parameters needed to create a new user
-type CreateUserParams struct {
-	FirstName  string   `json:"first_name" form:"first_name" validate:"required"`
-	LastName   string   `json:"last_name" form:"last_name" validate:"required"`
-	Initials   string   `json:"initials" form:"initials" validate:"required,max=10"`
-	Email      string   `json:"email" form:"email" validate:"required,email"`
-	Password   string   `json:"password" form:"password" validate:"required,min=8"`
-	FacilityID int      `json:"facility_id" form:"facility_id" validate:"required,min=1"`
-	Role       UserRole `json:"role" form:"role" validate:"required,oneof=super admin user"`
 }
 
 func (db *DB) GetUsersByFacilityCode(ctx context.Context, facilityCode string) ([]User, error) {

@@ -3,11 +3,10 @@ package page
 import (
 	"fmt"
 	"github.com/DukeRupert/haven/db"
-	"github.com/DukeRupert/haven/models"
 	"github.com/DukeRupert/haven/view/layout"
 )
 
-templ ShowFacilities(title string, description string, role models.UserRole, users []db.User) {
+templ ShowFacilities(title string, description string, role db.UserRole, users []db.User) {
 	@layout.BaseLayout() {
 		@layout.AppLayout() {
 			<header class="md:flex md:items-center md:justify-between">

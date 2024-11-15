@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/DukeRupert/haven/db"
-	"github.com/DukeRupert/haven/models"
 	"github.com/DukeRupert/haven/view/alert"
 	"github.com/DukeRupert/haven/view/component"
 	"github.com/DukeRupert/haven/view/page"
@@ -30,16 +29,57 @@ func NewHandler(db *db.DB, logger zerolog.Logger) *Handler {
 	}
 }
 
-// handlers/context.go
-func GetAuthContext(c echo.Context) (*models.AuthContext, error) {
-	auth := &models.AuthContext{
-		UserID:       c.Get("user_id").(int),
-		Role:         c.Get("user_role").(models.UserRole),
-		Initials:     c.Get("user_initials").(string),
-		FacilityID:   c.Get("facility_id").(int),
-		FacilityCode: c.Get("facility_code").(string),
-	}
-	return auth, nil
+func GetAuthContext(c echo.Context) (*db.AuthContext, error) {
+    sess, err := session.Get("session", c)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get session: %w", err)
+    }
+
+    userID, ok := sess.Values["user_id"].(int)
+    if !ok {
+        return nil, fmt.Errorf("invalid user_id in session")
+    }
+
+    role, ok := sess.Values["role"].(db.UserRole)
+    if !ok {
+        return nil, fmt.Errorf("invalid role in session")
+    }
+
+    auth := &db.AuthContext{
+        UserID: userID,
+        Role:   role,
+    }
+
+    // Optional values
+    if initials, ok := sess.Values["initials"].(string); ok {
+        auth.Initials = initials
+    }
+    if facilityID, ok := sess.Values["facility_id"].(int); ok {
+        auth.FacilityID = facilityID
+    }
+    if facilityCode, ok := sess.Values["facility_code"].(string); ok {
+        auth.FacilityCode = facilityCode
+    }
+
+    return auth, nil
+}
+
+func LogAuthContext(logger zerolog.Logger, auth *db.AuthContext) {
+    logEvent := logger.Debug().
+        Int("user_id", auth.UserID).
+        Str("role", string(auth.Role))
+
+    if auth.Initials != "" {
+        logEvent.Str("initials", auth.Initials)
+    }
+    if auth.FacilityID != 0 {
+        logEvent.Int("facility_id", auth.FacilityID)
+    }
+    if auth.FacilityCode != "" {
+        logEvent.Str("facility_code", auth.FacilityCode)
+    }
+
+    logEvent.Msg("auth context retrieved")
 }
 
 func (h *Handler) ShowHome(c echo.Context) error {
@@ -213,7 +253,7 @@ func (h *Handler) CreateSchedule(c echo.Context) error {
 	sess, err := session.Get("session", c)
 
 	userID := sess.Values["user_id"].(int)
-	role := sess.Values["role"].(models.UserRole)
+	role := sess.Values["role"].(db.UserRole)
 
 	userData := page.UserData{
 		ID:   userID,
