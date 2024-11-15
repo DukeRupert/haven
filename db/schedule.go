@@ -1,9 +1,11 @@
 package db
 
 import (
-	"time"
-	"fmt"
 	"context"
+	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // GetScheduleByUserID retrieves a schedule by user ID
@@ -111,48 +113,6 @@ func (db *DB) GetScheduleByUserInitials(ctx context.Context, initials string, fa
     return &schedule, nil
 }
 
-// UpdateSchedule updates an existing schedule
-func (db *DB) UpdateSchedule(ctx context.Context, params UpdateScheduleParams) (*Schedule, error) {
-    var schedule Schedule
-    now := time.Now()
-    err := db.pool.QueryRow(ctx, `
-        UPDATE schedules 
-        SET 
-            updated_at = $1,
-            first_weekday = $2,
-            second_weekday = $3,
-            start_date = $4
-        WHERE id = $5
-        RETURNING
-            id,
-            created_at,
-            updated_at,
-            user_id,
-            first_weekday,
-            second_weekday,
-            start_date
-    `,
-        now,                // $1
-        params.FirstWeekday,    // $2
-        params.SecondWeekday,   // $3
-        params.StartDate,       // $4
-        params.ID,              // $5
-    ).Scan(
-        &schedule.ID,
-        &schedule.CreatedAt,
-        &schedule.UpdatedAt,
-        &schedule.UserID,
-        &schedule.FirstWeekday,
-        &schedule.SecondWeekday,
-        &schedule.StartDate,
-    )
-    if err != nil {
-        return nil, fmt.Errorf("error updating schedule: %w", err)
-    }
-
-    return &schedule, nil
-}
-
 // DeleteSchedule deletes a schedule and its associated protected dates
 func (db *DB) DeleteSchedule(ctx context.Context, id int) error {
     _, err := db.pool.Exec(ctx, `
@@ -208,52 +168,118 @@ func (db *DB) ListSchedules(ctx context.Context, facilityID int) ([]Schedule, er
     return schedules, nil
 }
 
-func (db *DB) CreateSchedule(ctx context.Context, params CreateScheduleParams) (*Schedule, error) {
-	// Check if user exists first
-	exists, err := db.doesUserExist(ctx, params.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("error checking user existence: %w", err)
-	}
-	if !exists {
-		return nil, ErrUserNotFound
-	}
+func (db *DB) CreateScheduleByCode(ctx context.Context, params CreateScheduleByCodeParams) (*Schedule, error) {
+    // First, get the user ID using a join between facilities and users
+    var userID int
+    err := db.QueryRow(ctx, `
+        SELECT u.id 
+        FROM users u
+        JOIN facilities f ON u.facility_id = f.id
+        WHERE f.code = $1 AND u.initials = $2
+    `, params.FacilityCode, params.UserInitials).Scan(&userID)
+    
+    if err == pgx.ErrNoRows {
+        return nil, fmt.Errorf("no user found with facility code %s and initials %s", 
+            params.FacilityCode, params.UserInitials)
+    }
+    if err != nil {
+        return nil, fmt.Errorf("error finding user: %w", err)
+    }
 
-	// Check if user already has a schedule
-	hasSchedule, err := db.doesUserHaveSchedule(ctx, params.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("error checking existing schedule: %w", err)
-	}
-	if hasSchedule {
-		return nil, ErrUserScheduleExists
-	}
+    // Check if user already has a schedule
+    hasSchedule, err := db.doesUserHaveSchedule(ctx, userID)
+    if err != nil {
+        return nil, fmt.Errorf("error checking existing schedule: %w", err)
+    }
+    if hasSchedule {
+        return nil, ErrUserScheduleExists
+    }
 
-	var schedule Schedule
-	now := time.Now()
-	err = db.QueryRow(ctx, `
-		INSERT INTO schedules (
-			created_at,
-			updated_at,
-			user_id,
-			first_weekday,
-			second_weekday,
-			start_date
-		)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, created_at, updated_at, user_id, first_weekday, second_weekday, start_date
-	`, now, now, params.UserID, params.FirstDay, params.SecondDay, params.StartDate).Scan(
-		&schedule.ID,
-		&schedule.CreatedAt,
-		&schedule.UpdatedAt,
-		&schedule.UserID,
-		&schedule.FirstWeekday,
-		&schedule.SecondWeekday,
-		&schedule.StartDate,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("error creating schedule: %w", err)
-	}
+    var schedule Schedule
+    now := time.Now()
+    err = db.QueryRow(ctx, `
+        INSERT INTO schedules (
+            created_at,
+            updated_at,
+            user_id,
+            first_weekday,
+            second_weekday,
+            start_date
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, created_at, updated_at, user_id, first_weekday, second_weekday, start_date
+    `, now, now, userID, params.FirstDay, params.SecondDay, params.StartDate).Scan(
+        &schedule.ID,
+        &schedule.CreatedAt,
+        &schedule.UpdatedAt,
+        &schedule.UserID,
+        &schedule.FirstWeekday,
+        &schedule.SecondWeekday,
+        &schedule.StartDate,
+    )
+    if err != nil {
+        return nil, fmt.Errorf("error creating schedule: %w", err)
+    }
 
-	return &schedule, nil
+    return &schedule, nil
+}
+
+type UpdateScheduleParams struct {
+    FirstWeekday  time.Weekday `json:"first_weekday" validate:"required,min=0,max=6"`
+    SecondWeekday time.Weekday `json:"second_weekday" validate:"required,min=0,max=6"`
+    StartDate     time.Time    `json:"start_date" validate:"required"`
+}
+
+func (db *DB) UpdateScheduleByCode(ctx context.Context, facilityCode, userInitials string, params UpdateScheduleParams) (*Schedule, error) {
+    // First, get the schedule ID using joins between facilities, users, and schedules
+    var scheduleID int
+    err := db.QueryRow(ctx, `
+        SELECT s.id 
+        FROM schedules s
+        JOIN users u ON s.user_id = u.id
+        JOIN facilities f ON u.facility_id = f.id
+        WHERE f.code = $1 AND u.initials = $2
+    `, facilityCode, userInitials).Scan(&scheduleID)
+    
+    if err == pgx.ErrNoRows {
+        return nil, fmt.Errorf("no schedule found for facility code %s and initials %s", 
+            facilityCode, userInitials)
+    }
+    if err != nil {
+        return nil, fmt.Errorf("error finding schedule: %w", err)
+    }
+
+    var schedule Schedule
+    err = db.QueryRow(ctx, `
+        UPDATE schedules 
+        SET 
+            updated_at = $1,
+            first_weekday = $2,
+            second_weekday = $3,
+            start_date = $4
+        WHERE id = $5
+        RETURNING id, created_at, updated_at, user_id, first_weekday, second_weekday, start_date
+    `, 
+        time.Now(),
+        params.FirstWeekday,
+        params.SecondWeekday,
+        params.StartDate,
+        scheduleID,
+    ).Scan(
+        &schedule.ID,
+        &schedule.CreatedAt,
+        &schedule.UpdatedAt,
+        &schedule.UserID,
+        &schedule.FirstWeekday,
+        &schedule.SecondWeekday,
+        &schedule.StartDate,
+    )
+    
+    if err != nil {
+        return nil, fmt.Errorf("error updating schedule: %w", err)
+    }
+
+    return &schedule, nil
 }
 
 // Helper method to check if user exists

@@ -2,11 +2,12 @@ package page
 
 import (
 	"github.com/DukeRupert/haven/db"
+	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/layout"
 )
 
 // "github.com/DukeRupert/haven/utils"
-templ UserPage( Title string, Description string, AuthContext *db.AuthContext, UserDetails *db.UserDetails) {
+templ UserPage( route types.RouteContext, Title string, Description string, AuthContext *db.AuthContext, UserDetails *db.UserDetails) {
 	@layout.BaseLayout() {
 		@layout.AppLayout() {
 			<!-- Bento Grid -->
@@ -35,9 +36,9 @@ templ UserPage( Title string, Description string, AuthContext *db.AuthContext, U
 				</div>
 				<!-- Schedule Card -->
 				if UserDetails.Schedule.ID == 0 {
-					@EmptyScheduleCard(*AuthContext, UserDetails.Schedule, UserDetails.Schedule.UserID, UserDetails.User.FacilityID)
+					@EmptyScheduleCard(route, *AuthContext, UserDetails.Schedule)
 				} else {
-					@ScheduleCard(*AuthContext, UserDetails.Schedule, UserDetails.Schedule.UserID, UserDetails.User.FacilityID)
+					@ScheduleCard(route, *AuthContext, UserDetails.Schedule)
 				}
 				<!-- Facility Card -->
 				<div class="relative lg:col-span-2">

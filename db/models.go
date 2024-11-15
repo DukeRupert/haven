@@ -73,11 +73,12 @@ type Schedule struct {
     StartDate     time.Time   `db:"start_date" json:"start_date" validate:"required"`
 }
 
-type CreateScheduleParams struct {
-    UserID    int
-    FirstDay  time.Weekday
-    SecondDay time.Weekday
-    StartDate time.Time
+type CreateScheduleByCodeParams struct {
+    FacilityCode  string
+    UserInitials  string
+    FirstDay      time.Weekday
+    SecondDay     time.Weekday
+    StartDate     time.Time
 }
 
 type ProtectedDate struct {
@@ -95,13 +96,6 @@ func (s Schedule) IsZero() bool {
            s.UpdatedAt.IsZero() && 
            s.UserID == 0 && 
            s.StartDate.IsZero()
-}
-
-type UpdateScheduleParams struct {
-    ID            int
-    FirstWeekday  time.Weekday
-    SecondWeekday time.Weekday
-    StartDate     time.Time
 }
 
 type AuthContext struct {

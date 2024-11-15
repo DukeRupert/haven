@@ -11,28 +11,13 @@ import (
 	"github.com/DukeRupert/haven/view/auth"
 	"github.com/DukeRupert/haven/view/component"
 	"github.com/DukeRupert/haven/view/page"
-	"github.com/DukeRupert/haven/view/user"
-	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/bcrypt"
 )
 
-type UserHandler struct {
-	db     *db.DB
-	logger zerolog.Logger
-}
-
-// NewUserHandler creates a new handler with both pool and store
-func NewUserHandler(db *db.DB, logger zerolog.Logger) *UserHandler {
-	return &UserHandler{
-		db:     db,
-		logger: logger.With().Str("component", "userHandler").Logger(),
-	}
-}
-
 // Create handles POST app/admin/:code/users
-func (h *UserHandler) CreateUser(c echo.Context) error {
+func (h *Handler) CreateUser(c echo.Context) error {
 	logger := h.logger
 
 	var params db.CreateUserParams
@@ -158,6 +143,8 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 			[]string{"Failed to create user. Please try again later"}))
 	}
 
+	route := h.RouteCtx
+
 	logger.Info().
 		Int("user_id", user.ID).
 		Str("email", user.Email).
@@ -165,7 +152,7 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 		Str("role", string(user.Role)).
 		Msg("user created successfully")
 
-	return render(c, page.UserListItem(*user))
+	return render(c, page.UserListItem(route, *user))
 }
 
 // Helper function to validate role
@@ -180,7 +167,7 @@ func isValidRole(role db.UserRole) bool {
 }
 
 // GetUsersByFacility handles the GET /app/:code endpoint
-func (h *UserHandler) GetUsersByFacility(c echo.Context) error {
+func (h *Handler) GetUsersByFacility(c echo.Context) error {
 	startTime := time.Now()
 	logger := h.logger.With().
 		Str("handler", "GetUsersByFacility").
@@ -226,20 +213,6 @@ func (h *UserHandler) GetUsersByFacility(c echo.Context) error {
 		users = []db.User{}
 	}
 
-	// Get session
-	sess, err := session.Get("session", c)
-	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get session")
-		return echo.NewHTTPError(http.StatusInternalServerError, "session error")
-	}
-
-	// Check role if present
-	role, ok := sess.Values["role"].(db.UserRole)
-	if !ok {
-		logger.Debug().Str("role", string(role)).Msg("no valid role in session")
-		role = "user"
-	}
-
 	// Track handler duration
 	handlerDuration := time.Since(startTime)
 
@@ -249,9 +222,10 @@ func (h *UserHandler) GetUsersByFacility(c echo.Context) error {
 		Dur("handler_duration_ms", handlerDuration).
 		Msg("successfully retrieved users")
 
+	route := h.RouteCtx
 	title := "Controllers"
 	description := "A list of all controllers assigned to the facility."
-	return render(c, page.ShowFacilities(title, description, role, users))
+	return render(c, page.ShowFacilities(route, title, description, auth.Role, users))
 }
 
 // UserPageData contains all data needed for user page rendering
@@ -262,7 +236,7 @@ type UserPageData struct {
     User        *db.UserDetails
 }
 
-func (h *UserHandler) GetUser(c echo.Context) error {
+func (h *Handler) GetUser(c echo.Context) error {
     auth, err := GetAuthContext(c)
     if err != nil {
         return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
@@ -278,7 +252,9 @@ func (h *UserHandler) GetUser(c echo.Context) error {
         return c.String(http.StatusNotFound, "User not found")
     }
 
-    return render(c, page.UserPage("Profile", "Manage your account information and schedule", auth, details))
+	route := h.RouteCtx
+
+    return render(c, page.UserPage(route, "Profile", "Manage your account information and schedule", auth, details))
 }
 
 func logPageLoadSuccess(logger zerolog.Logger, details *db.UserDetails, startTime time.Time) {
@@ -294,7 +270,7 @@ func logPageLoadSuccess(logger zerolog.Logger, details *db.UserDetails, startTim
 		Msg("user page rendered successfully")
 }
 
-func (h *UserHandler) CreateUserForm(c echo.Context) error {
+func (h *Handler) CreateUserForm(c echo.Context) error {
 	// Get facility code from route parameter
 	code := c.Param("code")
 	if code == "" {
@@ -306,10 +282,6 @@ func (h *UserHandler) CreateUserForm(c echo.Context) error {
 	return render(c, component.CreateUserForm(code))
 }
 
-func (h *UserHandler) GetLogin(c echo.Context) error {
+func (h *Handler) GetLogin(c echo.Context) error {
 	return render(c, auth.Login())
-}
-
-func (h UserHandler) HandleUserShow(c echo.Context) error {
-	return render(c, user.Show())
 }

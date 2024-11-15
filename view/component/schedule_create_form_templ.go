@@ -8,9 +8,9 @@ package component
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "fmt"
+import "github.com/DukeRupert/haven/types"
 
-func CreateScheduleForm(fid int, uid int) templ.Component {
+func CreateScheduleForm(route types.RouteContext) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -31,20 +31,20 @@ func CreateScheduleForm(fid int, uid int) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 1)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"create-schedule-form\" hx-target=\"this\" hx-target-error=\"#global-alert\" hx-swap=\"outerHTML\" class=\"relative lg:col-span-2\"><div class=\"h-full overflow-hidden rounded-lg bg-white shadow\"><div class=\"px-6 py-8\"><div class=\"flex items-center justify-between\"><h3 class=\"text-lg font-medium text-gray-900\">Create Schedule</h3></div><div class=\"mt-6\"><form hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/%d/%d/schedule", fid, uid))
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(route.BuildURL("/schedule"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/component/schedule_create_form.templ`, Line: 14, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/component/schedule_create_form.templ`, Line: 14, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 2)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-target=\"#create-schedule-form\" hx-swap=\"outerHTML\" hx-target-error=\"#global-alert\"><div class=\"space-y-6\"><div class=\"grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2\"><div><label for=\"first_weekday\" class=\"block text-sm font-medium text-gray-700\">First Weekday</label> <select id=\"first_weekday\" name=\"first_weekday\" class=\"mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm\" required><option value=\"0\">Sunday</option> <option value=\"1\">Monday</option> <option value=\"2\">Tuesday</option> <option value=\"3\">Wednesday</option> <option value=\"4\">Thursday</option> <option value=\"5\">Friday</option> <option value=\"6\">Saturday</option></select></div><div><label for=\"second_weekday\" class=\"block text-sm font-medium text-gray-700\">Second Weekday</label> <select id=\"second_weekday\" name=\"second_weekday\" class=\"mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm\" required><option value=\"0\">Sunday</option> <option value=\"1\">Monday</option> <option value=\"2\">Tuesday</option> <option value=\"3\">Wednesday</option> <option value=\"4\">Thursday</option> <option value=\"5\">Friday</option> <option value=\"6\">Saturday</option></select></div><div class=\"sm:col-span-2\"><label for=\"start_date\" class=\"block text-sm font-medium text-gray-700\">Start Date</label> <input type=\"date\" id=\"start_date\" name=\"start_date\" class=\"mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm\" required></div></div><div class=\"flex justify-end space-x-3\"><button type=\"button\" hx-get=\"./schedule/cancel\" hx-target=\"closest div.lg\\\\:col-span-2\" class=\"rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2\">Cancel</button> <button type=\"submit\" class=\"inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2\">Create</button></div></div></form></div></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

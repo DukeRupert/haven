@@ -68,11 +68,10 @@ func main() {
 	// Initialize handlers after session middleware
 	h := handler.NewHandler(database, logger)
 	authHandler := auth.NewAuthHandler(database, store, logger)
-	userHandler := handler.NewUserHandler(database, logger)
 
 	// Public routes
 	e.GET("/", h.ShowHome)
-	e.GET("/login", userHandler.GetLogin, authHandler.RedirectIfAuthenticated())
+	e.GET("/login", h.GetLogin, authHandler.RedirectIfAuthenticated())
 	e.POST("/login", authHandler.LoginHandler())
 	e.POST("/logout", authHandler.LogoutHandler())
 
@@ -85,16 +84,21 @@ func main() {
 	// Protected routes
 	app := e.Group("/app")
 	app.Use(authHandler.AuthMiddleware())
+	app.Use(handler.SetRouteContext(h))
 	app.GET("/", h.PlaceholderMessage)
 	app.GET("/:code/calendar", h.PlaceholderMessage)
-	app.GET("/:code", userHandler.GetUsersByFacility)
-	app.GET("/:code/:initials", userHandler.GetUser)
+	app.GET("/:code", h.GetUsersByFacility)
+	app.GET("/:code/:initials", h.GetUser)
 
 	admin := app.Group("", authHandler.RoleAuthMiddleware("admin"))
-	admin.POST("/:code", userHandler.CreateUser)
-	admin.GET("/:code/create", userHandler.CreateUserForm)
+	admin.POST("/:code", h.CreateUser)
+	admin.GET("/:code/create", h.CreateUserForm)
 	admin.PUT("/:code/:initials", h.PlaceholderMessage)
-	admin.GET("/:code/:initials/update", userHandler.CreateUserForm)
+	admin.GET("/:code/:initials/update", h.CreateUserForm)
+	admin.POST("/:code/:initials/schedule", h.CreateSchedule)
+	admin.GET("/:code/:initials/schedule/create", h.CreateScheduleForm)
+	admin.GET("/:code/:initials/schedule/update", h.UpdateScheduleForm)
+	
 	
 
 	super := app.Group("", authHandler.RoleAuthMiddleware("super"))
