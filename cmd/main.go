@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/gob"
 	"log"
 	"net/http"
 	"os"
@@ -16,6 +17,12 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
 )
+
+func init() {
+	// Register your custom types with gob
+	var userRole db.UserRole
+	gob.Register(userRole)
+}
 
 func main() {
 	// Initialize logger
@@ -79,7 +86,6 @@ func main() {
 	api := e.Group("/api")
 	api.Use(authHandler.AuthMiddleware())
 	api.GET("/:fid/:uid/schedule/new", h.CreateScheduleForm)
-	api.POST("/:fid/:uid/schedule", h.CreateSchedule)
 
 	// Protected routes
 	app := e.Group("/app")
@@ -90,23 +96,23 @@ func main() {
 	app.GET("/:code", h.GetUsersByFacility)
 	app.GET("/:code/:initials", h.GetUser)
 
+	// Admin routes
 	admin := app.Group("", authHandler.RoleAuthMiddleware("admin"))
 	admin.POST("/:code", h.CreateUser)
 	admin.GET("/:code/create", h.CreateUserForm)
 	admin.PUT("/:code/:initials", h.PlaceholderMessage)
 	admin.GET("/:code/:initials/update", h.CreateUserForm)
-	admin.POST("/:code/:initials/schedule", h.CreateSchedule)
+	admin.POST("/:code/:initials/schedule", h.CreateScheduleHandler)
+	admin.PUT("/:code/:initials/schedule", h.UpdateScheduleHandler)
 	admin.GET("/:code/:initials/schedule/create", h.CreateScheduleForm)
-	admin.GET("/:code/:initials/schedule/update", h.UpdateScheduleForm)
-	
-	
+	admin.PUT("/:code/:initials/schedule/update", h.UpdateScheduleForm)
 
-	super := app.Group("", authHandler.RoleAuthMiddleware("super"))
-	super.GET("/facilities", h.GetFacilities)
-	super.POST("/facilities", h.PostFacilities)
-	super.GET("/facilities/create", h.CreateFacilityForm)
-	super.GET("/facilities/:fid/update", h.UpdateFacilityForm)
-	super.PUT("/facilities/:fid", h.UpdateFacility)
+	// Super admin routes
+	app.GET("/facilities", h.GetFacilities, authHandler.RoleAuthMiddleware("super"))
+	app.POST("/facilities", h.PostFacilities, authHandler.RoleAuthMiddleware("super"))
+	app.GET("/facilities/create", h.CreateFacilityForm, authHandler.RoleAuthMiddleware("super"))
+	app.GET("/facilities/:fid/update", h.UpdateFacilityForm, authHandler.RoleAuthMiddleware("super"))
+	app.PUT("/facilities/:fid", h.UpdateFacility, authHandler.RoleAuthMiddleware("super"))
 
 	// Start server
 	logger.Info().Msg("Starting server on :8080")

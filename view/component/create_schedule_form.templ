@@ -1,6 +1,8 @@
 package component
 
-import "github.com/DukeRupert/haven/types"
+import (
+  "github.com/DukeRupert/haven/types"
+)
 
 templ CreateScheduleForm(route types.RouteContext) {
 	<div id="create-schedule-form" hx-target="this" hx-target-error="#global-alert" hx-swap="outerHTML" class="relative lg:col-span-2">

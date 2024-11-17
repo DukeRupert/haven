@@ -64,21 +64,27 @@ type CreateUserParams struct {
 }
 
 type Schedule struct {
-    ID            int         `db:"id" json:"id"`
-    CreatedAt     time.Time   `db:"created_at" json:"created_at"`
-    UpdatedAt     time.Time   `db:"updated_at" json:"updated_at"`
-    UserID        int         `db:"user_id" json:"user_id" validate:"required"`
-    FirstWeekday  time.Weekday `db:"first_weekday" json:"first_weekday" validate:"required,min=0,max=6"`
-    SecondWeekday time.Weekday `db:"second_weekday" json:"second_weekday" validate:"required,min=0,max=6"`
-    StartDate     time.Time   `db:"start_date" json:"start_date" validate:"required"`
+	ID            int          `db:"id" json:"id"`
+	CreatedAt     time.Time    `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time    `db:"updated_at" json:"updated_at"`
+	UserID        int          `db:"user_id" json:"user_id" validate:"required"`
+	FirstWeekday  time.Weekday `db:"first_weekday" json:"first_weekday" validate:"required,min=0,max=6"`
+	SecondWeekday time.Weekday `db:"second_weekday" json:"second_weekday" validate:"required,min=0,max=6"`
+	StartDate     time.Time    `db:"start_date" json:"start_date" validate:"required"`
 }
 
 type CreateScheduleByCodeParams struct {
-    FacilityCode  string
-    UserInitials  string
-    FirstDay      time.Weekday
-    SecondDay     time.Weekday
-    StartDate     time.Time
+	FacilityCode  string       `form:"facility_code"`
+	UserInitials  string       `form:"user_initials"`
+	FirstWeekday  time.Weekday `form:"first_weekday"`  // Changed from FirstDay
+	SecondWeekday time.Weekday `form:"second_weekday"` // Changed from SecondDay
+	StartDate     time.Time    `form:"start_date"`
+}
+
+type UpdateScheduleParams struct {
+	FirstWeekday  time.Weekday `form:"first_weekday" validate:"required,min=0,max=6"`
+	SecondWeekday time.Weekday `form:"second_weekday" validate:"required,min=0,max=6"`
+	StartDate     time.Time    `form:"start_date" validate:"required"`
 }
 
 type ProtectedDate struct {
@@ -91,11 +97,11 @@ type ProtectedDate struct {
 }
 
 func (s Schedule) IsZero() bool {
-    return s.ID == 0 && 
-           s.CreatedAt.IsZero() && 
-           s.UpdatedAt.IsZero() && 
-           s.UserID == 0 && 
-           s.StartDate.IsZero()
+	return s.ID == 0 &&
+		s.CreatedAt.IsZero() &&
+		s.UpdatedAt.IsZero() &&
+		s.UserID == 0 &&
+		s.StartDate.IsZero()
 }
 
 type AuthContext struct {
@@ -105,3 +111,4 @@ type AuthContext struct {
 	FacilityID   int
 	FacilityCode string
 }
+

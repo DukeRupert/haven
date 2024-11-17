@@ -6,14 +6,14 @@ import (
 )
 
 templ ScheduleCard(route types.RouteContext, auth db.AuthContext, schedule db.Schedule) {
-	<div class="relative lg:col-span-2">
+	<div id="schedule-card" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
 				<div class="flex items-center justify-between">
 					<h3 class="text-lg font-medium text-gray-900">Schedule Details</h3>
 					if auth.Role == "admin" || auth.Role == "super" {
 						<button
-							hx-get={ route.BuildURL("/schedule/update") }
+							hx-put={ route.BuildURL("/schedule/update") }
 							hx-target="#schedule-card"
 							hx-swap="outerHTML"
 							class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"

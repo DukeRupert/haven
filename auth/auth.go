@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"net/http"
@@ -41,26 +40,20 @@ type LoginResponse struct {
 }
 
 type AuthHandler struct {
-	database     *db.DB
-	store  sessions.Store // Add store to the handler
-	logger zerolog.Logger
+	database *db.DB
+	store    sessions.Store // Add store to the handler
+	logger   zerolog.Logger
 }
 
 const (
 	DefaultSessionName = "session"
 )
 
-func init() {
-	// Register types that will be stored in sessions
-	gob.Register(time.Time{})
-	gob.Register(db.UserRole(""))
-}
-
 func NewAuthHandler(pool *db.DB, store sessions.Store, logger zerolog.Logger) *AuthHandler {
 	return &AuthHandler{
-		database:     pool,
-		store:  store,
-		logger: logger.With().Str("component", "auth").Logger(),
+		database: pool,
+		store:    store,
+		logger:   logger.With().Str("component", "auth").Logger(),
 	}
 }
 
@@ -82,35 +75,35 @@ type LoginParams struct {
 //
 // Note: Additional user/facility data is populated by AuthMiddleware on redirect
 func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
-    return func(c echo.Context) error {
-        sess, err := session.Get(DefaultSessionName, c)
-        if err != nil {
-            h.logger.Error().Err(err).Msg("Failed to get session")
-            return echo.NewHTTPError(http.StatusInternalServerError, "session error")
-        }
+	return func(c echo.Context) error {
+		sess, err := session.Get(DefaultSessionName, c)
+		if err != nil {
+			h.logger.Error().Err(err).Msg("Failed to get session")
+			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
+		}
 
-        params := new(LoginParams)
-        if err := c.Bind(params); err != nil {
-            return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
-        }
+		params := new(LoginParams)
+		if err := c.Bind(params); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
+		}
 
-        user, err := authenticateUser(c.Request().Context(), h.database, params.Email, params.Password)
-        if err != nil {
-            return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
-        }
+		user, err := authenticateUser(c.Request().Context(), h.database, params.Email, params.Password)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
+		}
 
-        // Set minimum required session values
-        sess.Values["user_id"] = user.ID
-        sess.Values["role"] = user.Role
+		// Set minimum required session values
+		sess.Values["user_id"] = user.ID
+		sess.Values["role"] = user.Role
 
-        if err := sess.Save(c.Request(), c.Response()); err != nil {
-            h.logger.Error().Err(err).Msg("Failed to save session")
-            return echo.NewHTTPError(http.StatusInternalServerError, "session error")
-        }
+		if err := sess.Save(c.Request(), c.Response()); err != nil {
+			h.logger.Error().Err(err).Msg("Failed to save session")
+			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
+		}
 
-        // Let AuthMiddleware handle facility data on redirect
-        return c.Redirect(http.StatusSeeOther, "/app/")
-    }
+		// Let AuthMiddleware handle facility data on redirect
+		return c.Redirect(http.StatusSeeOther, "/app/")
+	}
 }
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
@@ -228,71 +221,75 @@ func convertSessionValues(values map[interface{}]interface{}) map[string]interfa
 // - facility_id: int (if user has facility)
 // - facility_code: string (if user has facility)
 func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
-    return func(next echo.HandlerFunc) echo.HandlerFunc {
-        return func(c echo.Context) error {
-            logger := h.logger.With().
-                Str("middleware", "AuthMiddleware()").
-                Str("path", c.Path()).
-                Logger()
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			logger := h.logger.With().
+				Str("middleware", "AuthMiddleware()").
+				Str("path", c.Path()).
+				Logger()
 
-            sess, err := session.Get(DefaultSessionName, c)
-            if err != nil {
-                logger.Error().Msg("no session found in context")
-                return redirectToLogin(c)
-            }
+			sess, err := session.Get(DefaultSessionName, c)
+			if err != nil {
+				logger.Error().Err(err).Msg("session error")
+				// Clear any partial/corrupted session
+				sess.Values = make(map[interface{}]interface{})
+				sess.Options.MaxAge = -1
+				sess.Save(c.Request(), c.Response())
+				return redirectToLogin(c)
+			}
 
-            // Validate user authentication
-            userID, ok := sess.Values["user_id"].(int)
-            if !ok || userID == 0 {
-                logger.Debug().Msg("no valid user_id in session")
-                return redirectToLogin(c)
-            }
+			// Validate user authentication
+			userID, ok := sess.Values["user_id"].(int)
+			if !ok || userID == 0 {
+				logger.Debug().Msg("no valid user_id in session")
+				return redirectToLogin(c)
+			}
 
-            // Fetch fresh user data
-            user, err := h.database.GetUserByID(c.Request().Context(), userID)
-            if err != nil {
-                logger.Error().Err(err).Int("user_id", userID).Msg("failed to fetch user data")
-                return redirectToLogin(c)
-            }
+			// Fetch fresh user data
+			user, err := h.database.GetUserByID(c.Request().Context(), userID)
+			if err != nil {
+				logger.Error().Err(err).Int("user_id", userID).Msg("failed to fetch user data")
+				return redirectToLogin(c)
+			}
 
-            // Fetch facility data if user has facility association
-            var facility *db.Facility
-            if user.FacilityID != 0 {
-                facility, err = h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
-                if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-                    logger.Error().Err(err).Int("facility_id", user.FacilityID).Msg("failed to fetch facility")
-                    return echo.NewHTTPError(http.StatusInternalServerError, "database error")
-                }
-            }
+			// Fetch facility data if user has facility association
+			var facility *db.Facility
+			if user.FacilityID != 0 {
+				facility, err = h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
+				if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+					logger.Error().Err(err).Int("facility_id", user.FacilityID).Msg("failed to fetch facility")
+					return echo.NewHTTPError(http.StatusInternalServerError, "database error")
+				}
+			}
 
-            // Update session with fresh data
-            sess.Values["user_id"] = user.ID
-            sess.Values["role"] = user.Role
-            sess.Values["initials"] = user.Initials
-            sess.Values["last_access"] = time.Now()
+			// Update session with fresh data
+			sess.Values["user_id"] = user.ID
+			sess.Values["role"] = user.Role
+			sess.Values["initials"] = user.Initials
+			sess.Values["last_access"] = time.Now()
 
-            if facility != nil {
-                sess.Values["facility_id"] = facility.ID
-                sess.Values["facility_code"] = facility.Code
-            }
+			if facility != nil {
+				sess.Values["facility_id"] = facility.ID
+				sess.Values["facility_code"] = facility.Code
+			}
 
-            if err := sess.Save(c.Request(), c.Response()); err != nil {
-                logger.Error().Err(err).Msg("failed to save session")
-                return echo.NewHTTPError(http.StatusInternalServerError, "session error")
-            }
+			if err := sess.Save(c.Request(), c.Response()); err != nil {
+				logger.Error().Err(err).Msg("failed to save session")
+				return echo.NewHTTPError(http.StatusInternalServerError, "session error")
+			}
 
-            // Set context values for handlers
-            c.Set("user_id", user.ID)
-            c.Set("user_role", user.Role)
-            c.Set("user_initials", user.Initials)
-            if facility != nil {
-                c.Set("facility_id", facility.ID)
-                c.Set("facility_code", facility.Code)
-            }
+			// Set context values for handlers
+			c.Set("user_id", user.ID)
+			c.Set("user_role", user.Role)
+			c.Set("user_initials", user.Initials)
+			if facility != nil {
+				c.Set("facility_id", facility.ID)
+				c.Set("facility_code", facility.Code)
+			}
 
-            return next(c)
-        }
-    }
+			return next(c)
+		}
+	}
 }
 
 // RoleAuthMiddleware protects routes by checking if the user has sufficient role permissions.

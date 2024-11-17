@@ -12,6 +12,7 @@ require (
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/rs/zerolog v1.33.0
 	golang.org/x/crypto v0.27.0
+	golang.org/x/text v0.18.0
 )
 
 require (
@@ -28,6 +29,5 @@ require (
 	golang.org/x/net v0.28.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.25.0 // indirect
-	golang.org/x/text v0.18.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 )
