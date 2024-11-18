@@ -24,7 +24,7 @@ templ Success(heading string, message string) {
 }
 
 templ Error(heading string, messages []string) {
-    <div id="global-alert" hx-swap-oob="true" class="fixed bottom-4 right-4 w-96 max-w-[calc(100vw-2rem)] z-50 animate-slide-in">
+    <div id="global-alert" class="fixed bottom-4 right-4 w-96 max-w-[calc(100vw-2rem)] z-50 animate-slide-in">
         <div class="rounded-md bg-red-50 p-4 shadow-lg">
             <div class="flex">
                 <div class="shrink-0">

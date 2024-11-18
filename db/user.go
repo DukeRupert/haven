@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/rs/zerolog/log"
 )
 
 type UserDetails struct {
@@ -188,7 +189,17 @@ func (db *DB) GetUserDetails(ctx context.Context, initials string, facilityID in
 }
 
 func (db *DB) CreateUser(ctx context.Context, params CreateUserParams) (*User, error) {
-	// First check if email is unique
+	// Log params received by database method
+	log.Debug().
+		Str("first_name", params.FirstName).
+		Str("last_name", params.LastName).
+		Str("initials", params.Initials).
+		Str("email", params.Email).
+		Str("role", string(params.Role)).
+		Int("facility_id", params.FacilityID).
+		Msg("received create user params")
+
+		// First check if email is unique
 	var count int
 	err := db.pool.QueryRow(ctx, `
         SELECT COUNT(*) 
@@ -377,4 +388,3 @@ func (db *DB) DeleteUser(ctx context.Context, userID int) error {
 
 	return nil
 }
-

@@ -6,8 +6,6 @@ import (
 	"net/mail"
 	"strings"
 	"unicode"
-
-	"github.com/DukeRupert/haven/db"
 )
 
 const (
@@ -30,11 +28,13 @@ var ValidUserRoles = map[UserRole]bool{
 	RoleUser:  true,
 }
 
-type UserName string
-type UserInitials string
-type UserEmail string
-type UserPassword string
-type HashedPassword string
+type (
+	UserName       string
+	UserInitials   string
+	UserEmail      string
+	UserPassword   string
+	HashedPassword string
+)
 
 // ValidateUserName validates both first and last names
 func ValidateUserName(name string, fieldName string) (UserName, error) {
@@ -103,18 +103,16 @@ func ValidateUserPassword(password string) (UserPassword, error) {
 }
 
 // Update the return type to match your db package
-func ValidateUserRole(role string) (db.UserRole, error) {
-	normalizedRole := strings.ToLower(strings.TrimSpace(role))
+// Update your ValidateUserRole function to ensure lowercase
+func ValidateUserRole(role string) (UserRole, error) {
+	// Convert to lowercase for comparison
+	roleLower := strings.ToLower(role)
 
-	if normalizedRole == "" {
-		return "", ErrEmptyRole
-	}
-
-	switch normalizedRole {
-	case "super", "admin", "user":
-		return db.UserRole(normalizedRole), nil
+	switch roleLower {
+	case string(RoleSuper), string(RoleAdmin), string(RoleUser):
+		return UserRole(roleLower), nil
 	default:
-		return "", ErrInvalidRole
+		return "", fmt.Errorf("invalid role: %s. Must be one of: super, admin, user", role)
 	}
 }
 

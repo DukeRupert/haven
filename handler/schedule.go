@@ -73,11 +73,11 @@ func (h *Handler) CreateScheduleHandler(c echo.Context) error {
 
 	// Create parameters with converted values
 	params := db.CreateScheduleByCodeParams{
-		FacilityCode: h.RouteCtx.FacilityCode,
-		UserInitials: h.RouteCtx.UserInitials,
-		FirstDay:     time.Weekday(formData.FirstWeekday),
-		SecondDay:    time.Weekday(formData.SecondWeekday),
-		StartDate:    startDate,
+		FacilityCode:  h.RouteCtx.FacilityCode,
+		UserInitials:  h.RouteCtx.UserInitials,
+		FirstWeekday:  time.Weekday(formData.FirstWeekday),
+		SecondWeekday: time.Weekday(formData.SecondWeekday),
+		StartDate:     startDate,
 	}
 
 	schedule, err := h.db.CreateScheduleByCode(c.Request().Context(), params)

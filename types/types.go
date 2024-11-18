@@ -59,4 +59,3 @@ func (rc RouteContext) GetBreadcrumbs() []Breadcrumb {
 
 	return breadcrumbs
 }
-

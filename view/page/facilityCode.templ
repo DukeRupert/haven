@@ -16,12 +16,13 @@ templ ShowFacilities(route types.RouteContext, title string, description string,
 				</div>
 				if role == "admin" || role == "super" {
 					<div class="mt-4 flex md:ml-4 md:mt-0">
-						<button hx-get="./user/create" hx-target="#facility-list" hx-swap="afterbegin" type="button" class="ml-3 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Add</button>
+						<button hx-get="./create" hx-target="#create-user-form" hx-swap="outerHTML" type="button" class="ml-3 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Add</button>
 					</div>
 				}
 			</header>
 			<main class="py-12 sm:py-16">
 				<ul id="facility-list" role="list" class="mt-8 divide-y divide-gray-100">
+          <li id="create-user-form" />
 					for _, u := range users {
 						@UserListItem(route, u)
 					}

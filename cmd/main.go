@@ -98,7 +98,7 @@ func main() {
 
 	// Admin routes
 	admin := app.Group("", authHandler.RoleAuthMiddleware("admin"))
-	admin.POST("/:code", h.CreateUser)
+	admin.POST("/:code", h.CreateUserHandler)
 	admin.GET("/:code/create", h.CreateUserForm)
 	admin.PUT("/:code/:initials", h.PlaceholderMessage)
 	admin.GET("/:code/:initials/update", h.CreateUserForm)

@@ -1,6 +1,9 @@
 package db
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // UserRole is a custom type for the user_role enum
 type UserRole string
@@ -26,16 +29,7 @@ type User struct {
 
 // String returns a formatted display string for the user role
 func (r UserRole) String() string {
-	switch r {
-	case UserRoleSuper:
-		return "Super Admin"
-	case UserRoleAdmin:
-		return "Admin"
-	case UserRoleUser:
-		return "User"
-	default:
-		return string(r) // fallback to the raw string value
-	}
+	return strings.ToLower(string(r))
 }
 
 // Optionally, you might also want to add a method for getting CSS classes or styles:
@@ -52,15 +46,15 @@ func (r UserRole) BadgeClass() string {
 	}
 }
 
-// CreateUserParams represents the parameters needed to create a new user
 type CreateUserParams struct {
-	FirstName  string   `json:"first_name" validate:"required"`
-	LastName   string   `json:"last_name" validate:"required"`
-	Initials   string   `json:"initials" validate:"required,max=10"`
-	Email      string   `json:"email" validate:"required,email"`
-	Password   string   `json:"password" validate:"required,min=8"`
-	FacilityID int      `json:"facility_id" validate:"required,min=1"`
-	Role       UserRole `json:"role" validate:"required,oneof=super admin user"`
+	FirstName    string   `form:"first_name" validate:"required"`
+	LastName     string   `form:"last_name" validate:"required"`
+	Initials     string   `form:"initials" validate:"required"`
+	Email        string   `form:"email" validate:"required,email"`
+	Password     string   `form:"password" validate:"required,min=8"`
+	Role         UserRole `form:"role" validate:"required,oneof=super admin user"`
+	FacilityCode string   `form:"facility_code" validate:"required"` // Used to look up FacilityID
+	FacilityID   int      // Set after facility lookup, not from form
 }
 
 type Schedule struct {
