@@ -50,6 +50,46 @@ func (h *Handler) UpdateScheduleForm(c echo.Context) error {
 	return render(c, component.UpdateScheduleForm(route, *schedule))
 }
 
+func (h *Handler) GetScheduleHandler(c echo.Context) error {
+	logger := h.logger
+
+	// Get route parameters
+	code := c.Param("code")
+	initials := c.Param("initials")
+
+	// Get schedule from database
+	schedule, err := h.db.GetScheduleByCode(
+		c.Request().Context(),
+		code,
+		initials,
+	)
+	if err != nil {
+		logger.Error().Err(err).
+			Str("facility_code", code).
+			Str("user_initials", initials).
+			Msg("Failed to get schedule")
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get schedule")
+	}
+
+	// Get session data for rendering
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+	}
+
+	// Log successful retrieval
+	logger.Info().
+		Int("schedule_id", schedule.ID).
+		Str("facility_code", code).
+		Str("user_initials", initials).
+		Time("start_date", schedule.StartDate).
+		Msgf("schedule retrieved successfully with weekdays %s and %s",
+			schedule.FirstWeekday, schedule.SecondWeekday)
+
+	// Return the schedule card
+	return render(c, page.ScheduleCard(h.RouteCtx, *auth, *schedule))
+}
+
 type CreateScheduleRequest struct {
 	FirstWeekday  int    `form:"first_weekday" validate:"required,min=0,max=6"`
 	SecondWeekday int    `form:"second_weekday" validate:"required,min=0,max=6"`

@@ -102,10 +102,12 @@ func main() {
 	admin.GET("/:code/create", h.CreateUserForm)
 	admin.PUT("/:code/:initials", h.PlaceholderMessage)
 	admin.GET("/:code/:initials/update", h.CreateUserForm)
+	admin.GET("/:code/:initials/schedule", h.GetScheduleHandler)
 	admin.POST("/:code/:initials/schedule", h.CreateScheduleHandler)
 	admin.PUT("/:code/:initials/schedule", h.UpdateScheduleHandler)
 	admin.GET("/:code/:initials/schedule/create", h.CreateScheduleForm)
-	admin.PUT("/:code/:initials/schedule/update", h.UpdateScheduleForm)
+	admin.GET("/:code/:initials/schedule/update", h.UpdateScheduleForm)
+	
 
 	// Super admin routes
 	app.GET("/facilities", h.GetFacilities, authHandler.RoleAuthMiddleware("super"))
