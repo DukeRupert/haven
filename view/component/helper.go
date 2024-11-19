@@ -1,43 +1,12 @@
-package utils
+package component
 
 import (
 	"strings"
 	"time"
 
+	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/types"
 )
-
-// WeekdayString returns a readable string of the weekday
-func WeekdayString(d time.Weekday) string {
-	return d.String() // Built-in method returns "Sunday", "Monday", etc.
-}
-
-// WeekdayShort returns a 3-letter abbreviation
-func WeekdayShort(d time.Weekday) string {
-	return d.String()[:3] // Returns "Sun", "Mon", etc.
-}
-
-// WeekdayFriendly returns a more user-friendly format
-func WeekdayFriendly(d time.Weekday) string {
-	switch d {
-	case time.Sunday:
-		return "Every Sunday"
-	case time.Monday:
-		return "Every Monday"
-	case time.Tuesday:
-		return "Every Tuesday"
-	case time.Wednesday:
-		return "Every Wednesday"
-	case time.Thursday:
-		return "Every Thursday"
-	case time.Friday:
-		return "Every Friday"
-	case time.Saturday:
-		return "Every Saturday"
-	default:
-		return "Unknown Day"
-	}
-}
 
 // Helper functions (in a separate .go file)
 func getDaysInMonth(date time.Time) []time.Time {
@@ -106,7 +75,7 @@ func getDayClasses(props types.CalendarDayProps) string {
 	return strings.Join(classes, " ")
 }
 
-func getTimeClasses(props CalendarDayProps) string {
+func getTimeClasses(props types.CalendarDayProps) string {
 	classes := []string{"mx-auto", "flex", "size-7", "items-center", "justify-center", "rounded-full"}
 
 	if props.ProtectedDate != nil {
@@ -120,16 +89,16 @@ func getTimeClasses(props CalendarDayProps) string {
 	return strings.Join(classes, " ")
 }
 
-func canToggleDate(protectedDate *ProtectedDate, userRole UserRole, currentUserID int) bool {
+func canToggleDate(protectedDate *db.ProtectedDate, userRole db.UserRole, currentUserID int) bool {
 	if protectedDate == nil {
 		return false
 	}
-	return userRole == UserRoleSuper ||
-		userRole == UserRoleAdmin ||
-		protectedDate.UserID == currentUserID
+	return userRole == db.UserRoleSuper ||
+		userRole == db.UserRoleAdmin ||
+		protectedDate.ScheduleID == currentUserID
 }
 
-func findProtectedDate(date time.Time, protectedDates []ProtectedDate) *ProtectedDate {
+func findProtectedDate(date time.Time, protectedDates []db.ProtectedDate) *db.ProtectedDate {
 	for _, pd := range protectedDates {
 		if pd.Date.Year() == date.Year() &&
 			pd.Date.Month() == date.Month() &&
@@ -139,4 +108,3 @@ func findProtectedDate(date time.Time, protectedDates []ProtectedDate) *Protecte
 	}
 	return nil
 }
-

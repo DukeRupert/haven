@@ -56,6 +56,15 @@ type CalendarProps struct {
 	FacilityCode   string
 }
 
+type CalendarDayProps struct {
+	Date          time.Time
+	CurrentMonth  time.Time
+	ProtectedDate *db.ProtectedDate
+	UserRole      db.UserRole
+	CurrentUserID int
+	FacilityCode  string
+}
+
 // func (rc RouteContext) GetBreadcrumbs() []Breadcrumb {
 // 	parts := strings.Split(strings.Trim(rc.BuildURL(), "/"), "/")
 // 	breadcrumbs := make([]Breadcrumb, len(parts))

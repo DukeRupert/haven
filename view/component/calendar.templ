@@ -1,6 +1,11 @@
-package components
+package component
 
-import "github.com/DukeRupert/haven/types"
+import (
+"fmt"
+  "github.com/DukeRupert/haven/types"
+
+  )
+
 
 templ Calendar(props types.CalendarProps) {
     <div class="mt-10 text-center lg:col-start-8 lg:col-end-13 lg:row-start-1 lg:mt-9 xl:col-start-9">
@@ -42,7 +47,7 @@ templ Calendar(props types.CalendarProps) {
 
         <div class="isolate mt-2 grid grid-cols-7 gap-px rounded-lg bg-gray-200 text-sm shadow ring-1 ring-gray-200">
             for _, day := range getDaysInMonth(props.CurrentMonth) {
-                @CalendarDay(CalendarDayProps{
+                @CalendarDay(types.CalendarDayProps{
                     Date: day,
                     CurrentMonth: props.CurrentMonth,
                     ProtectedDate: findProtectedDate(day, props.ProtectedDates),
@@ -55,16 +60,7 @@ templ Calendar(props types.CalendarProps) {
     </div>
 }
 
-type CalendarDayProps struct {
-    Date          time.Time
-    CurrentMonth  time.Time
-    ProtectedDate *ProtectedDate
-    UserRole      UserRole
-    CurrentUserID int
-    FacilityCode  string
-}
-
-templ CalendarDay(props CalendarDayProps) {
+templ CalendarDay(props types.CalendarDayProps) {
     <button 
         type="button" 
         class={getDayClasses(props)}
