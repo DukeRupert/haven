@@ -15,7 +15,7 @@ import (
 )
 
 // "github.com/DukeRupert/haven/utils"
-func UserPage(route types.RouteContext, Title string, Description string, AuthContext *db.AuthContext, UserDetails *db.UserDetails) templ.Component {
+func UserPage(route types.RouteContext, navItems []types.NavItem, Title string, Description string, AuthContext *db.AuthContext, UserDetails *db.UserDetails) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -194,7 +194,7 @@ func UserPage(route types.RouteContext, Title string, Description string, AuthCo
 				}
 				return templ_7745c5c3_Err
 			})
-			templ_7745c5c3_Err = layout.AppLayout().Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = layout.AppLayout(route, navItems).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

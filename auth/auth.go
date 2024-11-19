@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DukeRupert/haven/db"
+	"github.com/DukeRupert/haven/types"
 	"github.com/gorilla/sessions"
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo-contrib/session"
@@ -327,7 +328,7 @@ func (h *AuthHandler) RoleAuthMiddleware(minimumRole db.UserRole) echo.Middlewar
 			}
 
 			// Check if user's role meets minimum required role
-			if !isAtLeastRole(string(role), string(minimumRole)) {
+			if !IsAtLeastRole(string(role), string(minimumRole)) {
 				logger.Debug().
 					Str("user_role", string(role)).
 					Msg("insufficient role permissions")
@@ -336,6 +337,38 @@ func (h *AuthHandler) RoleAuthMiddleware(minimumRole db.UserRole) echo.Middlewar
 			return next(c)
 		}
 	}
+}
+
+func (h *AuthHandler) WithRouteContext() echo.MiddlewareFunc {
+    return func(next echo.HandlerFunc) echo.HandlerFunc {
+        return func(c echo.Context) error {
+            // Get values set by AuthMiddleware
+            userRole, _ := c.Get("user_role").(db.UserRole)
+            userInitials, _ := c.Get("user_initials").(string)
+            facilityID, _ := c.Get("facility_id").(int)
+            facilityCode, _ := c.Get("facility_code").(string)
+
+            // Determine base path based on role and facility
+            var basePath string
+            if facilityCode != "" {
+                basePath = facilityCode
+            }
+
+            // Create route context
+            routeCtx := &types.RouteContext{
+                BasePath:     basePath,
+                UserRole:     userRole,
+                UserInitials: userInitials,
+                FacilityID:   facilityID,
+                FacilityCode: facilityCode,
+            }
+
+            // Store in context
+            c.Set("routeCtx", routeCtx)
+            
+            return next(c)
+        }
+    }
 }
 
 // RedirectIfAuthenticated middleware checks if a user is already logged in when accessing the login page
@@ -387,8 +420,8 @@ func (h *AuthHandler) RedirectIfAuthenticated() echo.MiddlewareFunc {
 	}
 }
 
-// isAtLeastRole checks if the current role meets or exceeds the minimum required role
-func isAtLeastRole(currentRole string, minimumRole string) bool {
+// IsAtLeastRole checks if the current role meets or exceeds the minimum required role
+func IsAtLeastRole(currentRole string, minimumRole string) bool {
 	roleValues := map[string]int{
 		"user":  1,
 		"admin": 2,

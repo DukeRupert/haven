@@ -3,12 +3,13 @@ package super
 import (
   "fmt"
   "github.com/DukeRupert/haven/db"
+  "github.com/DukeRupert/haven/types"
   "github.com/DukeRupert/haven/view/layout"
 )
 
-templ ShowFacilities(title string, description string, facs []db.Facility) {
+templ ShowFacilities(route types.RouteContext, navItems []types.NavItem, title string, description string, facs []db.Facility) {
   @layout.BaseLayout() {
-    @layout.AppLayout() {
+    @layout.AppLayout(route, navItems) {
       <div class="px-4 sm:px-6 lg:px-8">
   <div class="sm:flex sm:items-center">
     <div class="sm:flex-auto">

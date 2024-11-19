@@ -1,18 +1,32 @@
 package types
 
 import (
-	"path"
-	"strings"
+	"fmt"
+
+	"github.com/DukeRupert/haven/db"
 
 	"github.com/rs/zerolog"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
+
 )
 
+type Role = db.UserRole // alias for your existing UserRole type
+
 type RouteContext struct {
-	FacilityCode string
-	UserInitials string
-	BasePath     string
+    BasePath     string
+    UserRole     Role
+    UserInitials string
+    FacilityID   int
+    FacilityCode string
+    User         *db.User     // Optional: full user object if needed
+    Facility     *db.Facility // Optional: full facility object if needed
+}
+
+type NavItem struct {
+    Path     string    // Full path including facility code if applicable
+    Name     string    // Display name for the navigation item
+    Icon     string    // Icon identifier (for CSS/SVG icons)
+    Active   bool      // Whether this is the current active route
+    Visible  bool      // Whether this item should be shown to the user
 }
 
 // MarshalZerologObject implements zerolog.LogObjectMarshaler
@@ -22,22 +36,11 @@ func (rc RouteContext) MarshalZerologObject(e *zerolog.Event) {
 		Str("base_path", rc.BasePath)
 }
 
-func (rc RouteContext) BuildURL(parts ...string) string {
-	urlParts := []string{rc.BasePath}
-
-	if rc.FacilityCode != "" {
-		urlParts = append(urlParts, rc.FacilityCode)
-		if rc.UserInitials != "" {
-			urlParts = append(urlParts, rc.UserInitials)
-		}
-	}
-
-	if len(parts) > 0 {
-		urlParts = append(urlParts, parts...)
-	}
-
-	// Join parts with forward slashes and ensure single leading slash
-	return "/" + strings.TrimPrefix(path.Join(urlParts...), "/")
+func (r *RouteContext) BuildURL(path string) string {
+    if r.FacilityCode == "" {
+        return path
+    }
+    return fmt.Sprintf("/%s%s", r.FacilityCode, path)
 }
 
 type Breadcrumb struct {
@@ -45,17 +48,17 @@ type Breadcrumb struct {
 	URL   string
 }
 
-func (rc RouteContext) GetBreadcrumbs() []Breadcrumb {
-	parts := strings.Split(strings.Trim(rc.BuildURL(), "/"), "/")
-	breadcrumbs := make([]Breadcrumb, len(parts))
-	caser := cases.Title(language.English)
+// func (rc RouteContext) GetBreadcrumbs() []Breadcrumb {
+// 	parts := strings.Split(strings.Trim(rc.BuildURL(), "/"), "/")
+// 	breadcrumbs := make([]Breadcrumb, len(parts))
+// 	caser := cases.Title(language.English)
 
-	for i, part := range parts {
-		breadcrumbs[i] = Breadcrumb{
-			Label: caser.String(strings.ReplaceAll(part, "_", " ")),
-			URL:   "/" + strings.Join(parts[:i+1], "/"),
-		}
-	}
+// 	for i, part := range parts {
+// 		breadcrumbs[i] = Breadcrumb{
+// 			Label: caser.String(strings.ReplaceAll(part, "_", " ")),
+// 			URL:   "/" + strings.Join(parts[:i+1], "/"),
+// 		}
+// 	}
 
-	return breadcrumbs
-}
+// 	return breadcrumbs
+// }

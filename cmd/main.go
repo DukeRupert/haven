@@ -87,34 +87,37 @@ func main() {
 	api.Use(authHandler.AuthMiddleware())
 	api.GET("/:fid/:uid/schedule/new", h.CreateScheduleForm)
 
+	// Setup routes
+    handler.SetupRoutes(e, h, authHandler)
+
 	// Protected routes
-	app := e.Group("/app")
-	app.Use(authHandler.AuthMiddleware())
-	app.Use(handler.SetRouteContext(h))
-	app.GET("/", h.PlaceholderMessage)
-	app.GET("/:code/calendar", h.PlaceholderMessage)
-	app.GET("/:code", h.GetUsersByFacility)
-	app.GET("/:code/:initials", h.GetUser)
+	// app := e.Group("/app")
+	// app.Use(authHandler.AuthMiddleware())
+	// app.Use(handler.SetRouteContext(h))
+	// app.GET("/", h.PlaceholderMessage)
+	// app.GET("/:code/calendar", h.PlaceholderMessage)
+	// app.GET("/:code", h.GetUsersByFacility)
+	// app.GET("/:code/:initials", h.GetUser)
 
 	// Admin routes
-	admin := app.Group("", authHandler.RoleAuthMiddleware("admin"))
-	admin.POST("/:code", h.CreateUserHandler)
-	admin.GET("/:code/create", h.CreateUserForm)
-	admin.PUT("/:code/:initials", h.PlaceholderMessage)
-	admin.GET("/:code/:initials/update", h.CreateUserForm)
-	admin.GET("/:code/:initials/schedule", h.GetScheduleHandler)
-	admin.POST("/:code/:initials/schedule", h.CreateScheduleHandler)
-	admin.PUT("/:code/:initials/schedule", h.UpdateScheduleHandler)
-	admin.GET("/:code/:initials/schedule/create", h.CreateScheduleForm)
-	admin.GET("/:code/:initials/schedule/update", h.UpdateScheduleForm)
+	// admin := app.Group("", authHandler.RoleAuthMiddleware("admin"))
+	// admin.POST("/:code", h.CreateUserHandler)
+	// admin.GET("/:code/create", h.CreateUserForm)
+	// admin.PUT("/:code/:initials", h.PlaceholderMessage)
+	// admin.GET("/:code/:initials/update", h.CreateUserForm)
+	// admin.GET("/:code/:initials/schedule", h.GetScheduleHandler)
+	// admin.POST("/:code/:initials/schedule", h.CreateScheduleHandler)
+	// admin.PUT("/:code/:initials/schedule", h.UpdateScheduleHandler)
+	// admin.GET("/:code/:initials/schedule/create", h.CreateScheduleForm)
+	// admin.GET("/:code/:initials/schedule/update", h.UpdateScheduleForm)
 	
 
 	// Super admin routes
-	app.GET("/facilities", h.GetFacilities, authHandler.RoleAuthMiddleware("super"))
-	app.POST("/facilities", h.PostFacilities, authHandler.RoleAuthMiddleware("super"))
-	app.GET("/facilities/create", h.CreateFacilityForm, authHandler.RoleAuthMiddleware("super"))
-	app.GET("/facilities/:fid/update", h.UpdateFacilityForm, authHandler.RoleAuthMiddleware("super"))
-	app.PUT("/facilities/:fid", h.UpdateFacility, authHandler.RoleAuthMiddleware("super"))
+	// app.GET("/facilities", h.GetFacilities, authHandler.RoleAuthMiddleware("super"))
+	// app.POST("/facilities", h.PostFacilities, authHandler.RoleAuthMiddleware("super"))
+	// app.GET("/facilities/create", h.CreateFacilityForm, authHandler.RoleAuthMiddleware("super"))
+	// app.GET("/facilities/:fid/update", h.UpdateFacilityForm, authHandler.RoleAuthMiddleware("super"))
+	// app.PUT("/facilities/:fid", h.UpdateFacility, authHandler.RoleAuthMiddleware("super"))
 
 	// Start server
 	logger.Info().Msg("Starting server on :8080")

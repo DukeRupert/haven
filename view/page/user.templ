@@ -7,9 +7,9 @@ import (
 )
 
 // "github.com/DukeRupert/haven/utils"
-templ UserPage( route types.RouteContext, Title string, Description string, AuthContext *db.AuthContext, UserDetails *db.UserDetails) {
+templ UserPage( route types.RouteContext, navItems []types.NavItem, Title string, Description string, AuthContext *db.AuthContext, UserDetails *db.UserDetails) {
 	@layout.BaseLayout() {
-		@layout.AppLayout() {
+		@layout.AppLayout(route, navItems) {
 			<!-- Bento Grid -->
 			<div class="grid gap-4 lg:grid-cols-3 lg:grid-rows-2"> 
 				<!-- User Profile Card - Spans 2 rows -->
