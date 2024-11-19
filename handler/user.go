@@ -3,11 +3,13 @@ package handler
 import (
 	"net/http"
 	"time"
+	"fmt"
 
 	"github.com/DukeRupert/haven/db"
-
+	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/auth"
 	"github.com/DukeRupert/haven/view/component"
+	"github.com/DukeRupert/haven/view/page"
 
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
@@ -240,6 +242,119 @@ type UserPageData struct {
 	Description string
 	Auth        *db.AuthContext
 	User        *db.UserDetails
+}
+
+// Updated handler function
+func (h *Handler) handleProfile(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
+	logger := h.logger.With().
+		Str("handler", "handleProfile").
+		Str("facility", c.Param("facility")).
+		Logger()
+
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+	}
+
+	// Check for initials query param
+	initials := c.QueryParam("initials")
+	
+	// If no initials provided, show the current user's profile
+	if initials == "" {
+		initials = auth.Initials // Assuming this exists in your auth context
+		logger.Debug().
+			Str("initials", initials).
+			Msg("no initials provided, showing own profile")
+	} else {
+		// Log if we're viewing someone else's profile
+		logger.Debug().
+			Str("initials", initials).
+			Str("viewer", auth.Initials).
+			Msg("viewing other user's profile")
+
+		// Optional: Check if user has permission to view other profiles
+		if !canViewOtherProfiles(auth) {
+			logger.Warn().
+				Str("initials", initials).
+				Str("viewer", auth.Initials).
+				Msg("unauthorized attempt to view other profile")
+			return echo.NewHTTPError(http.StatusForbidden, "Not authorized to view other profiles")
+		}
+	}
+
+	details, err := h.db.GetUserDetails(
+		c.Request().Context(),
+		initials,
+		auth.FacilityID,
+	)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Str("initials", initials).
+			Msg("failed to find user details")
+		return c.String(http.StatusNotFound, "User not found")
+	}
+
+	title := "Profile"
+	description := "Manage your account information and schedule"
+
+	// Optionally modify title/description when viewing other profiles
+	if initials != auth.Initials {
+		title = fmt.Sprintf("%s's Profile", details.User.Initials) // Adjust based on your user details structure
+		description = fmt.Sprintf("View %s's information and schedule", details.User.Initials)
+	}
+
+	component := page.UserPage(
+		*routeCtx,
+		navItems,
+		title,
+		description,
+		auth,
+		details,
+	)
+	return component.Render(c.Request().Context(), c.Response().Writer)
+}
+
+// Helper function to check if user can view other profiles
+func canViewOtherProfiles(auth *db.AuthContext) bool {
+	// Implement your permission logic here
+	// For example:
+	switch auth.Role {
+	case "admin", "supervisor":
+		return true
+	default:
+		return false
+	}
+}
+
+func (h *Handler) handleUser(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+	}
+
+	details, err := h.db.GetUserDetails(
+		c.Request().Context(),
+		c.Param("initials"),
+		auth.FacilityID,
+	)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("failed to find user details")
+		return c.String(http.StatusNotFound, "User not found")
+	}
+
+	title := "Profile"
+	description := "Manage your account information and schedule"
+
+	component := page.UserPage(
+		*routeCtx,
+		navItems,
+		title,
+		description,
+		auth,
+		details,
+	)
+	return component.Render(c.Request().Context(), c.Response().Writer)
 }
 
 // func (h *Handler) GetUser(c echo.Context) error {

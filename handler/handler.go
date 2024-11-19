@@ -27,26 +27,26 @@ type HandlerFunc func(c echo.Context, routeCtx *types.RouteContext, navItems []t
 
 // WithNav wraps your handler functions with common navigation logic
 func (h *Handler) WithNav(fn HandlerFunc) echo.HandlerFunc {
-    return func(c echo.Context) error {
-        logger := h.logger.With().
-            Str("middleware", "WithNav").
-            Str("path", c.Request().URL.Path).
-            Logger()
+	return func(c echo.Context) error {
+		logger := h.logger.With().
+			Str("middleware", "WithNav").
+			Str("path", c.Request().URL.Path).
+			Logger()
 
-        // Get route context
-        routeCtx, err := GetRouteContext(c)
-        if err != nil {
-            logger.Error().Err(err).Msg("failed to get route context")
-            return err
-        }
+		// Get route context
+		routeCtx, err := GetRouteContext(c)
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to get route context")
+			return err
+		}
 
-        // Build navigation
-        currentPath := c.Request().URL.Path
-        navItems := BuildNav(routeCtx, currentPath)
+		// Build navigation
+		currentPath := c.Request().URL.Path
+		navItems := BuildNav(routeCtx, currentPath)
 
-        // Call the wrapped handler
-        return fn(c, routeCtx, navItems)
-    }
+		// Call the wrapped handler
+		return fn(c, routeCtx, navItems)
+	}
 }
 
 // NewSuperHandler creates a new handler with both pool and store
@@ -58,121 +58,122 @@ func NewHandler(db *db.DB, logger zerolog.Logger) *Handler {
 }
 
 func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler) {
-    // Apply middleware - make sure AuthMiddleware runs first
-    e.Use(auth.AuthMiddleware())
-    e.Use(auth.WithRouteContext())
+	// Define static assets
+	e.Static("/static", "assets")
+	// Apply middleware globally
+	e.Use(auth.AuthMiddleware())
+	e.Use(auth.WithRouteContext())
 
-    // Register routes with proper Echo handler methods
-    // for _, route := range AppRoutes {
-    //     handler := wrapHandler(route, h.handleRoute)
-        
-    //     if route.NeedsFacility {
-    //         e.GET("/:facility"+route.Path, handler, auth.RoleAuthMiddleware(route.MinRole))
-    //     }
-    //     e.GET(route.Path, handler, auth.RoleAuthMiddleware(route.MinRole))
-    // }
+	// Define all routes - public and protected
+	// Public routes (these match the publicRoutes map in the middleware)
+	e.GET("/", h.ShowHome)
+	e.GET("/login", h.GetLogin, auth.RedirectIfAuthenticated())
+	e.POST("/login", auth.LoginHandler())
+	e.POST("/logout", auth.LogoutHandler())
 
-// Register routes using the wrapper
-e.GET("/dashboard", h.WithNav(h.handleDashboard))
-e.GET("/:facility/dashboard", h.WithNav(h.handleDashboard))
+	// Protected routes
+	e.GET("/dashboard", h.WithNav(h.handleDashboard))
+	e.GET("/:facility/dashboard", h.WithNav(h.handleDashboard))
+	e.GET("/controllers", h.WithNav(h.handleControllers))
+	e.GET("/:facility/controllers", h.WithNav(h.handleControllers))
+    e.GET("/profile", h.WithNav(h.handleUser))
+    e.GET("/:facility/profile", h.WithNav(h.handleProfile))
+	e.GET("/:facility/:initials", h.WithNav(h.handleUser))
 
-e.GET("/controllers", h.WithNav(h.handleControllers))
-e.GET("/:facility/controllers", h.WithNav(h.handleControllers))
-
-// e.GET("/calendar", h.WithNav(h.handleCalendar))
-// e.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
+	// protected.GET("/calendar", h.WithNav(h.handleCalendar))
+	// protected.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
 }
 
 func wrapHandler(route Route, handler echo.HandlerFunc) echo.HandlerFunc {
-    return func(c echo.Context) error {
-        routeCtx, err := GetRouteContext(c)
-        if err != nil {
-            return err
-        }
+	return func(c echo.Context) error {
+		routeCtx, err := GetRouteContext(c)
+		if err != nil {
+			return err
+		}
 
-        // If route needs facility and we don't have one, redirect to non-facility version
-        if route.NeedsFacility && routeCtx.FacilityCode == "" {
-            return c.Redirect(http.StatusTemporaryRedirect, route.Path)
-        }
+		// If route needs facility and we don't have one, redirect to non-facility version
+		if route.NeedsFacility && routeCtx.FacilityCode == "" {
+			return c.Redirect(http.StatusTemporaryRedirect, route.Path)
+		}
 
-        // If we're on non-facility route but have a facility, redirect to facility version
-        if route.NeedsFacility && c.Param("facility") == "" && routeCtx.FacilityCode != "" {
-            return c.Redirect(http.StatusTemporaryRedirect, 
-                BuildRoutePath(routeCtx, route.Path))
-        }
+		// If we're on non-facility route but have a facility, redirect to facility version
+		if route.NeedsFacility && c.Param("facility") == "" && routeCtx.FacilityCode != "" {
+			return c.Redirect(http.StatusTemporaryRedirect,
+				BuildRoutePath(routeCtx, route.Path))
+		}
 
-        return handler(c)
-    }
+		return handler(c)
+	}
 }
 
 func BuildNav(routeCtx *types.RouteContext, currentPath string) []types.NavItem {
-    logger := log.With().
-        Str("function", "BuildNav").
-        Str("current_path", currentPath).
-        Str("facility_code", routeCtx.FacilityCode).
-        Logger()
+	logger := log.With().
+		Str("function", "BuildNav").
+		Str("current_path", currentPath).
+		Str("facility_code", routeCtx.FacilityCode).
+		Logger()
 
-    // Strip facility prefix for comparison
-    strippedPath := currentPath
-    if routeCtx.FacilityCode != "" {
-        prefix := "/" + routeCtx.FacilityCode
-        strippedPath = strings.TrimPrefix(currentPath, prefix)
-    }
+	// Strip facility prefix for comparison
+	strippedPath := currentPath
+	if routeCtx.FacilityCode != "" {
+		prefix := "/" + routeCtx.FacilityCode
+		strippedPath = strings.TrimPrefix(currentPath, prefix)
+	}
 
-    logger.Debug().
-        Str("stripped_path", strippedPath).
-        Msg("building navigation items")
+	logger.Debug().
+		Str("stripped_path", strippedPath).
+		Msg("building navigation items")
 
-    navItems := []types.NavItem{
-        {
-            Path:    buildPath(routeCtx.FacilityCode, "/dashboard"),
-            Name:    "Dashboard",
-            Active:  strippedPath == "/dashboard",
-            Visible: true,
-        },
-        {
-            Path:    buildPath(routeCtx.FacilityCode, "/calendar"),
-            Name:    "Calendar",
-            Active:  strippedPath == "/calendar",
-            Visible: true,
-        },
-        {
-            Path:    buildPath(routeCtx.FacilityCode, "/controllers"),
-            Name:    "Controllers",
-            Active:  strippedPath == "/controllers",
-            Visible: true,
-        },
-        {
-            Path:    buildPath(routeCtx.FacilityCode, "/profile"),
-            Name:    "Profile",
-            Active:  strippedPath == "/profile",
-            Visible: true,
-        },
-    }
+	navItems := []types.NavItem{
+		{
+			Path:    buildPath(routeCtx.FacilityCode, "/dashboard"),
+			Name:    "Dashboard",
+			Active:  strippedPath == "/dashboard",
+			Visible: true,
+		},
+		{
+			Path:    buildPath(routeCtx.FacilityCode, "/calendar"),
+			Name:    "Calendar",
+			Active:  strippedPath == "/calendar",
+			Visible: true,
+		},
+		{
+			Path:    buildPath(routeCtx.FacilityCode, "/controllers"),
+			Name:    "Controllers",
+			Active:  strippedPath == "/controllers",
+			Visible: true,
+		},
+		{
+			Path:    buildPath(routeCtx.FacilityCode, "/profile"),
+			Name:    "Profile",
+			Active:  strippedPath == "/profile",
+			Visible: true,
+		},
+	}
 
-    // Debug logging
-    for _, item := range navItems {
-        logger.Debug().
-            Str("name", item.Name).
-            Str("path", item.Path).
-            Bool("active", item.Active).
-            Str("compare_path", strippedPath).
-            Msg("nav item state")
-    }
+	// Debug logging
+	for _, item := range navItems {
+		logger.Debug().
+			Str("name", item.Name).
+			Str("path", item.Path).
+			Bool("active", item.Active).
+			Str("compare_path", strippedPath).
+			Msg("nav item state")
+	}
 
-    return navItems
+	return navItems
 }
 
 // Helper function to build correct paths
 func buildPath(facilityCode string, path string) string {
-    if facilityCode == "" {
-        return path
-    }
-    return fmt.Sprintf("/%s%s", facilityCode, path)
+	if facilityCode == "" {
+		return path
+	}
+	return fmt.Sprintf("/%s%s", facilityCode, path)
 }
 
 func (h *Handler) handleDashboard(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
-    facs, err := h.db.ListFacilities(c.Request().Context())
+	facs, err := h.db.ListFacilities(c.Request().Context())
 	if err != nil {
 		// You might want to implement a custom error handler
 		return echo.NewHTTPError(http.StatusInternalServerError,
@@ -182,8 +183,8 @@ func (h *Handler) handleDashboard(c echo.Context, routeCtx *types.RouteContext, 
 	title := "Facilities"
 	description := "A list of all facilities including their name and code."
 
-    component := page.Facilities(
-		*routeCtx, 
+	component := page.Facilities(
+		*routeCtx,
 		navItems,
 		title,
 		description,
@@ -193,7 +194,7 @@ func (h *Handler) handleDashboard(c echo.Context, routeCtx *types.RouteContext, 
 }
 
 func (h *Handler) handleControllers(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
-    // Get facility code from route parameter
+	// Get facility code from route parameter
 	code := c.Param("facility")
 	if code == "" {
 		h.logger.Error().Msg("facility code is missing from request")
@@ -225,8 +226,8 @@ func (h *Handler) handleControllers(c echo.Context, routeCtx *types.RouteContext
 	description := "A list of all controllers assigned to the facility."
 	auth, err := GetAuthContext(c)
 
-    component := page.ShowFacilities(
-		*routeCtx, 
+	component := page.ShowFacilities(
+		*routeCtx,
 		navItems,
 		title,
 		description,
@@ -264,73 +265,73 @@ func (h *Handler) handleControllers(c echo.Context, routeCtx *types.RouteContext
 
 // Main route handler that dispatches to specific handlers
 func (h *Handler) handleRoute(c echo.Context) error {
-    logger := h.logger.With().
-        Str("handler", "handleRoute").
-        Str("request_path", c.Request().URL.Path).
-        Str("echo_path", c.Path()).
-        Logger()
+	logger := h.logger.With().
+		Str("handler", "handleRoute").
+		Str("request_path", c.Request().URL.Path).
+		Str("echo_path", c.Path()).
+		Logger()
 
-    logger.Debug().Msg("starting route handler")
-    
-    // Use Request().URL.Path instead of c.Path() to get actual path
-    path := c.Request().URL.Path
-    
-    // Strip facility prefix if present
-    if facility := c.Param("facility"); facility != "" {
-        logger.Debug().
-            Str("facility", facility).
-            Str("original_path", path).
-            Msg("stripping facility prefix from path")
-            
-        path = strings.TrimPrefix(path, "/"+facility)
-        
-        logger.Debug().
-            Str("stripped_path", path).
-            Msg("facility prefix stripped")
-    }
-    
-    logger.Debug().
-        Str("final_path", path).
-        Msg("routing request")
-    
-    var handler string
-    var handlerFunc HandlerFunc
-    
-    switch path {
-    case "/dashboard":
-        handler = "handleDashboard"
-        logger.Debug().Msg("routing to dashboard handler")
-        handlerFunc = h.handleDashboard
-        
-    case "/controllers":
-        handler = "handleControllers"
-        logger.Debug().Msg("routing to controller handler")
-        handlerFunc = h.handleControllers
-        
-    default:
-        logger.Warn().
-            Str("path", path).
-            Msg("no route match found")
-        return echo.NewHTTPError(http.StatusNotFound, "Page not found")
-    }
-    
-    // Wrap the handler with navigation and execute it
-    err := h.WithNav(handlerFunc)(c)
-    if err != nil {
-        logger.Error().
-            Err(err).
-            Str("handler", handler).
-            Str("path", path).
-            Msg("handler returned error")
-        return err
-    }
-    
-    logger.Debug().
-        Str("handler", handler).
-        Str("path", path).
-        Msg("handler completed successfully")
-        
-    return nil
+	logger.Debug().Msg("starting route handler")
+
+	// Use Request().URL.Path instead of c.Path() to get actual path
+	path := c.Request().URL.Path
+
+	// Strip facility prefix if present
+	if facility := c.Param("facility"); facility != "" {
+		logger.Debug().
+			Str("facility", facility).
+			Str("original_path", path).
+			Msg("stripping facility prefix from path")
+
+		path = strings.TrimPrefix(path, "/"+facility)
+
+		logger.Debug().
+			Str("stripped_path", path).
+			Msg("facility prefix stripped")
+	}
+
+	logger.Debug().
+		Str("final_path", path).
+		Msg("routing request")
+
+	var handler string
+	var handlerFunc HandlerFunc
+
+	switch path {
+	case "/dashboard":
+		handler = "handleDashboard"
+		logger.Debug().Msg("routing to dashboard handler")
+		handlerFunc = h.handleDashboard
+
+	case "/controllers":
+		handler = "handleControllers"
+		logger.Debug().Msg("routing to controller handler")
+		handlerFunc = h.handleControllers
+
+	default:
+		logger.Warn().
+			Str("path", path).
+			Msg("no route match found")
+		return echo.NewHTTPError(http.StatusNotFound, "Page not found")
+	}
+
+	// Wrap the handler with navigation and execute it
+	err := h.WithNav(handlerFunc)(c)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Str("handler", handler).
+			Str("path", path).
+			Msg("handler returned error")
+		return err
+	}
+
+	logger.Debug().
+		Str("handler", handler).
+		Str("path", path).
+		Msg("handler completed successfully")
+
+	return nil
 }
 
 func GetAuthContext(c echo.Context) (*db.AuthContext, error) {

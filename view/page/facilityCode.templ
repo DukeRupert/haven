@@ -4,6 +4,7 @@ import (
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/layout"
+	"fmt"
 )
 
 templ ShowFacilities(route types.RouteContext, navItems []types.NavItem, title string, description string, role db.UserRole, users []db.User) {
@@ -33,7 +34,7 @@ templ ShowFacilities(route types.RouteContext, navItems []types.NavItem, title s
 }
 
 templ UserListItem(route types.RouteContext, u db.User) {
-    <a href={ templ.URL(route.BuildURL(u.Initials)) } class="block hover:bg-gray-50">
+    <a href={ templ.URL(fmt.Sprintf("./%s", u.Initials)) } class="block hover:bg-gray-50">
         <li class="relative flex justify-between gap-x-6 py-5 px-4">
             <div class="flex min-w-0 gap-x-4">
                 <div class="bg-indigo-600 w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold">

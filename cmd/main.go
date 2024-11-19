@@ -63,32 +63,23 @@ func main() {
 		SameSite: http.SameSiteLaxMode,
 	}
 
-	// Add basic middleware
-	e.Use(middleware.Recover())
-	e.Use(middleware.RequestID())
-	// e.Use(middleware.Secure())
-	e.Use(middleware.Logger())
+	// Global middleware that should apply to all routes
+    e.Use(middleware.Recover())
+    e.Use(middleware.RequestID())
+    e.Use(middleware.Logger())
+    e.Use(session.Middleware(store))
 
-	// Initialize session middleware first
-	e.Use(session.Middleware(store))
+    // Initialize handlers
+    h := handler.NewHandler(database, logger)
+    authHandler := auth.NewAuthHandler(database, store, logger)
 
-	// Initialize handlers after session middleware
-	h := handler.NewHandler(database, logger)
-	authHandler := auth.NewAuthHandler(database, store, logger)
-
-	// Public routes
-	e.GET("/", h.ShowHome)
-	e.GET("/login", h.GetLogin, authHandler.RedirectIfAuthenticated())
-	e.POST("/login", authHandler.LoginHandler())
-	e.POST("/logout", authHandler.LogoutHandler())
+    // Setup all routes - this will now properly handle public vs protected routes
+    handler.SetupRoutes(e, h, authHandler)
 
 	// Api
 	api := e.Group("/api")
 	api.Use(authHandler.AuthMiddleware())
 	api.GET("/:fid/:uid/schedule/new", h.CreateScheduleForm)
-
-	// Setup routes
-    handler.SetupRoutes(e, h, authHandler)
 
 	// Protected routes
 	// app := e.Group("/app")

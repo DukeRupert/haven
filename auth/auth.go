@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"strings"
 
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/types"
@@ -68,18 +69,24 @@ type LoginParams struct {
 // It performs the following:
 // - Validates login credentials (email/password)
 // - Creates new session with core auth values (user_id, role)
-// - Redirects to app landing page
+// - Queries user's facility and sets facility-related session data
+// - Redirects to facility-specific dashboard
 //
 // Session values set:
 // - user_id: int
 // - role: db.UserRole
-//
-// Note: Additional user/facility data is populated by AuthMiddleware on redirect
+// - facility_code: string (new)
+// - facility_id: int (new)
 func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
+		logger := h.logger.With().
+			Str("component", "auth").
+			Str("handler", "LoginHandler").
+			Logger()
+
 		sess, err := session.Get(DefaultSessionName, c)
 		if err != nil {
-			h.logger.Error().Err(err).Msg("Failed to get session")
+			logger.Error().Err(err).Msg("Failed to get session")
 			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
 		}
 
@@ -93,17 +100,38 @@ func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
 		}
 
-		// Set minimum required session values
+		// Set core session values
 		sess.Values["user_id"] = user.ID
 		sess.Values["role"] = user.Role
 
+		// Get user's primary facility
+		facility, err := h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
+		if err != nil {
+			logger.Error().
+				Err(err).
+				Int("user_id", user.ID).
+				Msg("Failed to get user's primary facility")
+			return echo.NewHTTPError(http.StatusInternalServerError, "facility error")
+		}
+
+		// Set facility-related session values
+		sess.Values["facility_code"] = facility.Code
+		sess.Values["facility_id"] = facility.ID
+
 		if err := sess.Save(c.Request(), c.Response()); err != nil {
-			h.logger.Error().Err(err).Msg("Failed to save session")
+			logger.Error().Err(err).Msg("Failed to save session")
 			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
 		}
 
-		// Let AuthMiddleware handle facility data on redirect
-		return c.Redirect(http.StatusSeeOther, "/app/")
+		// Redirect to facility-specific dashboard
+		redirectURL := fmt.Sprintf("/%s/dashboard", facility.Code)
+		logger.Debug().
+			Int("user_id", user.ID).
+			Str("facility_code", facility.Code).
+			Str("redirect_url", redirectURL).
+			Msg("login successful, redirecting to facility dashboard")
+
+		return c.Redirect(http.StatusSeeOther, redirectURL)
 	}
 }
 
@@ -191,7 +219,7 @@ func (h *AuthHandler) LogoutHandler() echo.HandlerFunc {
 			Str("session_id", sess.ID).
 			Msg("logout successful")
 
-		return c.Redirect(http.StatusOK, "/login")
+		return c.Redirect(http.StatusSeeOther, "/login")
 	}
 }
 
@@ -204,6 +232,11 @@ func convertSessionValues(values map[interface{}]interface{}) map[string]interfa
 		}
 	}
 	return converted
+}
+
+type PublicRoute struct {
+	Path   string
+	Method string
 }
 
 // AuthMiddleware ensures requests are authenticated and maintains session state.
@@ -222,12 +255,51 @@ func convertSessionValues(values map[interface{}]interface{}) map[string]interfa
 // - facility_id: int (if user has facility)
 // - facility_code: string (if user has facility)
 func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
+	// Define public paths that should skip authentication
+	publicRoutes := map[PublicRoute]bool{
+		// Core auth routes
+		{Path: "/login", Method: "GET"}:  true,
+		{Path: "/login", Method: "POST"}: true,
+		{Path: "/logout", Method: "POST"}: true,
+		
+		// Public pages
+		{Path: "/", Method: "GET"}: true,
+		
+		// Add more public routes here as needed, for example:
+		// {Path: "/about", Method: "GET"}: true,
+		// {Path: "/contact", Method: "GET"}: true,
+		// {Path: "/health", Method: "GET"}: true,
+		// {Path: "/api/public/status", Method: "GET"}: true,
+	}
+
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			logger := h.logger.With().
 				Str("middleware", "AuthMiddleware()").
 				Str("path", c.Path()).
 				Logger()
+			
+			// Allow static assets using the RequestURI instead of Path
+			if strings.HasPrefix(c.Request().RequestURI, "/static/") {
+				logger.Debug().
+					Str("uri", c.Request().RequestURI).
+					Msg("allowing static asset access")
+				return next(c)
+			}
+
+			// Check if this is a public route
+			route := PublicRoute{
+				Path:   c.Path(),
+				Method: c.Request().Method,
+			}
+
+			if publicRoutes[route] {
+				logger.Debug().
+					Str("path", route.Path).
+					Str("method", route.Method).
+					Msg("allowing public route access")
+				return next(c)
+			}
 
 			sess, err := session.Get(DefaultSessionName, c)
 			if err != nil {
@@ -291,6 +363,20 @@ func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
 			return next(c)
 		}
 	}
+}
+
+// If you need to check public routes elsewhere in your code,
+// you might want to add this helper method
+func (h *AuthHandler) IsPublicRoute(path, method string) bool {
+	publicRoutes := map[PublicRoute]bool{
+		{Path: "/login", Method: "GET"}:  true,
+		{Path: "/login", Method: "POST"}: true,
+		{Path: "/logout", Method: "POST"}: true,
+		{Path: "/", Method: "GET"}:       true,
+		// Add the same routes as above
+	}
+
+	return publicRoutes[PublicRoute{Path: path, Method: method}]
 }
 
 // RoleAuthMiddleware protects routes by checking if the user has sufficient role permissions.
@@ -408,14 +494,33 @@ func (h *AuthHandler) RedirectIfAuthenticated() echo.MiddlewareFunc {
 				return next(c)
 			}
 
-			// User is authenticated and has facility, redirect to facility page
+			// User is authenticated and has facility, redirect to facility dashboard
 			logger.Debug().
 				Int("user_id", userID).
-				Str("facility_id", facilityCode).
-				Msg("redirecting authenticated user from login page to facility")
+				Str("facility_code", facilityCode).
+				Msg("redirecting authenticated user from login page to facility dashboard")
 
-			redirectURL := fmt.Sprintf("/app/%s/", facilityCode)
-			return c.Redirect(http.StatusSeeOther, redirectURL)
+			// Changed to match the path pattern seen in logs
+			redirectURL := fmt.Sprintf("/%s/dashboard", facilityCode)
+			return c.Redirect(http.StatusTemporaryRedirect, redirectURL)
+		}
+	}
+}
+
+// You might also want to add this helper middleware for public routes
+func (h *AuthHandler) PublicRouteMiddleware() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			// Clear any existing error state from the context
+			c.Set("error", nil)
+			
+			// For public routes, always allow GET requests
+			if c.Request().Method == "GET" {
+				return next(c)
+			}
+
+			// For POST requests to public routes, handle normally
+			return next(c)
 		}
 	}
 }

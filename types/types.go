@@ -40,7 +40,7 @@ func (r *RouteContext) BuildURL(path string) string {
     if r.FacilityCode == "" {
         return path
     }
-    return fmt.Sprintf("/%s%s", r.FacilityCode, path)
+    return fmt.Sprintf("/%s/%s", r.FacilityCode, path)
 }
 
 type Breadcrumb struct {
