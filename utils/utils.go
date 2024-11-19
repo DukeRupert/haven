@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/types"
 )
 
@@ -106,7 +107,7 @@ func getDayClasses(props types.CalendarDayProps) string {
 	return strings.Join(classes, " ")
 }
 
-func getTimeClasses(props CalendarDayProps) string {
+func getTimeClasses(props types.CalendarDayProps) string {
 	classes := []string{"mx-auto", "flex", "size-7", "items-center", "justify-center", "rounded-full"}
 
 	if props.ProtectedDate != nil {
@@ -120,12 +121,12 @@ func getTimeClasses(props CalendarDayProps) string {
 	return strings.Join(classes, " ")
 }
 
-func canToggleDate(protectedDate *ProtectedDate, userRole UserRole, currentUserID int) bool {
+func canToggleDate(protectedDate *db.ProtectedDate, userRole db.UserRole, currentUserID int) bool {
 	if protectedDate == nil {
 		return false
 	}
-	return userRole == UserRoleSuper ||
-		userRole == UserRoleAdmin ||
+	return userRole == db.UserRoleSuper ||
+		userRole == db.UserRoleAdmin ||
 		protectedDate.UserID == currentUserID
 }
 

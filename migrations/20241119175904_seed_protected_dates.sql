@@ -1,4 +1,4 @@
--- In a new migration file (something like 20240318000000_generate_protected_dates.sql)
+
 -- +goose Up
 -- +goose StatementBegin
 DO $$
@@ -6,8 +6,20 @@ DECLARE
     s record;
     check_date date;
     counter integer;
+    user_id integer;
+    facility_id integer;
 BEGIN
-    FOR s IN SELECT * FROM schedules LOOP
+    FOR s IN 
+        SELECT 
+            schedules.*, 
+            users.id as uid,
+            users.facility_id as fid
+        FROM schedules 
+        JOIN users ON schedules.user_id = users.id 
+    LOOP
+        user_id := s.uid;
+        facility_id := s.fid;
+        
         -- First weekday
         check_date := s.start_date;
         counter := 0;
@@ -15,8 +27,8 @@ BEGIN
             IF EXTRACT(DOW FROM check_date) = s.first_weekday THEN
                 counter := counter + 1;
                 IF counter % 3 = 0 THEN
-                    INSERT INTO protected_dates (schedule_id, date, available)
-                    VALUES (s.id, check_date, false)
+                    INSERT INTO protected_dates (schedule_id, date, available, user_id, facility_id)
+                    VALUES (s.id, check_date, false, user_id, facility_id)
                     ON CONFLICT (schedule_id, date) DO NOTHING;
                 END IF;
             END IF;
@@ -30,8 +42,8 @@ BEGIN
             IF EXTRACT(DOW FROM check_date) = s.second_weekday THEN
                 counter := counter + 1;
                 IF counter % 3 = 0 THEN
-                    INSERT INTO protected_dates (schedule_id, date, available)
-                    VALUES (s.id, check_date, false)
+                    INSERT INTO protected_dates (schedule_id, date, available, user_id, facility_id)
+                    VALUES (s.id, check_date, false, user_id, facility_id)
                     ON CONFLICT (schedule_id, date) DO NOTHING;
                 END IF;
             END IF;

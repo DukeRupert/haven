@@ -87,7 +87,8 @@ func NewSchedule(userID int, firstWeekday, secondWeekday time.Weekday, startDate
 	}
 }
 
-// GetSchedule retrieves a schedule by ID
+// GetSchedule retrieves a schedule by its ID. This is a direct lookup on the schedules
+// table and returns all schedule fields. Returns nil if no schedule is found.
 func (db *DB) GetSchedule(ctx context.Context, id int) (*Schedule, error) {
 	var schedule Schedule
 	err := db.pool.QueryRow(ctx, `
@@ -117,11 +118,13 @@ func (db *DB) GetSchedule(ctx context.Context, id int) (*Schedule, error) {
 	return &schedule, nil
 }
 
-// GetSchedulesByFacilityCode retrieves all schedules for users at a facility specified by its code
-func (db *DB) GetSchedulesByFacilityCode(ctx context.Context, facilityCode string) ([]Schedule, error) {
-	schedules := []Schedule{}
+// GetSchedulesByFacilityID retrieves all unique schedules associated with protected dates
+// at a given facility, identified by facility ID. Results are ordered by creation date.
+// Since protected_dates contains facility_id, we query through it directly without
+// needing the users table join.
+func (db *DB) GetSchedulesByFacilityID(ctx context.Context, facilityID int) ([]Schedule, error) {
 	rows, err := db.pool.Query(ctx, `
-        SELECT 
+        SELECT DISTINCT
             s.id,
             s.created_at,
             s.updated_at,
@@ -130,10 +133,57 @@ func (db *DB) GetSchedulesByFacilityCode(ctx context.Context, facilityCode strin
             s.second_weekday,
             s.start_date
         FROM schedules s
-        JOIN users u ON s.user_id = u.id
-        JOIN facilities f ON u.facility_id = f.id
+        JOIN protected_dates pd ON s.id = pd.schedule_id
+        WHERE pd.facility_id = $1
+        ORDER BY s.created_at DESC
+    `, facilityID)
+	if err != nil {
+		return nil, fmt.Errorf("error listing schedules for facility %d: %w", facilityID, err)
+	}
+	defer rows.Close()
+
+	var schedules []Schedule
+	for rows.Next() {
+		var schedule Schedule
+		err := rows.Scan(
+			&schedule.ID,
+			&schedule.CreatedAt,
+			&schedule.UpdatedAt,
+			&schedule.UserID,
+			&schedule.FirstWeekday,
+			&schedule.SecondWeekday,
+			&schedule.StartDate,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning schedule row: %w", err)
+		}
+		schedules = append(schedules, schedule)
+	}
+
+	return schedules, nil
+}
+
+// GetSchedulesByFacilityCode retrieves all unique schedules associated with protected dates
+// at a given facility. The facility is identified by its code (e.g., "MAIN", "LAB1").
+// Results are ordered by user_id to maintain consistent ordering across queries.
+// Since protected_dates now contains facility_id, we can query through it directly
+// without joining through the users table.
+func (db *DB) GetSchedulesByFacilityCode(ctx context.Context, facilityCode string) ([]Schedule, error) {
+	schedules := []Schedule{}
+	rows, err := db.pool.Query(ctx, `
+        SELECT DISTINCT
+            s.id,
+            s.created_at,
+            s.updated_at,
+            s.user_id,
+            s.first_weekday,
+            s.second_weekday,
+            s.start_date
+        FROM schedules s
+        JOIN protected_dates pd ON s.id = pd.schedule_id
+        JOIN facilities f ON pd.facility_id = f.id
         WHERE f.code = $1
-        ORDER BY u.last_name, u.first_name
+        ORDER BY s.user_id
     `, facilityCode)
 	if err != nil {
 		return nil, fmt.Errorf("error querying schedules for facility code %s: %w", facilityCode, err)
@@ -164,7 +214,9 @@ func (db *DB) GetSchedulesByFacilityCode(ctx context.Context, facilityCode strin
 	return schedules, nil
 }
 
-// GetScheduleByUserInitials retrieves a schedule by user initials and facility ID
+// GetScheduleByUserInitials retrieves a schedule by matching a user's initials and facility ID.
+// Despite protected_dates having facility_id, we still query through users table since
+// that's where initials are stored. Returns nil if no schedule is found.
 func (db *DB) GetScheduleByUserInitials(ctx context.Context, initials string, facilityID int) (*Schedule, error) {
 	var schedule Schedule
 	err := db.pool.QueryRow(ctx, `
@@ -207,48 +259,6 @@ func (db *DB) DeleteSchedule(ctx context.Context, id int) error {
 	}
 
 	return nil
-}
-
-// ListSchedules retrieves all schedules for a facility
-func (db *DB) ListSchedules(ctx context.Context, facilityID int) ([]Schedule, error) {
-	rows, err := db.pool.Query(ctx, `
-        SELECT 
-            s.id,
-            s.created_at,
-            s.updated_at,
-            s.user_id,
-            s.first_weekday,
-            s.second_weekday,
-            s.start_date
-        FROM schedules s
-        JOIN users u ON s.user_id = u.id
-        WHERE u.facility_id = $1
-        ORDER BY s.created_at DESC
-    `, facilityID)
-	if err != nil {
-		return nil, fmt.Errorf("error listing schedules: %w", err)
-	}
-	defer rows.Close()
-
-	var schedules []Schedule
-	for rows.Next() {
-		var schedule Schedule
-		err := rows.Scan(
-			&schedule.ID,
-			&schedule.CreatedAt,
-			&schedule.UpdatedAt,
-			&schedule.UserID,
-			&schedule.FirstWeekday,
-			&schedule.SecondWeekday,
-			&schedule.StartDate,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning schedule row: %w", err)
-		}
-		schedules = append(schedules, schedule)
-	}
-
-	return schedules, nil
 }
 
 func (db *DB) CreateScheduleByCode(ctx context.Context, params CreateScheduleByCodeParams) (*Schedule, error) {
@@ -356,6 +366,108 @@ func (db *DB) UpdateScheduleByCode(ctx context.Context, facilityCode, userInitia
 	}
 
 	return &schedule, nil
+}
+
+// GetProtectedDatesByUserID retrieves all protected dates for a specific user
+func (db *DB) GetProtectedDatesByUserID(ctx context.Context, userID int) ([]ProtectedDate, error) {
+    rows, err := db.pool.Query(ctx, `
+        SELECT 
+            id,
+            created_at,
+            updated_at,
+            schedule_id,
+            date,
+            available,
+            user_id,
+            facility_id
+        FROM protected_dates
+        WHERE user_id = $1
+        ORDER BY date ASC
+    `, userID)
+    if err != nil {
+        return nil, fmt.Errorf("error getting protected dates for user %d: %w", userID, err)
+    }
+    defer rows.Close()
+
+    return scanProtectedDates(rows)
+}
+
+// GetProtectedDatesByUserInitials retrieves all protected dates for a user by their initials and facility
+func (db *DB) GetProtectedDatesByUserInitials(ctx context.Context, initials string, facilityID int) ([]ProtectedDate, error) {
+    rows, err := db.pool.Query(ctx, `
+        SELECT 
+            pd.id,
+            pd.created_at,
+            pd.updated_at,
+            pd.schedule_id,
+            pd.date,
+            pd.available,
+            pd.user_id,
+            pd.facility_id
+        FROM protected_dates pd
+        JOIN users u ON pd.user_id = u.id
+        WHERE u.initials = $1 AND pd.facility_id = $2
+        ORDER BY pd.date ASC
+    `, initials, facilityID)
+    if err != nil {
+        return nil, fmt.Errorf("error getting protected dates for user initials %s: %w", initials, err)
+    }
+    defer rows.Close()
+
+    return scanProtectedDates(rows)
+}
+
+// GetProtectedDatesByFacilityCode retrieves all protected dates for all users at a facility
+func (db *DB) GetProtectedDatesByFacilityCode(ctx context.Context, facilityCode string) ([]ProtectedDate, error) {
+    rows, err := db.pool.Query(ctx, `
+        SELECT 
+            pd.id,
+            pd.created_at,
+            pd.updated_at,
+            pd.schedule_id,
+            pd.date,
+            pd.available,
+            pd.user_id,
+            pd.facility_id
+        FROM protected_dates pd
+        JOIN facilities f ON pd.facility_id = f.id
+        WHERE f.code = $1
+        ORDER BY pd.date ASC, pd.user_id
+    `, facilityCode)
+    if err != nil {
+        return nil, fmt.Errorf("error getting protected dates for facility code %s: %w", facilityCode, err)
+    }
+    defer rows.Close()
+
+    return scanProtectedDates(rows)
+}
+
+// Helper function to scan rows into ProtectedDate slices
+func scanProtectedDates(rows pgx.Rows) ([]ProtectedDate, error) {
+    var dates []ProtectedDate
+    for rows.Next() {
+        var date ProtectedDate
+        err := rows.Scan(
+            &date.ID,
+            &date.CreatedAt,
+            &date.UpdatedAt,
+            &date.ScheduleID,
+            &date.Date,
+            &date.Available,
+            &date.UserID,
+            &date.FacilityID,
+        )
+        if err != nil {
+            return nil, fmt.Errorf("error scanning protected date row: %w", err)
+        }
+        dates = append(dates, date)
+    }
+    
+    if err := rows.Err(); err != nil {
+        return nil, fmt.Errorf("error iterating protected date rows: %w", err)
+    }
+    
+    return dates, nil
 }
 
 // Helper method to check if user exists

@@ -88,6 +88,8 @@ type ProtectedDate struct {
 	ScheduleID int       `db:"schedule_id" json:"schedule_id" validate:"required"`
 	Date       time.Time `db:"date" json:"date" validate:"required"`
 	Available  bool      `db:"available" json:"available"`
+	UserID     int       `db:"user_id" json:"user_id" validate:"required"`
+	FacilityID int       `db:"facility_id" json:"facility_id" validate:"required"`
 }
 
 func (s Schedule) IsZero() bool {
