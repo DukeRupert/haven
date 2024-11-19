@@ -76,9 +76,11 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler) {
 	e.GET("/:facility/dashboard", h.WithNav(h.handleDashboard))
 	e.GET("/controllers", h.WithNav(h.handleControllers))
 	e.GET("/:facility/controllers", h.WithNav(h.handleControllers))
-    e.GET("/profile", h.WithNav(h.handleUser))
-    e.GET("/:facility/profile", h.WithNav(h.handleProfile))
+	e.GET("/profile", h.WithNav(h.handleUser))
+	e.GET("/:facility/profile", h.WithNav(h.handleProfile))
 	e.GET("/:facility/:initials", h.WithNav(h.handleUser))
+	e.GET("/calendar", h.WithNav(h.handleSchedulePage))
+	e.GET("/:facility/calendar", h.WithNav(h.handleSchedulePage))
 
 	// protected.GET("/calendar", h.WithNav(h.handleCalendar))
 	// protected.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
@@ -206,7 +208,6 @@ func (h *Handler) handleControllers(c echo.Context, routeCtx *types.RouteContext
 	// Get users from database
 	// // Track database query duration specifically
 	users, err := h.db.GetUsersByFacilityCode(c.Request().Context(), code)
-
 	if err != nil {
 		h.logger.Error().
 			Err(err).

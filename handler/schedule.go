@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/DukeRupert/haven/db"
+	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/component"
 	"github.com/DukeRupert/haven/view/page"
 	"github.com/labstack/echo/v4"
@@ -211,4 +212,35 @@ func (h *Handler) UpdateScheduleHandler(c echo.Context) error {
 
 	// Return the updated schedule card
 	return render(c, page.ScheduleCard(h.RouteCtx, *auth, *schedule))
+}
+
+func (h *Handler) handleSchedulePage(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+	}
+
+	// Get facility code from route parameter, depending on your setup
+	facilityCode := c.Param("facility")
+
+	schedules, err := h.db.GetSchedulesByFacilityCode(
+		c.Request().Context(),
+		facilityCode,
+	)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("failed to get facility schedules")
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve schedules")
+	}
+
+	title := "Schedules"
+	description := "View and manage facility schedules"
+	component := page.CalendarPage(
+		*routeCtx,
+		navItems,
+		auth,
+		title,
+		description,
+		schedules,
+	)
+	return component.Render(c.Request().Context(), c.Response().Writer)
 }

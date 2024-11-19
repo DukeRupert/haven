@@ -117,6 +117,53 @@ func (db *DB) GetSchedule(ctx context.Context, id int) (*Schedule, error) {
 	return &schedule, nil
 }
 
+// GetSchedulesByFacilityCode retrieves all schedules for users at a facility specified by its code
+func (db *DB) GetSchedulesByFacilityCode(ctx context.Context, facilityCode string) ([]Schedule, error) {
+	schedules := []Schedule{}
+	rows, err := db.pool.Query(ctx, `
+        SELECT 
+            s.id,
+            s.created_at,
+            s.updated_at,
+            s.user_id,
+            s.first_weekday,
+            s.second_weekday,
+            s.start_date
+        FROM schedules s
+        JOIN users u ON s.user_id = u.id
+        JOIN facilities f ON u.facility_id = f.id
+        WHERE f.code = $1
+        ORDER BY u.last_name, u.first_name
+    `, facilityCode)
+	if err != nil {
+		return nil, fmt.Errorf("error querying schedules for facility code %s: %w", facilityCode, err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var schedule Schedule
+		err := rows.Scan(
+			&schedule.ID,
+			&schedule.CreatedAt,
+			&schedule.UpdatedAt,
+			&schedule.UserID,
+			&schedule.FirstWeekday,
+			&schedule.SecondWeekday,
+			&schedule.StartDate,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning schedule row: %w", err)
+		}
+		schedules = append(schedules, schedule)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating schedule rows: %w", err)
+	}
+
+	return schedules, nil
+}
+
 // GetScheduleByUserInitials retrieves a schedule by user initials and facility ID
 func (db *DB) GetScheduleByUserInitials(ctx context.Context, initials string, facilityID int) (*Schedule, error) {
 	var schedule Schedule
