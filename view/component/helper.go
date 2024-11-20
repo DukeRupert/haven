@@ -43,52 +43,6 @@ func getDaysInMonth(date time.Time) []time.Time {
 	return days
 }
 
-func getDayClasses(props types.CalendarDayProps) string {
-	classes := []string{"py-1.5", "hover:bg-gray-100", "focus:z-10"}
-
-	// Add background color
-	if props.Date.Month() == props.CurrentMonth.Month() {
-		classes = append(classes, "bg-white")
-	} else {
-		classes = append(classes, "bg-gray-50")
-	}
-
-	// Add text color based on protected status
-	if props.ProtectedDate != nil {
-		if props.ProtectedDate.Available {
-			classes = append(classes, "text-green-600")
-		} else {
-			classes = append(classes, "text-red-600")
-		}
-	} else if props.Date.Month() == props.CurrentMonth.Month() {
-		classes = append(classes, "text-gray-900")
-	} else {
-		classes = append(classes, "text-gray-400")
-	}
-
-	// Add corner rounding
-	if props.Date.Day() == 1 && props.Date.Month() == props.CurrentMonth.Month() {
-		classes = append(classes, "rounded-tl-lg")
-	}
-	// Add other corner cases...
-
-	return strings.Join(classes, " ")
-}
-
-func getTimeClasses(props types.CalendarDayProps) string {
-	classes := []string{"mx-auto", "flex", "size-7", "items-center", "justify-center", "rounded-full"}
-
-	if props.ProtectedDate != nil {
-		if !props.ProtectedDate.Available {
-			classes = append(classes, "bg-red-100")
-		} else {
-			classes = append(classes, "bg-green-100")
-		}
-	}
-
-	return strings.Join(classes, " ")
-}
-
 func canToggleDate(protectedDate *db.ProtectedDate, userRole db.UserRole, currentUserID int) bool {
 	if protectedDate == nil {
 		return false
@@ -107,4 +61,100 @@ func findProtectedDate(date time.Time, protectedDates []db.ProtectedDate) *db.Pr
 		}
 	}
 	return nil
+}
+
+// Helper function to group protected dates by date
+func groupProtectedDates(dates []db.ProtectedDate) map[string][]db.ProtectedDate {
+    groups := make(map[string][]db.ProtectedDate)
+    for _, date := range dates {
+        key := date.Date.Format("2006-01-02")
+        groups[key] = append(groups[key], date)
+    }
+    return groups
+}
+
+// Update helper function to return all protected dates for a given day
+func findProtectedDates(date time.Time, dates []db.ProtectedDate) []db.ProtectedDate {
+    var dayDates []db.ProtectedDate
+    for _, pd := range dates {
+        if pd.Date.Year() == date.Year() && 
+           pd.Date.Month() == date.Month() && 
+           pd.Date.Day() == date.Day() {
+            dayDates = append(dayDates, pd)
+        }
+    }
+    return dayDates
+}
+
+// Update the day classes to account for multiple protected dates
+func getDayClasses(props types.CalendarDayProps) string {
+    classes := []string{"hover:bg-gray-100 focus:z-10"} // Removed py-1.5 as we're controlling height with the inner div
+    
+    // Add position-based classes
+    if isFirstWeek(props.Date) && props.Date.Weekday() == time.Monday {
+        classes = append(classes, "rounded-tl-lg")
+    }
+    if isFirstWeek(props.Date) && props.Date.Weekday() == time.Sunday {
+        classes = append(classes, "rounded-tr-lg")
+    }
+    if isLastWeek(props.Date) && props.Date.Weekday() == time.Monday {
+        classes = append(classes, "rounded-bl-lg")
+    }
+    if isLastWeek(props.Date) && props.Date.Weekday() == time.Sunday {
+        classes = append(classes, "rounded-br-lg")
+    }
+
+    // Add month-based classes
+    if props.Date.Month() == props.CurrentMonth.Month() {
+        classes = append(classes, "bg-white")
+    } else {
+        classes = append(classes, "bg-gray-50 text-gray-400")
+    }
+
+    return strings.Join(classes, " ")
+}
+
+// isFirstWeek checks if the given date falls in the first week of the calendar grid
+func isFirstWeek(date time.Time) bool {
+    // Get the first day of the month
+    firstOfMonth := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, time.Local)
+    
+    // Find the Monday that starts the calendar grid
+    var firstGridDay time.Time
+    if firstOfMonth.Weekday() != time.Monday {
+        daysToSubtract := int(firstOfMonth.Weekday() - time.Monday)
+        if daysToSubtract < 0 {
+            daysToSubtract += 7
+        }
+        firstGridDay = firstOfMonth.AddDate(0, 0, -daysToSubtract)
+    } else {
+        firstGridDay = firstOfMonth
+    }
+    
+    // Check if the date is in the first week by comparing with firstGridDay
+    return date.After(firstGridDay.Add(-24*time.Hour)) && 
+           date.Before(firstGridDay.AddDate(0, 0, 7))
+}
+
+// isLastWeek checks if the given date falls in the last week of the calendar grid
+func isLastWeek(date time.Time) bool {
+    // Get the last day of the month
+    firstOfMonth := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, time.Local)
+    lastOfMonth := firstOfMonth.AddDate(0, 1, -1)
+    
+    // Find the Sunday that ends the calendar grid
+    var lastGridDay time.Time
+    if lastOfMonth.Weekday() != time.Sunday {
+        daysToAdd := int(time.Sunday - lastOfMonth.Weekday())
+        if daysToAdd <= 0 {
+            daysToAdd += 7
+        }
+        lastGridDay = lastOfMonth.AddDate(0, 0, daysToAdd)
+    } else {
+        lastGridDay = lastOfMonth
+    }
+    
+    // Check if the date is in the last week by comparing with lastGridDay
+    return date.After(lastGridDay.AddDate(0, 0, -7).Add(-24*time.Hour)) && 
+           date.Before(lastGridDay.AddDate(0, 0, 1))
 }

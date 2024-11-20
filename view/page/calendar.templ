@@ -1,18 +1,16 @@
 package page
 
 import (
-	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/layout"
+  "github.com/DukeRupert/haven/view/component"
 )
 
-templ CalendarPage(route types.RouteContext, navItems []types.NavItem, auth *db.AuthContext, title string, description string, schedules []db.Schedule) {
+templ CalendarPage(props types.CalendarPageProps) {
 @layout.BaseLayout() {
-    @layout.AppLayout(route, navItems) {
-      @PageHeader(title, description) {
-					<button hx-get="./facilities/create" hx-target="#facility-list" hx-swap="afterbegin" type="button" class="ml-3 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Add</button>
-        }
-      <p>Scheudle page content here</p>
+    @layout.AppLayout(props.Route, props.NavItems) {
+      @PageHeader(props.Title, props.Description) {}
+      @component.Calendar(props.Calendar)
     }
   }
 }

@@ -48,21 +48,35 @@ type Breadcrumb struct {
 	URL   string
 }
 
+type CalendarPageProps struct {
+	Route 	RouteContext
+	NavItems		[]NavItem
+	Auth	*db.AuthContext
+	Title	string
+	Description string
+	Calendar CalendarProps
+}
+
 type CalendarProps struct {
-	CurrentMonth   time.Time
-	ProtectedDates []db.ProtectedDate
-	UserRole       db.UserRole
-	CurrentUserID  int
-	FacilityCode   string
+    CurrentMonth    time.Time
+    FacilityCode   string
+    ProtectedDates []db.ProtectedDate
+    UserRole       db.UserRole
+    CurrentUserID  int
 }
 
 type CalendarDayProps struct {
-	Date          time.Time
-	CurrentMonth  time.Time
-	ProtectedDate *db.ProtectedDate
-	UserRole      db.UserRole
-	CurrentUserID int
-	FacilityCode  string
+    Date           time.Time
+    CurrentMonth   time.Time
+    ProtectedDates []db.ProtectedDate
+    UserRole       db.UserRole
+    CurrentUserID  int
+    FacilityCode   string
+}
+
+type ProtectedDateGroup struct {
+    Date     time.Time
+    Dates    []db.ProtectedDate
 }
 
 // func (rc RouteContext) GetBreadcrumbs() []Breadcrumb {

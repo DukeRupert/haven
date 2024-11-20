@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/DukeRupert/haven/auth"
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/page"
+	"github.com/DukeRupert/haven/view/component"
 
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
@@ -79,8 +81,8 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler) {
 	e.GET("/profile", h.WithNav(h.handleUser))
 	e.GET("/:facility/profile", h.WithNav(h.handleProfile))
 	e.GET("/:facility/:initials", h.WithNav(h.handleUser))
-	e.GET("/calendar", h.WithNav(h.handleSchedulePage))
-	e.GET("/:facility/calendar", h.WithNav(h.handleSchedulePage))
+	e.GET("/calendar", h.WithNav(h.handleCalendar))
+	e.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
 
 	// protected.GET("/calendar", h.WithNav(h.handleCalendar))
 	// protected.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
@@ -238,18 +240,68 @@ func (h *Handler) handleControllers(c echo.Context, routeCtx *types.RouteContext
 	return component.Render(c.Request().Context(), c.Response().Writer)
 }
 
-// func (h *Handler) handleCalendar(c echo.Context) error {
-//     routeCtx, err := GetRouteContext(c)
-//     if err != nil {
-//         return err
-//     }
+// handleCalendar handles GET requests for the calendar view
+func (h *Handler) handleCalendar(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
+    // Get facility code from path parameter
+    facilityCode := c.Param("facility")
+    if facilityCode == "" {
+        return echo.NewHTTPError(http.StatusBadRequest, "facility code is required")
+    }
 
-//     // Your calendar logic here
-//     return c.Render(http.StatusOK, "calendar.html", map[string]interface{}{
-//         "routeCtx": routeCtx,
-//         "navItems": BuildNav(*routeCtx, c.Path()),
-//     })
-// }
+    // Parse the month query parameter
+    monthStr := c.QueryParam("month")
+    var viewDate time.Time
+    var err error
+
+    if monthStr != "" {
+        // Parse YYYY-MM format
+        viewDate, err = time.Parse("2006-01", monthStr)
+        if err != nil {
+            return echo.NewHTTPError(http.StatusBadRequest, "invalid month format")
+        }
+    } else {
+        // Default to current month
+        now := time.Now()
+        viewDate = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
+    }
+
+    // Get protected dates for the month
+    protectedDates, err := h.db.GetProtectedDatesByFacilityCode(c.Request().Context(), facilityCode)
+    if err != nil {
+        return echo.NewHTTPError(http.StatusInternalServerError, "error fetching protected dates")
+    }
+
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+	}
+
+    props := types.CalendarProps{
+        CurrentMonth:    viewDate,
+        FacilityCode:   facilityCode,
+        ProtectedDates: protectedDates,
+        UserRole:       auth.Role,
+        CurrentUserID:  auth.UserID,
+    }
+
+	pageProps := types.CalendarPageProps{
+		Route:	*routeCtx,
+		NavItems:	navItems,
+		Auth: auth,
+		Title: "Calendar",
+		Description: "View the facility calendar",
+		Calendar: props,
+
+	}
+
+    // Render only the calendar component for HTMX requests
+    if c.Request().Header.Get("HX-Request") == "true" {
+        return component.Calendar(props).Render(c.Request().Context(), c.Response().Writer)
+    }
+
+    // For regular requests, render the full page (assuming you have a layout)
+    return page.CalendarPage(pageProps).Render(c.Request().Context(), c.Response().Writer)
+}
 
 // func (h *Handler) handleProfile(c echo.Context) error {
 //     routeCtx, err := GetRouteContext(c)

@@ -320,7 +320,7 @@ func canViewOtherProfiles(auth *db.AuthContext) bool {
 	// Implement your permission logic here
 	// For example:
 	switch auth.Role {
-	case "admin", "supervisor":
+	case db.UserRoleAdmin, db.UserRoleSuper:
 		return true
 	default:
 		return false
