@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"errors"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -367,6 +368,41 @@ func (db *DB) UpdateScheduleByCode(ctx context.Context, facilityCode, userInitia
 
 	return &schedule, nil
 }
+// GetProtectedDate retrieves a single protected date by ID
+func (db *DB) GetProtectedDate(ctx context.Context, id int) (ProtectedDate, error) {
+    var date ProtectedDate
+    err := db.pool.QueryRow(ctx, `
+        SELECT 
+            id,
+            created_at,
+            updated_at,
+            schedule_id,
+            date,
+            available,
+            user_id,
+            facility_id
+        FROM protected_dates
+        WHERE id = $1
+    `, id).Scan(
+        &date.ID,
+        &date.CreatedAt,
+        &date.UpdatedAt,
+        &date.ScheduleID,
+        &date.Date,
+        &date.Available,
+        &date.UserID,
+        &date.FacilityID,
+    )
+    
+    if err != nil {
+        if errors.Is(err, pgx.ErrNoRows) {
+            return date, fmt.Errorf("protected date %d not found: %w", id, err)
+        }
+        return date, fmt.Errorf("error getting protected date %d: %w", id, err)
+    }
+
+    return date, nil
+}
 
 // GetProtectedDatesByUserID retrieves all protected dates for a specific user
 func (db *DB) GetProtectedDatesByUserID(ctx context.Context, userID int) ([]ProtectedDate, error) {
@@ -468,6 +504,23 @@ func scanProtectedDates(rows pgx.Rows) ([]ProtectedDate, error) {
     }
     
     return dates, nil
+}
+
+// ToggleProtectedDateAvailability toggles the available status of a protected date
+func (db *DB) ToggleProtectedDateAvailability(ctx context.Context, dateID int) error {
+    _, err := db.pool.Exec(ctx, `
+        UPDATE protected_dates 
+        SET 
+            available = NOT available,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+    `, dateID)
+    
+    if err != nil {
+        return fmt.Errorf("error toggling protected date %d: %w", dateID, err)
+    }
+
+    return nil
 }
 
 // Helper method to check if user exists

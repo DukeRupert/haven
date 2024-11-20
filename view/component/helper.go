@@ -88,7 +88,7 @@ func findProtectedDates(date time.Time, dates []db.ProtectedDate) []db.Protected
 
 // Update the day classes to account for multiple protected dates
 func getDayClasses(props types.CalendarDayProps) string {
-    classes := []string{"hover:bg-gray-100 focus:z-10"} // Removed py-1.5 as we're controlling height with the inner div
+    classes := []string{}
     
     // Add position-based classes
     if isFirstWeek(props.Date) && props.Date.Weekday() == time.Monday {

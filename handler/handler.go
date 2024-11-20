@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"strconv"
 
 	"github.com/DukeRupert/haven/auth"
 	"github.com/DukeRupert/haven/db"
@@ -83,6 +84,10 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler) {
 	e.GET("/:facility/:initials", h.WithNav(h.handleUser))
 	e.GET("/calendar", h.WithNav(h.handleCalendar))
 	e.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
+
+	// Api routes
+	api := e.Group("/api")
+	api.POST("/available/:id", h.handleAvailabilityToggle)
 
 	// protected.GET("/calendar", h.WithNav(h.handleCalendar))
 	// protected.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
@@ -301,6 +306,64 @@ func (h *Handler) handleCalendar(c echo.Context, routeCtx *types.RouteContext, n
 
     // For regular requests, render the full page (assuming you have a layout)
     return page.CalendarPage(pageProps).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// Updated handler function
+func (h *Handler) handleAvailabilityToggle(c echo.Context) error {
+	// Parse the protected date ID from the URL
+    dateID, err := strconv.Atoi(c.Param("id"))
+    if err != nil {
+        return echo.NewHTTPError(http.StatusBadRequest, "invalid protected date ID")
+    }
+
+	// Get user from context (assuming your auth middleware sets this)
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+	}
+
+	// Fetch the protected date to check ownership
+    protectedDate, err := h.db.GetProtectedDate(c.Request().Context(), dateID)
+    if err != nil {
+        return echo.NewHTTPError(http.StatusInternalServerError, "error fetching protected date")
+    }
+
+	// Check authorization
+    if !isAuthorizedToToggle(auth.UserID, auth.Role, protectedDate) {
+        return echo.NewHTTPError(http.StatusForbidden, "unauthorized to modify this protected date")
+    }
+
+	 // Toggle the availability
+	 err = h.db.ToggleProtectedDateAvailability(c.Request().Context(), dateID)
+	 if err != nil {
+		 return echo.NewHTTPError(http.StatusInternalServerError, "error toggling availability")
+	 }
+	
+
+	component := page.UserPage(
+		*routeCtx,
+		navItems,
+		title,
+		description,
+		auth,
+		details,
+	)
+	return component.Render(c.Request().Context(), c.Response().Writer)
+}
+
+// isAuthorizedToToggle checks if a user is authorized to toggle a protected date's availability
+func isAuthorizedToToggle(userID int, role db.UserRole, protectedDate db.ProtectedDate) bool {
+    // Allow access if user is admin or super
+    if role == "admin" || role == "super" {
+        return true
+    }
+
+    // Allow access if user owns the protected date
+    if role == "user" && userID == protectedDate.UserID {
+        return true
+    }
+
+    return false
 }
 
 // func (h *Handler) handleProfile(c echo.Context) error {

@@ -6,7 +6,7 @@ import (
 )
 
 templ Calendar(props types.CalendarProps) {
-	<div class="mt-10 text-center lg:col-start-8 lg:col-end-13 lg:row-start-1 lg:mt-9 xl:col-start-9">
+	<div class="max-w-lg mx-auto mt-10 text-center lg:col-start-8 lg:col-end-13 lg:row-start-1 lg:mt-9 xl:col-start-9">
 		<div class="flex items-center text-gray-900">
 			<button
 				type="button"
@@ -45,56 +45,62 @@ templ Calendar(props types.CalendarProps) {
 		</div>
 		<div class="isolate mt-2 grid grid-cols-7 gap-px rounded-lg bg-gray-200 text-sm shadow ring-1 ring-gray-200">
 			for _, day := range getDaysInMonth(props.CurrentMonth) {
-            @CalendarDay(types.CalendarDayProps{
-                Date: day,
-                CurrentMonth: props.CurrentMonth,
-                ProtectedDates: findProtectedDates(day, props.ProtectedDates),
-                UserRole: props.UserRole,
-                CurrentUserID: props.CurrentUserID,
-                FacilityCode: props.FacilityCode,
-            })
-        }
+				@CalendarDay(types.CalendarDayProps{
+					Date:           day,
+					CurrentMonth:   props.CurrentMonth,
+					ProtectedDates: findProtectedDates(day, props.ProtectedDates),
+					UserRole:       props.UserRole,
+					CurrentUserID:  props.CurrentUserID,
+					FacilityCode:   props.FacilityCode,
+				})
+			}
 		</div>
 	</div>
 }
 
 templ CalendarDay(props types.CalendarDayProps) {
-    <button 
-        type="button" 
-        class={getDayClasses(props)}
-        if len(props.ProtectedDates) > 0 {
-            title={fmt.Sprintf("%d protected dates", len(props.ProtectedDates))}
-        }>
-        <div class="h-12 grid grid-cols-3 place-items-center gap-0.5 p-1">
-             <time 
-                datetime={props.Date.Format("2006-01-02")} 
-                class="text-sm">
-                {fmt.Sprint(props.Date.Day())}
-            </time>
-            
-            for _, pd := range props.ProtectedDates {
-                if pd.UserID == props.CurrentUserID {
-                    if pd.Available {
-                        <svg class="size-2 self-center" viewBox="0 0 8 8">
-                            <circle cx="4" cy="4" r="3" fill="#f97316"/> // orange-500
-                        </svg>
-                    } else {
-                        <svg class="size-2 self-center" viewBox="0 0 8 8">
-                            <circle cx="4" cy="4" r="3" fill="#c2410c"/> // orange-700
-                        </svg>
-                    }
-                } else {
-                    if pd.Available {
-                        <svg class="size-2 self-center" viewBox="0 0 8 8">
-                            <circle cx="4" cy="4" r="3" fill="#22c55e"/> // green-500
-                        </svg>
-                    } else {
-                        <svg class="size-2 self-center" viewBox="0 0 8 8">
-                            <circle cx="4" cy="4" r="3" fill="#ef4444"/> // red-500
-                        </svg>
-                    }
-                }
-            }
-        </div>
-    </button>
+	<div
+		class={ getDayClasses(props) }
+		if len(props.ProtectedDates) > 0 {
+			title={ fmt.Sprintf("%d protected dates", len(props.ProtectedDates)) }
+		}
+	>
+		<div class="grid grid-cols-3 grid-rows-2 gap-2 p-1 h-16">
+			<div class="flex">
+				<time
+					datetime={ props.Date.Format("2006-01-02") }
+					class="text-sm"
+				>
+					{ fmt.Sprint(props.Date.Day()) }
+				</time>
+			</div>
+			for _, pd := range props.ProtectedDates {
+				<div class="flex items-center justify-center">
+					if pd.UserID == props.CurrentUserID {
+						<button hx-post={ fmt.Sprintf("/api/available/%d", pd.ID) } hx-confirm="Are you sure you want to change you availability status?" type="button">
+							if pd.Available {
+								<svg class="size-full fill-indigo-400 stroke-indigo-400" viewBox="0 0 8 8" aria-hidden="true">
+									<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
+								</svg>
+							} else {
+								<svg class="size-full fill-none stroke-indigo-400" viewBox="0 0 8 8" aria-hidden="true">
+									<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
+								</svg>
+							}
+						</button>
+					} else {
+						if pd.Available {
+							<svg class="size-full fill-gray-400 stroke-gray-400" viewBox="0 0 8 8" aria-hidden="true">
+								<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
+							</svg>
+						} else {
+							<svg class="size-full fill-none stroke-gray-400" viewBox="0 0 8 8" aria-hidden="true">
+								<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
+							</svg>
+						}
+					}
+				</div>
+			}
+		</div>
+	</div>
 }
