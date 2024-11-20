@@ -3,15 +3,15 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
 
 	"github.com/DukeRupert/haven/auth"
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/types"
-	"github.com/DukeRupert/haven/view/page"
 	"github.com/DukeRupert/haven/view/component"
+	"github.com/DukeRupert/haven/view/page"
 
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
@@ -247,74 +247,73 @@ func (h *Handler) handleControllers(c echo.Context, routeCtx *types.RouteContext
 
 // handleCalendar handles GET requests for the calendar view
 func (h *Handler) handleCalendar(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
-    // Get facility code from path parameter
-    facilityCode := c.Param("facility")
-    if facilityCode == "" {
-        return echo.NewHTTPError(http.StatusBadRequest, "facility code is required")
-    }
+	// Get facility code from path parameter
+	facilityCode := c.Param("facility")
+	if facilityCode == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "facility code is required")
+	}
 
-    // Parse the month query parameter
-    monthStr := c.QueryParam("month")
-    var viewDate time.Time
-    var err error
+	// Parse the month query parameter
+	monthStr := c.QueryParam("month")
+	var viewDate time.Time
+	var err error
 
-    if monthStr != "" {
-        // Parse YYYY-MM format
-        viewDate, err = time.Parse("2006-01", monthStr)
-        if err != nil {
-            return echo.NewHTTPError(http.StatusBadRequest, "invalid month format")
-        }
-    } else {
-        // Default to current month
-        now := time.Now()
-        viewDate = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
-    }
+	if monthStr != "" {
+		// Parse YYYY-MM format
+		viewDate, err = time.Parse("2006-01", monthStr)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "invalid month format")
+		}
+	} else {
+		// Default to current month
+		now := time.Now()
+		viewDate = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
+	}
 
-    // Get protected dates for the month
-    protectedDates, err := h.db.GetProtectedDatesByFacilityCode(c.Request().Context(), facilityCode)
-    if err != nil {
-        return echo.NewHTTPError(http.StatusInternalServerError, "error fetching protected dates")
-    }
+	// Get protected dates for the month
+	protectedDates, err := h.db.GetProtectedDatesByFacilityCode(c.Request().Context(), facilityCode)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "error fetching protected dates")
+	}
 
 	auth, err := GetAuthContext(c)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
 	}
 
-    props := types.CalendarProps{
-        CurrentMonth:    viewDate,
-        FacilityCode:   facilityCode,
-        ProtectedDates: protectedDates,
-        UserRole:       auth.Role,
-        CurrentUserID:  auth.UserID,
-    }
-
-	pageProps := types.CalendarPageProps{
-		Route:	*routeCtx,
-		NavItems:	navItems,
-		Auth: auth,
-		Title: "Calendar",
-		Description: "View the facility calendar",
-		Calendar: props,
-
+	props := types.CalendarProps{
+		CurrentMonth:   viewDate,
+		FacilityCode:   facilityCode,
+		ProtectedDates: protectedDates,
+		UserRole:       auth.Role,
+		CurrentUserID:  auth.UserID,
 	}
 
-    // Render only the calendar component for HTMX requests
-    if c.Request().Header.Get("HX-Request") == "true" {
-        return component.Calendar(props).Render(c.Request().Context(), c.Response().Writer)
-    }
+	pageProps := types.CalendarPageProps{
+		Route:       *routeCtx,
+		NavItems:    navItems,
+		Auth:        auth,
+		Title:       "Calendar",
+		Description: "View the facility calendar",
+		Calendar:    props,
+	}
 
-    // For regular requests, render the full page (assuming you have a layout)
-    return page.CalendarPage(pageProps).Render(c.Request().Context(), c.Response().Writer)
+	// Render only the calendar component for HTMX requests
+	if c.Request().Header.Get("HX-Request") == "true" {
+		return component.Calendar(props).Render(c.Request().Context(), c.Response().Writer)
+	}
+
+	// For regular requests, render the full page (assuming you have a layout)
+	return page.CalendarPage(pageProps).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // Updated handler function
 func (h *Handler) handleAvailabilityToggle(c echo.Context) error {
 	// Parse the protected date ID from the URL
-    dateID, err := strconv.Atoi(c.Param("id"))
-    if err != nil {
-        return echo.NewHTTPError(http.StatusBadRequest, "invalid protected date ID")
-    }
+	dateID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid protected date ID")
+	}
 
 	// Get user from context (assuming your auth middleware sets this)
 	auth, err := GetAuthContext(c)
@@ -323,47 +322,43 @@ func (h *Handler) handleAvailabilityToggle(c echo.Context) error {
 	}
 
 	// Fetch the protected date to check ownership
-    protectedDate, err := h.db.GetProtectedDate(c.Request().Context(), dateID)
-    if err != nil {
-        return echo.NewHTTPError(http.StatusInternalServerError, "error fetching protected date")
-    }
+	protectedDate, err := h.db.GetProtectedDate(c.Request().Context(), dateID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "error fetching protected date")
+	}
 
 	// Check authorization
-    if !isAuthorizedToToggle(auth.UserID, auth.Role, protectedDate) {
-        return echo.NewHTTPError(http.StatusForbidden, "unauthorized to modify this protected date")
-    }
+	if !isAuthorizedToToggle(auth.UserID, auth.Role, protectedDate) {
+		return echo.NewHTTPError(http.StatusForbidden, "unauthorized to modify this protected date")
+	}
 
-	 // Toggle the availability
-	 err = h.db.ToggleProtectedDateAvailability(c.Request().Context(), dateID)
-	 if err != nil {
-		 return echo.NewHTTPError(http.StatusInternalServerError, "error toggling availability")
-	 }
-	
+	// Toggle the availability
+	protectedDate, err = h.db.ToggleProtectedDateAvailability(c.Request().Context(), dateID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "error toggling availability")
+	}
 
-	component := page.UserPage(
-		*routeCtx,
-		navItems,
-		title,
-		description,
-		auth,
-		details,
+	component := component.ProtectedDay(
+		auth.UserID,
+		protectedDate,
 	)
+
 	return component.Render(c.Request().Context(), c.Response().Writer)
 }
 
 // isAuthorizedToToggle checks if a user is authorized to toggle a protected date's availability
 func isAuthorizedToToggle(userID int, role db.UserRole, protectedDate db.ProtectedDate) bool {
-    // Allow access if user is admin or super
-    if role == "admin" || role == "super" {
-        return true
-    }
+	// Allow access if user is admin or super
+	if role == "admin" || role == "super" {
+		return true
+	}
 
-    // Allow access if user owns the protected date
-    if role == "user" && userID == protectedDate.UserID {
-        return true
-    }
+	// Allow access if user owns the protected date
+	if role == "user" && userID == protectedDate.UserID {
+		return true
+	}
 
-    return false
+	return false
 }
 
 // func (h *Handler) handleProfile(c echo.Context) error {

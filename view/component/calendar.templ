@@ -2,6 +2,7 @@ package component
 
 import (
 	"fmt"
+	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/types"
 )
 
@@ -75,32 +76,38 @@ templ CalendarDay(props types.CalendarDayProps) {
 				</time>
 			</div>
 			for _, pd := range props.ProtectedDates {
-				<div class="flex items-center justify-center">
-					if pd.UserID == props.CurrentUserID {
-						<button hx-post={ fmt.Sprintf("/api/available/%d", pd.ID) } hx-confirm="Are you sure you want to change you availability status?" type="button">
-							if pd.Available {
-								<svg class="size-full fill-indigo-400 stroke-indigo-400" viewBox="0 0 8 8" aria-hidden="true">
-									<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
-								</svg>
-							} else {
-								<svg class="size-full fill-none stroke-indigo-400" viewBox="0 0 8 8" aria-hidden="true">
-									<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
-								</svg>
-							}
-						</button>
-					} else {
-						if pd.Available {
-							<svg class="size-full fill-gray-400 stroke-gray-400" viewBox="0 0 8 8" aria-hidden="true">
-								<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
-							</svg>
-						} else {
-							<svg class="size-full fill-none stroke-gray-400" viewBox="0 0 8 8" aria-hidden="true">
-								<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
-							</svg>
-						}
-					}
-				</div>
+				@ProtectedDay(props.CurrentUserID, pd)
 			}
 		</div>
+	</div>
+}
+
+templ ProtectedDay(currentUserID int, pd db.ProtectedDate) {
+	<div id={ fmt.Sprintf("pd-%d", pd.ID)} class="flex items-center justify-center">
+		if pd.UserID == currentUserID {
+			<button hx-post={ fmt.Sprintf("/api/available/%d", pd.ID) } hx-target={fmt.Sprintf("#pd-%d", pd.ID)} hx-swap="outerHTML" hx-confirm="Are you sure you want to change you availability status?" type="button">
+				if pd.Available {
+					<svg class="size-full fill-indigo-400 stroke-indigo-400" viewBox="0 0 8 8" aria-hidden="true">
+						<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
+					</svg>
+				} else {
+					<svg class="size-full fill-none stroke-indigo-400" viewBox="0 0 8 8" aria-hidden="true">
+						<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
+					</svg>
+				}
+			</button>
+		} else {
+			<div >
+				if pd.Available {
+					<svg class="size-full fill-gray-400 stroke-gray-400" viewBox="0 0 8 8" aria-hidden="true">
+						<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
+					</svg>
+				} else {
+					<svg class="size-full fill-none stroke-gray-400" viewBox="0 0 8 8" aria-hidden="true">
+						<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
+					</svg>
+				}
+			</div>
+		}
 	</div>
 }

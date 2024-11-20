@@ -1,0 +1,26 @@
+<div class=\"max-w-lg mx-auto mt-10 text-center lg:col-start-8 lg:col-end-13 lg:row-start-1 lg:mt-9 xl:col-start-9\"><div class=\"flex items-center text-gray-900\"><button type=\"button\" class=\"-m-1.5 flex flex-none items-center justify-center p-1.5 text-gray-400 hover:text-gray-500\" hx-get=\"
+\" hx-target=\"closest div.mt-10\"><span class=\"sr-only\">Previous month</span> <svg class=\"size-5\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z\" clip-rule=\"evenodd\"></path></svg></button><div class=\"flex-auto text-sm font-semibold\">
+</div><button type=\"button\" class=\"-m-1.5 flex flex-none items-center justify-center p-1.5 text-gray-400 hover:text-gray-500\" hx-get=\"
+\" hx-target=\"closest div.mt-10\"><span class=\"sr-only\">Next month</span> <svg class=\"size-5\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z\" clip-rule=\"evenodd\"></path></svg></button></div><div class=\"mt-6 grid grid-cols-7 text-xs/6 text-gray-500\"><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div></div><div class=\"isolate mt-2 grid grid-cols-7 gap-px rounded-lg bg-gray-200 text-sm shadow ring-1 ring-gray-200\">
+</div></div>
+<div class=\"
+\"
+ title=\"
+\"
+><div class=\"grid grid-cols-3 grid-rows-2 gap-2 p-1 h-16\"><div class=\"flex\"><time datetime=\"
+\" class=\"text-sm\">
+</time></div>
+</div></div>
+<div id=\"
+\" class=\"flex items-center justify-center\">
+<button hx-post=\"
+\" hx-target=\"
+\" hx-swap=\"outerHTML\" hx-confirm=\"Are you sure you want to change you availability status?\" type=\"button\">
+<svg class=\"size-full fill-indigo-400 stroke-indigo-400\" viewBox=\"0 0 8 8\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"4\" r=\"3\" stroke-width=\"1\"></circle></svg>
+<svg class=\"size-full fill-none stroke-indigo-400\" viewBox=\"0 0 8 8\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"4\" r=\"3\" stroke-width=\"1\"></circle></svg>
+</button>
+<div>
+<svg class=\"size-full fill-gray-400 stroke-gray-400\" viewBox=\"0 0 8 8\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"4\" r=\"3\" stroke-width=\"1\"></circle></svg>
+<svg class=\"size-full fill-none stroke-gray-400\" viewBox=\"0 0 8 8\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"4\" r=\"3\" stroke-width=\"1\"></circle></svg>
+</div>
+</div>

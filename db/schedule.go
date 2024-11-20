@@ -506,21 +506,43 @@ func scanProtectedDates(rows pgx.Rows) ([]ProtectedDate, error) {
     return dates, nil
 }
 
-// ToggleProtectedDateAvailability toggles the available status of a protected date
-func (db *DB) ToggleProtectedDateAvailability(ctx context.Context, dateID int) error {
-    _, err := db.pool.Exec(ctx, `
+// ToggleProtectedDateAvailability toggles the available status of a protected date and returns the updated record
+func (db *DB) ToggleProtectedDateAvailability(ctx context.Context, dateID int) (ProtectedDate, error) {
+    var date ProtectedDate
+    err := db.pool.QueryRow(ctx, `
         UPDATE protected_dates 
         SET 
             available = NOT available,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
-    `, dateID)
+        RETURNING 
+            id,
+            created_at,
+            updated_at,
+            schedule_id,
+            date,
+            available,
+            user_id,
+            facility_id
+    `, dateID).Scan(
+        &date.ID,
+        &date.CreatedAt,
+        &date.UpdatedAt,
+        &date.ScheduleID,
+        &date.Date,
+        &date.Available,
+        &date.UserID,
+        &date.FacilityID,
+    )
     
     if err != nil {
-        return fmt.Errorf("error toggling protected date %d: %w", dateID, err)
+        if errors.Is(err, pgx.ErrNoRows) {
+            return date, fmt.Errorf("protected date %d not found: %w", dateID, err)
+        }
+        return date, fmt.Errorf("error toggling protected date %d: %w", dateID, err)
     }
 
-    return nil
+    return date, nil
 }
 
 // Helper method to check if user exists
