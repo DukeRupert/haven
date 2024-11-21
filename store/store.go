@@ -3,16 +3,13 @@ package store
 import (
 	"context"
 	"encoding/base32"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/DukeRupert/haven/db"
-	"github.com/DukeRupert/haven/types"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"github.com/jackc/pgx/v5"
@@ -41,17 +38,6 @@ const (
 )
 
 var logger zerolog.Logger
-
-func init() {
-	// Initialize zerolog
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	logger = zerolog.New(os.Stdout).With().Timestamp().Caller().Logger()
-
-	// Register types for session storage
-	gob.Register(time.Time{})
-	gob.Register(types.UserRole(""))
-	logger.Debug().Msg("registered time.Time with gob encoder")
-}
 
 // NewPgxStore creates a new PgxStore instance
 func NewPgxStore(db *db.DB, keyPairs ...[]byte) (*PgxStore, error) {

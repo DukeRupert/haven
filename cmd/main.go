@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/gob"
+	"time"
 	"log"
 	"net/http"
 	"os"
@@ -9,9 +10,9 @@ import (
 	"github.com/DukeRupert/haven/auth"
 	"github.com/DukeRupert/haven/config"
 	"github.com/DukeRupert/haven/db"
-	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/handler"
 	"github.com/DukeRupert/haven/store"
+	"github.com/DukeRupert/haven/types"
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
@@ -20,9 +21,8 @@ import (
 )
 
 func init() {
-	// Register your custom types with gob
-	var userRole types.UserRole
-	gob.Register(userRole)
+    gob.Register(types.UserRole(""))
+	gob.Register(time.Time{})
 }
 
 func main() {

@@ -126,9 +126,6 @@ func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
 			Str("role", string(user.Role)).
 			Msg("Setting session values")
 
-		sess.Values["user_id"] = user.ID
-		sess.Values["role"] = user.Role
-
 		facility, err := h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
 		if err != nil {
 			logger.Error().
@@ -139,14 +136,14 @@ func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusInternalServerError, "facility error")
 		}
 
-		logger.Debug().
-			Int("facility_id", facility.ID).
-			Str("facility_code", facility.Code).
-			Msg("Setting facility session values")
-
+		sess.Values["user_id"] = user.ID
+		sess.Values["user_role"] = user.Role         // Changed from "role" to "user_role"
+		sess.Values["user_initials"] = user.Initials // Add initials
 		sess.Values["facility_code"] = facility.Code
 		sess.Values["facility_id"] = facility.ID
+		sess.Values["last_access"] = time.Now()
 
+		// Save session
 		if err := sess.Save(c.Request(), c.Response()); err != nil {
 			logger.Error().
 				Err(err).
@@ -205,56 +202,40 @@ func authenticateUser(ctx context.Context, database *db.DB, email, password stri
 }
 
 func (h *AuthHandler) LogoutHandler() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		logger := h.logger.With().Str("handler", "LogoutHandler").Logger()
+    return func(c echo.Context) error {
+        logger := h.logger.With().Str("handler", "LogoutHandler").Logger()
 
-		// Try to get the existing session by name
-		sess, err := session.Get(DefaultSessionName, c)
-		if err != nil {
-			logger.Error().Err(err).Msg("failed to get session")
-			return c.Redirect(http.StatusTemporaryRedirect, "/login")
-		}
+        // Get the session
+        sess, err := session.Get(DefaultSessionName, c)
+        if err != nil {
+            logger.Error().Err(err).Msg("failed to get session")
+        }
 
-		// Log full session state for debugging
-		logger.Debug().
-			Bool("is_new", sess.IsNew).
-			Str("session_id", sess.ID).
-			Interface("values", convertSessionValues(sess.Values)).
-			Interface("options", sess.Options).
-			Msg("current session state")
+        // Log initial state
+        logger.Debug().
+            Bool("is_new", sess.IsNew).
+            Str("session_id", sess.ID).
+            Interface("values", sess.Values).
+            Msg("starting logout process")
 
-		// If we don't have a valid session, just redirect to login
-		if sess.IsNew {
-			logger.Debug().Msg("no existing session found")
-			return c.Redirect(http.StatusTemporaryRedirect, "/login")
-		}
+        // Clear the session regardless of whether it's new or not
+        sess.Values = make(map[interface{}]interface{})
+        sess.Options.MaxAge = -1
 
-		// We have a valid session, proceed with logout
-		logger.Debug().
-			Str("session_id", sess.ID).
-			Msg("proceeding with session deletion")
+        // Force save the cleared session
+        if err = sess.Save(c.Request(), c.Response()); err != nil {
+            logger.Error().Err(err).Msg("failed to save cleared session")
+            // Continue with redirect anyway
+        }
 
-		// Clear all session values
-		sess.Values = make(map[interface{}]interface{})
-
-		// Set the session to expire
-		sess.Options.MaxAge = -1
-
-		// Save the session (this will trigger deletion due to MaxAge = -1)
-		if err = sess.Save(c.Request(), c.Response()); err != nil {
-			logger.Error().
-				Err(err).
-				Str("session_id", sess.ID).
-				Msg("failed to delete session")
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to logout")
-		}
-
-		logger.Debug().
-			Str("session_id", sess.ID).
-			Msg("logout successful")
-
-		return c.Redirect(http.StatusSeeOther, "/login")
-	}
+        // Add Cache-Control header to prevent browser caching
+        c.Response().Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, post-check=0, pre-check=0")
+        
+        logger.Debug().Msg("logout completed, redirecting to login page")
+        
+        // Use StatusSeeOther (303) to ensure GET request
+        return c.Redirect(http.StatusSeeOther, "/login")
+    }
 }
 
 // Helper function to convert session values for logging
@@ -468,9 +449,9 @@ func (h *AuthHandler) WithRouteContext() echo.MiddlewareFunc {
 			facilityID, _ := c.Get("facility_id").(int)
 			facilityCode, _ := c.Get("facility_code").(string)
 
-						// Get path parameters if they exist
-						pathFacility := c.Param("facility")
-						pathInitials := c.Param("initials")
+			// Get path parameters if they exist
+			pathFacility := c.Param("facility")
+			pathInitials := c.Param("initials")
 
 			// Determine base path based on role and facility
 			var basePath string
@@ -486,7 +467,7 @@ func (h *AuthHandler) WithRouteContext() echo.MiddlewareFunc {
 				FacilityID:   facilityID,
 				FacilityCode: facilityCode,
 				PathFacility: pathFacility,
-				PathInitials: pathInitials, 
+				PathInitials: pathInitials,
 			}
 
 			// Store in context
