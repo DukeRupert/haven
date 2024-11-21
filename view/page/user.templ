@@ -38,7 +38,7 @@ templ UserPage( route types.RouteContext, navItems []types.NavItem, Title string
 				if UserDetails.Schedule.ID == 0 {
 					@EmptyScheduleCard(route, *AuthContext, UserDetails.Schedule)
 				} else {
-					@ScheduleCard(route, *AuthContext, UserDetails.Schedule)
+					@ScheduleCard( *AuthContext, UserDetails.Schedule)
 				}
 				<!-- Facility Card -->
 				<div class="relative lg:col-span-2">

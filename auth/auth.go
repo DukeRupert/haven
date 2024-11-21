@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/types"
+	"github.com/DukeRupert/haven/view/alert"
 	"github.com/gorilla/sessions"
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo-contrib/session"
@@ -61,8 +62,8 @@ func NewAuthHandler(pool *db.DB, store sessions.Store, logger zerolog.Logger) *A
 
 // LoginParams represents the expected login request body
 type LoginParams struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
+   Email    string `json:"email" form:"email" validate:"required,email"`
+   Password string `json:"password" form:"password" validate:"required"`
 }
 
 // LoginHandler processes user login requests and establishes authenticated sessions.
@@ -78,61 +79,93 @@ type LoginParams struct {
 // - facility_code: string (new)
 // - facility_id: int (new)
 func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		logger := h.logger.With().
-			Str("component", "auth").
-			Str("handler", "LoginHandler").
-			Logger()
+   return func(c echo.Context) error {
+       logger := h.logger.With().
+           Str("component", "auth").
+           Str("handler", "LoginHandler").
+           Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+           Logger()
 
-		sess, err := session.Get(DefaultSessionName, c)
-		if err != nil {
-			logger.Error().Err(err).Msg("Failed to get session")
-			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
-		}
+       logger.Debug().Msg("Processing login request")
 
-		params := new(LoginParams)
-		if err := c.Bind(params); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
-		}
+       sess, err := session.Get(DefaultSessionName, c)
+       if err != nil {
+           logger.Error().
+               Err(err).
+               Str("session_name", DefaultSessionName).
+               Msg("Failed to get session")
+           return echo.NewHTTPError(http.StatusInternalServerError, "session error")
+       }
 
-		user, err := authenticateUser(c.Request().Context(), h.database, params.Email, params.Password)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
-		}
+       params := new(LoginParams)
+       if err := c.Bind(params); err != nil {
+           logger.Debug().
+               Err(err).
+               Str("email", params.Email).
+               Msg("Invalid form data submitted")
+           c.Response().WriteHeader(http.StatusUnauthorized)
+           return alert.Error("Invalid request", []string{"The submitted form data was invalid"}).
+               Render(c.Request().Context(), c.Response().Writer)
+       }
 
-		// Set core session values
-		sess.Values["user_id"] = user.ID
-		sess.Values["role"] = user.Role
+       logger.Debug().Str("email", params.Email).Msg("Attempting user authentication")
 
-		// Get user's primary facility
-		facility, err := h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
-		if err != nil {
-			logger.Error().
-				Err(err).
-				Int("user_id", user.ID).
-				Msg("Failed to get user's primary facility")
-			return echo.NewHTTPError(http.StatusInternalServerError, "facility error")
-		}
+       user, err := authenticateUser(c.Request().Context(), h.database, params.Email, params.Password)
+       if err != nil {
+           logger.Debug().
+               Err(err).
+               Str("email", params.Email).
+               Msg("Authentication failed")
+           c.Response().WriteHeader(http.StatusUnauthorized)
+           return alert.Error("Invalid request", []string{"Invalid credentials."}).
+               Render(c.Request().Context(), c.Response().Writer)
+       }
 
-		// Set facility-related session values
-		sess.Values["facility_code"] = facility.Code
-		sess.Values["facility_id"] = facility.ID
+       logger.Debug().
+           Int("user_id", user.ID).
+           Str("role", string(user.Role)).
+           Msg("Setting session values")
 
-		if err := sess.Save(c.Request(), c.Response()); err != nil {
-			logger.Error().Err(err).Msg("Failed to save session")
-			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
-		}
+       sess.Values["user_id"] = user.ID
+       sess.Values["role"] = user.Role
 
-		// Redirect to facility-specific dashboard
-		redirectURL := fmt.Sprintf("/%s/dashboard", facility.Code)
-		logger.Debug().
-			Int("user_id", user.ID).
-			Str("facility_code", facility.Code).
-			Str("redirect_url", redirectURL).
-			Msg("login successful, redirecting to facility dashboard")
+       facility, err := h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
+       if err != nil {
+           logger.Error().
+               Err(err).
+               Int("user_id", user.ID).
+               Int("facility_id", user.FacilityID).
+               Msg("Failed to get user's facility")
+           return echo.NewHTTPError(http.StatusInternalServerError, "facility error")
+       }
 
-		return c.Redirect(http.StatusSeeOther, redirectURL)
-	}
+       logger.Debug().
+           Int("facility_id", facility.ID).
+           Str("facility_code", facility.Code).
+           Msg("Setting facility session values")
+
+       sess.Values["facility_code"] = facility.Code
+       sess.Values["facility_id"] = facility.ID
+
+       if err := sess.Save(c.Request(), c.Response()); err != nil {
+           logger.Error().
+               Err(err).
+               Int("user_id", user.ID).
+               Str("session_id", sess.ID).
+               Msg("Failed to save session")
+           return echo.NewHTTPError(http.StatusInternalServerError, "session error")
+       }
+
+       redirectURL := fmt.Sprintf("/%s/dashboard", facility.Code)
+       logger.Info().
+           Int("user_id", user.ID).
+           Str("email", params.Email).
+           Str("facility_code", facility.Code).
+           Str("redirect_url", redirectURL).
+           Msg("Login successful")
+
+       return c.Redirect(http.StatusSeeOther, redirectURL)
+   }
 }
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
@@ -258,13 +291,13 @@ func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
 	// Define public paths that should skip authentication
 	publicRoutes := map[PublicRoute]bool{
 		// Core auth routes
-		{Path: "/login", Method: "GET"}:  true,
-		{Path: "/login", Method: "POST"}: true,
+		{Path: "/login", Method: "GET"}:   true,
+		{Path: "/login", Method: "POST"}:  true,
 		{Path: "/logout", Method: "POST"}: true,
-		
+
 		// Public pages
 		{Path: "/", Method: "GET"}: true,
-		
+
 		// Add more public routes here as needed, for example:
 		// {Path: "/about", Method: "GET"}: true,
 		// {Path: "/contact", Method: "GET"}: true,
@@ -278,7 +311,7 @@ func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
 				Str("middleware", "AuthMiddleware()").
 				Str("path", c.Path()).
 				Logger()
-			
+
 			// Allow static assets using the RequestURI instead of Path
 			if strings.HasPrefix(c.Request().RequestURI, "/static/") {
 				logger.Debug().
@@ -314,7 +347,7 @@ func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
 			// Validate user authentication
 			userID, ok := sess.Values["user_id"].(int)
 			if !ok || userID == 0 {
-				logger.Debug().Msg("no valid user_id in session")
+				logger.Debug().Msg("no valid user_id in session, silly")
 				return redirectToLogin(c)
 			}
 
@@ -369,10 +402,10 @@ func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
 // you might want to add this helper method
 func (h *AuthHandler) IsPublicRoute(path, method string) bool {
 	publicRoutes := map[PublicRoute]bool{
-		{Path: "/login", Method: "GET"}:  true,
-		{Path: "/login", Method: "POST"}: true,
+		{Path: "/login", Method: "GET"}:   true,
+		{Path: "/login", Method: "POST"}:  true,
 		{Path: "/logout", Method: "POST"}: true,
-		{Path: "/", Method: "GET"}:       true,
+		{Path: "/", Method: "GET"}:        true,
 		// Add the same routes as above
 	}
 
@@ -426,35 +459,35 @@ func (h *AuthHandler) RoleAuthMiddleware(minimumRole db.UserRole) echo.Middlewar
 }
 
 func (h *AuthHandler) WithRouteContext() echo.MiddlewareFunc {
-    return func(next echo.HandlerFunc) echo.HandlerFunc {
-        return func(c echo.Context) error {
-            // Get values set by AuthMiddleware
-            userRole, _ := c.Get("user_role").(db.UserRole)
-            userInitials, _ := c.Get("user_initials").(string)
-            facilityID, _ := c.Get("facility_id").(int)
-            facilityCode, _ := c.Get("facility_code").(string)
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			// Get values set by AuthMiddleware
+			userRole, _ := c.Get("user_role").(db.UserRole)
+			userInitials, _ := c.Get("user_initials").(string)
+			facilityID, _ := c.Get("facility_id").(int)
+			facilityCode, _ := c.Get("facility_code").(string)
 
-            // Determine base path based on role and facility
-            var basePath string
-            if facilityCode != "" {
-                basePath = facilityCode
-            }
+			// Determine base path based on role and facility
+			var basePath string
+			if facilityCode != "" {
+				basePath = facilityCode
+			}
 
-            // Create route context
-            routeCtx := &types.RouteContext{
-                BasePath:     basePath,
-                UserRole:     userRole,
-                UserInitials: userInitials,
-                FacilityID:   facilityID,
-                FacilityCode: facilityCode,
-            }
+			// Create route context
+			routeCtx := &types.RouteContext{
+				BasePath:     basePath,
+				UserRole:     userRole,
+				UserInitials: userInitials,
+				FacilityID:   facilityID,
+				FacilityCode: facilityCode,
+			}
 
-            // Store in context
-            c.Set("routeCtx", routeCtx)
-            
-            return next(c)
-        }
-    }
+			// Store in context
+			c.Set("routeCtx", routeCtx)
+
+			return next(c)
+		}
+	}
 }
 
 // RedirectIfAuthenticated middleware checks if a user is already logged in when accessing the login page
@@ -513,7 +546,7 @@ func (h *AuthHandler) PublicRouteMiddleware() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			// Clear any existing error state from the context
 			c.Set("error", nil)
-			
+
 			// For public routes, always allow GET requests
 			if c.Request().Method == "GET" {
 				return next(c)
@@ -552,7 +585,7 @@ func redirectToLogin(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "authentication required")
 	}
 	// For regular requests, redirect to login
-	return c.Redirect(http.StatusOK, "/login")
+	return c.Redirect(http.StatusTemporaryRedirect, "/login")
 }
 
 func isAPIRequest(c echo.Context) bool {

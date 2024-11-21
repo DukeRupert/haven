@@ -163,14 +163,14 @@ func BuildNav(routeCtx *types.RouteContext, currentPath string) []types.NavItem 
 	}
 
 	// Debug logging
-	for _, item := range navItems {
-		logger.Debug().
-			Str("name", item.Name).
-			Str("path", item.Path).
-			Bool("active", item.Active).
-			Str("compare_path", strippedPath).
-			Msg("nav item state")
-	}
+	// for _, item := range navItems {
+	// 	logger.Debug().
+	// 		Str("name", item.Name).
+	// 		Str("path", item.Path).
+	// 		Bool("active", item.Active).
+	// 		Str("compare_path", strippedPath).
+	// 		Msg("nav item state")
+	// }
 
 	return navItems
 }
