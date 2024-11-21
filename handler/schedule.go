@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/DukeRupert/haven/db"
@@ -15,21 +16,45 @@ func (h *Handler) CreateScheduleForm(c echo.Context) error {
 	return render(c, component.CreateScheduleForm(route))
 }
 
-func (h *Handler) UpdateScheduleForm(c echo.Context) error {
-	h.logger.Info().
-		Str("facility_code", h.RouteCtx.FacilityCode).
-		Str("user_initials", h.RouteCtx.UserInitials).
-		Msg("UpdateScheduleForm() executing")
+// isAuthorizedToToggle checks if a user is authorized to toggle a protected date's availability
+func isAuthorized(userID int, role db.UserRole, recordID int) bool {
+	// Allow access if user is admin or super
+	if role == "admin" || role == "super" {
+		return true
+	}
 
-	schedule, err := h.db.GetScheduleByCode(
+	// Allow access if user owns the protected date
+	if role == "user" && userID == recordID {
+		return true
+	}
+
+	return false
+}
+
+func (h *Handler) updateScheduleForm(c echo.Context) error {
+	h.logger.Info().
+		Str("Schedule ID", c.Param("id")).
+		Msg("updateScheduleForm() executing")
+
+	// Parse the schedule ID from the URL
+	scheduleID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid protected date ID")
+	}
+
+	// Get user from context
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+	}
+
+	// Query database for record
+	schedule, err := h.db.GetSchedule(
 		c.Request().Context(),
-		h.RouteCtx.FacilityCode,
-		h.RouteCtx.UserInitials,
+		scheduleID,
 	)
 	if err != nil {
 		h.logger.Error().Err(err).
-			Str("facility_code", h.RouteCtx.FacilityCode).
-			Str("user_initials", h.RouteCtx.UserInitials).
 			Msg("Failed to retrieve schedule")
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve schedule")
 	}
@@ -39,15 +64,14 @@ func (h *Handler) UpdateScheduleForm(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "No schedule found for this user")
 	}
 
-	h.logger.Debug().
-		Str("facility_code", h.RouteCtx.FacilityCode).
-		Str("user_initials", h.RouteCtx.UserInitials).
-		Int("schedule_id", schedule.ID).
-		Msg("Schedule retrieved successfully")
+	// Check authorization
+	if !isAuthorized(auth.UserID, auth.Role, schedule.UserID) {
+		return echo.NewHTTPError(http.StatusForbidden, "unauthorized to modify this protected date")
+	}
 
-	route := h.RouteCtx
-
-	return render(c, component.UpdateScheduleForm(route, *schedule))
+	// Build and return component
+	component := component.UpdateScheduleForm(*schedule)
+	return component.Render(c.Request().Context(), c.Response().Writer)
 }
 
 func (h *Handler) GetScheduleHandler(c echo.Context) error {
@@ -87,7 +111,7 @@ func (h *Handler) GetScheduleHandler(c echo.Context) error {
 			schedule.FirstWeekday, schedule.SecondWeekday)
 
 	// Return the schedule card
-	return render(c, page.ScheduleCard(h.RouteCtx, *auth, *schedule))
+	return render(c, page.ScheduleCard( *auth, *schedule))
 }
 
 type CreateScheduleRequest struct {
@@ -135,7 +159,6 @@ func (h *Handler) CreateScheduleHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
 	}
 
-	route := h.RouteCtx
 	logger.Info().
 		Int("schedule_id", schedule.ID).
 		Str("facility_code", params.FacilityCode).
@@ -145,15 +168,23 @@ func (h *Handler) CreateScheduleHandler(c echo.Context) error {
 			schedule.FirstWeekday, schedule.SecondWeekday)
 
 	// Return the updated schedule card
-	return render(c, page.ScheduleCard(route, *auth, *schedule))
+	return render(c, page.ScheduleCard(*auth, *schedule))
 }
 
-func (h *Handler) UpdateScheduleHandler(c echo.Context) error {
+func (h *Handler) handleUpdateSchedule(c echo.Context) error {
 	logger := h.logger
 
-	// Get route parameters
-	code := c.Param("code")
-	initials := c.Param("initials")
+	// Parse the schedule ID from the URL
+	scheduleID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid protected date ID")
+	}
+
+	// Get user from context
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+	}
 
 	// Parse form data with correct form binding
 	var formData struct {
@@ -179,36 +210,33 @@ func (h *Handler) UpdateScheduleHandler(c echo.Context) error {
 		StartDate:     startDate,
 	}
 
+	// Fetch the protected date to check ownership
+	schedule, err := h.db.GetSchedule(c.Request().Context(), scheduleID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "error fetching protected date")
+	}
+	
+	// Check authorization
+	if !isAuthorized(auth.UserID, auth.Role, schedule.UserID) {
+		return echo.NewHTTPError(http.StatusForbidden, "unauthorized to modify this protected date")
+	}
+
 	// Update schedule in database
-	schedule, err := h.db.UpdateScheduleByCode(
+	schedule, err = h.db.UpdateSchedule(
 		c.Request().Context(),
-		code,
-		initials,
+		scheduleID,
 		params,
 	)
 	if err != nil {
 		logger.Error().Err(err).
-			Str("facility_code", code).
-			Str("user_initials", initials).
 			Msg("Failed to update schedule")
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update schedule")
 	}
 
-	// Get session data for rendering
-	auth, err := GetAuthContext(c)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
-	}
+	component := page.ScheduleCard(
+		*auth,
+		*schedule,
+	)
 
-	// Log successful update
-	logger.Info().
-		Int("schedule_id", schedule.ID).
-		Str("facility_code", code).
-		Str("user_initials", initials).
-		Time("start_date", schedule.StartDate).
-		Msgf("schedule updated successfully with weekdays %s and %s",
-			schedule.FirstWeekday, schedule.SecondWeekday)
-
-	// Return the updated schedule card
-	return render(c, page.ScheduleCard(h.RouteCtx, *auth, *schedule))
+	return component.Render(c.Request().Context(), c.Response().Writer)
 }

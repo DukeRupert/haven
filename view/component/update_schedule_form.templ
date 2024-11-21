@@ -1,11 +1,11 @@
 package component
 
 import (
+	"fmt"
   "github.com/DukeRupert/haven/db"
-  "github.com/DukeRupert/haven/types"
 )
 
-templ UpdateScheduleForm(route types.RouteContext, schedule db.Schedule) {
+templ UpdateScheduleForm(schedule db.Schedule) {
 	<div id="update-schedule-form" hx-target="this" hx-target-error="#global-alert" hx-swap="outerHTML" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
@@ -14,7 +14,7 @@ templ UpdateScheduleForm(route types.RouteContext, schedule db.Schedule) {
 				</div>
 				<div class="mt-6">
 					<form
-						hx-put={ route.BuildURL("/schedule")}
+						hx-post={ fmt.Sprintf("/api/schedule/%d", schedule.ID)}
 						hx-target="#update-schedule-form"
 						hx-swap="outerHTML"
 						hx-target-error="#global-alert"
@@ -70,7 +70,7 @@ templ UpdateScheduleForm(route types.RouteContext, schedule db.Schedule) {
 							<div class="flex justify-end space-x-3">
 								<button
 									type="button"
-									hx-get={ route.BuildURL("/schedule") }
+									hx-get={ fmt.Sprintf("/api/schedule/%d", schedule.ID) }
 									hx-target="#update-schedule-form"
 									hx-swap="outerHTML"
 									class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"

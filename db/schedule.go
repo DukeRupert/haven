@@ -119,6 +119,44 @@ func (db *DB) GetSchedule(ctx context.Context, id int) (*Schedule, error) {
 	return &schedule, nil
 }
 
+// UpdateSchedule updates an existing schedule record with the provided schedule data.
+// It returns the updated schedule or an error if the update fails.
+func (db *DB) UpdateSchedule(ctx context.Context, scheduleID int, params UpdateScheduleParams) (*Schedule, error) {
+    var schedule Schedule
+    err := db.QueryRow(ctx, `
+        UPDATE schedules 
+        SET 
+            updated_at = $1,
+            first_weekday = $2,
+            second_weekday = $3,
+            start_date = $4
+        WHERE id = $5
+        RETURNING id, created_at, updated_at, user_id, first_weekday, second_weekday, start_date
+    `,
+        time.Now(),
+        params.FirstWeekday,
+        params.SecondWeekday,
+        params.StartDate,
+        scheduleID,
+    ).Scan(
+        &schedule.ID,
+        &schedule.CreatedAt,
+        &schedule.UpdatedAt,
+        &schedule.UserID,
+        &schedule.FirstWeekday,
+        &schedule.SecondWeekday,
+        &schedule.StartDate,
+    )
+    if err == pgx.ErrNoRows {
+        return nil, fmt.Errorf("no schedule found with ID %d", scheduleID)
+    }
+    if err != nil {
+        return nil, fmt.Errorf("error updating schedule: %w", err)
+    }
+
+    return &schedule, nil
+}
+
 // GetSchedulesByFacilityID retrieves all unique schedules associated with protected dates
 // at a given facility, identified by facility ID. Results are ordered by creation date.
 // Since protected_dates contains facility_id, we query through it directly without

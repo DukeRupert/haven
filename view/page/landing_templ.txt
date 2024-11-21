@@ -1,1 +1,0 @@
-<h1>Project Haven</h1><a href=\"/login\">Login</a>

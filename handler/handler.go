@@ -88,6 +88,8 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler) {
 	// Api routes
 	api := e.Group("/api")
 	api.POST("/available/:id", h.handleAvailabilityToggle)
+	api.POST("/schedule/:id", h.handleUpdateSchedule)
+	api.GET("/schedule/update/:id", h.updateScheduleForm)
 
 	// protected.GET("/calendar", h.WithNav(h.handleCalendar))
 	// protected.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
@@ -315,7 +317,7 @@ func (h *Handler) handleAvailabilityToggle(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid protected date ID")
 	}
 
-	// Get user from context (assuming your auth middleware sets this)
+	// Get user from context
 	auth, err := GetAuthContext(c)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
