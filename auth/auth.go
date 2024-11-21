@@ -62,8 +62,8 @@ func NewAuthHandler(pool *db.DB, store sessions.Store, logger zerolog.Logger) *A
 
 // LoginParams represents the expected login request body
 type LoginParams struct {
-   Email    string `json:"email" form:"email" validate:"required,email"`
-   Password string `json:"password" form:"password" validate:"required"`
+	Email    string `json:"email" form:"email" validate:"required,email"`
+	Password string `json:"password" form:"password" validate:"required"`
 }
 
 // LoginHandler processes user login requests and establishes authenticated sessions.
@@ -79,93 +79,94 @@ type LoginParams struct {
 // - facility_code: string (new)
 // - facility_id: int (new)
 func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
-   return func(c echo.Context) error {
-       logger := h.logger.With().
-           Str("component", "auth").
-           Str("handler", "LoginHandler").
-           Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
-           Logger()
+	return func(c echo.Context) error {
+		logger := h.logger.With().
+			Str("component", "auth").
+			Str("handler", "LoginHandler").
+			Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+			Logger()
 
-       logger.Debug().Msg("Processing login request")
+		logger.Debug().Msg("Processing login request")
 
-       sess, err := session.Get(DefaultSessionName, c)
-       if err != nil {
-           logger.Error().
-               Err(err).
-               Str("session_name", DefaultSessionName).
-               Msg("Failed to get session")
-           return echo.NewHTTPError(http.StatusInternalServerError, "session error")
-       }
+		sess, err := session.Get(DefaultSessionName, c)
+		if err != nil {
+			logger.Error().
+				Err(err).
+				Str("session_name", DefaultSessionName).
+				Msg("Failed to get session")
+			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
+		}
 
-       params := new(LoginParams)
-       if err := c.Bind(params); err != nil {
-           logger.Debug().
-               Err(err).
-               Str("email", params.Email).
-               Msg("Invalid form data submitted")
-           c.Response().WriteHeader(http.StatusUnauthorized)
-           return alert.Error("Invalid request", []string{"The submitted form data was invalid"}).
-               Render(c.Request().Context(), c.Response().Writer)
-       }
+		params := new(LoginParams)
+		if err := c.Bind(params); err != nil {
+			logger.Debug().
+				Err(err).
+				Str("email", params.Email).
+				Msg("Invalid form data submitted")
+			c.Response().WriteHeader(http.StatusUnauthorized)
+			return alert.Error("Invalid request", []string{"The submitted form data was invalid"}).
+				Render(c.Request().Context(), c.Response().Writer)
+		}
 
-       logger.Debug().Str("email", params.Email).Msg("Attempting user authentication")
+		logger.Debug().Str("email", params.Email).Msg("Attempting user authentication")
 
-       user, err := authenticateUser(c.Request().Context(), h.database, params.Email, params.Password)
-       if err != nil {
-           logger.Debug().
-               Err(err).
-               Str("email", params.Email).
-               Msg("Authentication failed")
-           c.Response().WriteHeader(http.StatusUnauthorized)
-           return alert.Error("Invalid request", []string{"Invalid credentials."}).
-               Render(c.Request().Context(), c.Response().Writer)
-       }
+		user, err := authenticateUser(c.Request().Context(), h.database, params.Email, params.Password)
+		if err != nil {
+			logger.Debug().
+				Err(err).
+				Str("email", params.Email).
+				Msg("Authentication failed")
+			c.Response().WriteHeader(http.StatusUnauthorized)
+			return alert.Error("Invalid request", []string{"Invalid credentials."}).
+				Render(c.Request().Context(), c.Response().Writer)
+		}
 
-       logger.Debug().
-           Int("user_id", user.ID).
-           Str("role", string(user.Role)).
-           Msg("Setting session values")
+		logger.Debug().
+			Int("user_id", user.ID).
+			Str("role", string(user.Role)).
+			Msg("Setting session values")
 
-       sess.Values["user_id"] = user.ID
-       sess.Values["role"] = user.Role
+		sess.Values["user_id"] = user.ID
+		sess.Values["role"] = user.Role
 
-       facility, err := h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
-       if err != nil {
-           logger.Error().
-               Err(err).
-               Int("user_id", user.ID).
-               Int("facility_id", user.FacilityID).
-               Msg("Failed to get user's facility")
-           return echo.NewHTTPError(http.StatusInternalServerError, "facility error")
-       }
+		facility, err := h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
+		if err != nil {
+			logger.Error().
+				Err(err).
+				Int("user_id", user.ID).
+				Int("facility_id", user.FacilityID).
+				Msg("Failed to get user's facility")
+			return echo.NewHTTPError(http.StatusInternalServerError, "facility error")
+		}
 
-       logger.Debug().
-           Int("facility_id", facility.ID).
-           Str("facility_code", facility.Code).
-           Msg("Setting facility session values")
+		logger.Debug().
+			Int("facility_id", facility.ID).
+			Str("facility_code", facility.Code).
+			Msg("Setting facility session values")
 
-       sess.Values["facility_code"] = facility.Code
-       sess.Values["facility_id"] = facility.ID
+		sess.Values["facility_code"] = facility.Code
+		sess.Values["facility_id"] = facility.ID
 
-       if err := sess.Save(c.Request(), c.Response()); err != nil {
-           logger.Error().
-               Err(err).
-               Int("user_id", user.ID).
-               Str("session_id", sess.ID).
-               Msg("Failed to save session")
-           return echo.NewHTTPError(http.StatusInternalServerError, "session error")
-       }
+		if err := sess.Save(c.Request(), c.Response()); err != nil {
+			logger.Error().
+				Err(err).
+				Int("user_id", user.ID).
+				Str("session_id", sess.ID).
+				Msg("Failed to save session")
+			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
+		}
 
-       redirectURL := fmt.Sprintf("/%s/dashboard", facility.Code)
-       logger.Info().
-           Int("user_id", user.ID).
-           Str("email", params.Email).
-           Str("facility_code", facility.Code).
-           Str("redirect_url", redirectURL).
-           Msg("Login successful")
+		redirectURL := fmt.Sprintf("/%s/dashboard", facility.Code)
+		logger.Info().
+			Int("user_id", user.ID).
+			Str("email", params.Email).
+			Str("facility_code", facility.Code).
+			Str("redirect_url", redirectURL).
+			Msg("Login successful")
 
-       return c.Redirect(http.StatusSeeOther, redirectURL)
-   }
+		c.Response().Header().Set("HX-Redirect", redirectURL)
+		return c.String(http.StatusOK, "")
+	}
 }
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
