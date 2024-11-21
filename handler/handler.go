@@ -77,25 +77,29 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler) {
 	// Protected routes
 	e.GET("/dashboard", h.WithNav(h.handleDashboard))
 	e.GET("/:facility/dashboard", h.WithNav(h.handleDashboard))
-	e.GET("/controllers", h.WithNav(h.handleControllers))
-	e.GET("/:facility/controllers", h.WithNav(h.handleControllers))
-	e.GET("/profile", h.WithNav(h.handleUser))
+	e.GET("/controllers", h.WithNav(h.handleUsers))
+	e.GET("/:facility/controllers", h.WithNav(h.handleUsers))
+	e.GET("/profile", h.WithNav(h.handleProfile))
 	e.GET("/:facility/profile", h.WithNav(h.handleProfile))
-	e.GET("/:facility/:initials", h.WithNav(h.handleUser))
+	e.GET("/:facility/:initials", h.WithNav(h.handleProfile))
 	e.GET("/calendar", h.WithNav(h.handleCalendar))
 	e.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
 
 	// Api routes
 	api := e.Group("/api")
 	api.POST("/available/:id", h.handleAvailabilityToggle)
+	api.GET("/schedule/:facility/:initials", h.createScheduleForm)
+	api.POST("/schedule/:facility/:initials", h.handleCreateSchedule)
 	api.POST("/schedule/:id", h.handleUpdateSchedule)
 	api.GET("/schedule/update/:id", h.updateScheduleForm)
+	api.GET("/user/:facility", h.createUserForm)
+	api.POST("/user", h.handleCreateUser)
 
 	// protected.GET("/calendar", h.WithNav(h.handleCalendar))
 	// protected.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
 }
 
-func wrapHandler(route Route, handler echo.HandlerFunc) echo.HandlerFunc {
+func wrapHandler(route types.Route, handler echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		routeCtx, err := GetRouteContext(c)
 		if err != nil {
@@ -204,48 +208,11 @@ func (h *Handler) handleDashboard(c echo.Context, routeCtx *types.RouteContext, 
 	return component.Render(c.Request().Context(), c.Response().Writer)
 }
 
-func (h *Handler) handleControllers(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
-	// Get facility code from route parameter
-	code := c.Param("facility")
-	if code == "" {
-		h.logger.Error().Msg("facility code is missing from request")
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "facility code is required",
-		})
-	}
 
-	// Get users from database
-	// // Track database query duration specifically
-	users, err := h.db.GetUsersByFacilityCode(c.Request().Context(), code)
-	if err != nil {
-		h.logger.Error().
-			Err(err).
-			Msg("failed to retrieve users from database")
-
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "failed to retrieve users",
-		})
-	}
-
-	// If no users found, return empty array instead of null
-	if users == nil {
-		users = []db.User{}
-	}
-
-	title := "Controllers"
-	description := "A list of all controllers assigned to the facility."
-	auth, err := GetAuthContext(c)
-
-	component := page.ShowFacilities(
-		*routeCtx,
-		navItems,
-		title,
-		description,
-		auth.Role,
-		users,
-	)
-	return component.Render(c.Request().Context(), c.Response().Writer)
+func (h *Handler) GetLogin(c echo.Context) error {
+	return render(c, page.Login())
 }
+
 
 // handleCalendar handles GET requests for the calendar view
 func (h *Handler) handleCalendar(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
@@ -294,7 +261,7 @@ func (h *Handler) handleCalendar(c echo.Context, routeCtx *types.RouteContext, n
 	pageProps := types.CalendarPageProps{
 		Route:       *routeCtx,
 		NavItems:    navItems,
-		Auth:        auth,
+		Auth:        *auth,
 		Title:       "Calendar",
 		Description: "View the facility calendar",
 		Calendar:    props,
@@ -349,7 +316,7 @@ func (h *Handler) handleAvailabilityToggle(c echo.Context) error {
 }
 
 // isAuthorizedToToggle checks if a user is authorized to toggle a protected date's availability
-func isAuthorizedToToggle(userID int, role db.UserRole, protectedDate db.ProtectedDate) bool {
+func isAuthorizedToToggle(userID int, role types.UserRole, protectedDate types.ProtectedDate) bool {
 	// Allow access if user is admin or super
 	if role == "admin" || role == "super" {
 		return true
@@ -419,7 +386,7 @@ func (h *Handler) handleRoute(c echo.Context) error {
 	case "/controllers":
 		handler = "handleControllers"
 		logger.Debug().Msg("routing to controller handler")
-		handlerFunc = h.handleControllers
+		handlerFunc = h.handleUsers
 
 	default:
 		logger.Warn().
@@ -447,7 +414,7 @@ func (h *Handler) handleRoute(c echo.Context) error {
 	return nil
 }
 
-func GetAuthContext(c echo.Context) (*db.AuthContext, error) {
+func GetAuthContext(c echo.Context) (*types.AuthContext, error) {
 	sess, err := session.Get("session", c)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get session: %w", err)
@@ -458,12 +425,12 @@ func GetAuthContext(c echo.Context) (*db.AuthContext, error) {
 		return nil, fmt.Errorf("invalid user_id in session")
 	}
 
-	role, ok := sess.Values["role"].(db.UserRole)
+	role, ok := sess.Values["role"].(types.UserRole)
 	if !ok {
 		return nil, fmt.Errorf("invalid role in session")
 	}
 
-	auth := &db.AuthContext{
+	auth := &types.AuthContext{
 		UserID: userID,
 		Role:   role,
 	}
@@ -482,7 +449,7 @@ func GetAuthContext(c echo.Context) (*db.AuthContext, error) {
 	return auth, nil
 }
 
-func LogAuthContext(logger zerolog.Logger, auth *db.AuthContext) {
+func LogAuthContext(logger zerolog.Logger, auth *types.AuthContext) {
 	logEvent := logger.Debug().
 		Int("user_id", auth.UserID).
 		Str("role", string(auth.Role))

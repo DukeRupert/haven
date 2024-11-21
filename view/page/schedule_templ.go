@@ -10,11 +10,11 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"fmt"
-	"github.com/DukeRupert/haven/db"
+
 	"github.com/DukeRupert/haven/types"
 )
 
-func ScheduleCard(auth db.AuthContext, schedule db.Schedule) templ.Component {
+func ScheduleCard(auth types.AuthContext, schedule types.Schedule) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -171,7 +171,7 @@ func WeekDayBox(day string, isSelected bool) templ.Component {
 	})
 }
 
-func EmptyScheduleCard(route types.RouteContext, auth db.AuthContext, schedule db.Schedule) templ.Component {
+func EmptyScheduleCard(route types.RouteContext, auth types.AuthContext, schedule types.Schedule) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -202,9 +202,9 @@ func EmptyScheduleCard(route types.RouteContext, auth db.AuthContext, schedule d
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var10 string
-			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(route.BuildURL("/schedule/new"))
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/schedule/%s/%s", route.PathFacility, route.PathInitials))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/schedule.templ`, Line: 81, Col: 47}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/schedule.templ`, Line: 81, Col: 90}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {

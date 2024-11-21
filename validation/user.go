@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/DukeRupert/haven/db"
+	"github.com/DukeRupert/haven/types"
 )
 
 const (
@@ -16,10 +16,10 @@ const (
 )
 
 // ValidUserRoles contains all valid user roles
-var ValidUserRoles = map[db.UserRole]bool{
-	db.UserRoleSuper: true,
-	db.UserRoleAdmin: true,
-	db.UserRoleUser:  true,
+var ValidUserRoles = map[types.UserRole]bool{
+	types.UserRoleSuper: true,
+	types.UserRoleAdmin: true,
+	types.UserRoleUser:  true,
 }
 
 type (
@@ -98,13 +98,13 @@ func ValidateUserPassword(password string) (UserPassword, error) {
 
 // Update the return type to match your db package
 // Update your ValidateUserRole function to ensure lowercase
-func ValidateUserRole(role string) (db.UserRole, error) {
+func ValidateUserRole(role string) (types.UserRole, error) {
 	// Convert to lowercase for comparison
 	roleLower := strings.ToLower(role)
 
 	switch roleLower {
-	case string(db.UserRoleSuper), string(db.UserRoleAdmin), string(db.UserRoleUser):
-		return db.UserRole(roleLower), nil
+	case string(types.UserRoleSuper), string(types.UserRoleAdmin), string(types.UserRoleUser):
+		return types.UserRole(roleLower), nil
 	default:
 		return "", fmt.Errorf("invalid role: %s. Must be one of: super, admin, user", role)
 	}

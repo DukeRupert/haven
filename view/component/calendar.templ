@@ -2,7 +2,7 @@ package component
 
 import (
 	"fmt"
-	"github.com/DukeRupert/haven/db"
+
 	"github.com/DukeRupert/haven/types"
 )
 
@@ -104,7 +104,7 @@ templ CalendarDay(props types.CalendarDayProps) {
 	</div>
 }
 
-templ ProtectedDay(currentUserID int, pd db.ProtectedDate) {
+templ ProtectedDay(currentUserID int, pd types.ProtectedDate) {
 	<div id={ fmt.Sprintf("pd-%d", pd.ID)} class="flex items-center justify-center">
 		if pd.UserID == currentUserID {
 			<button hx-post={ fmt.Sprintf("/api/available/%d", pd.ID) } hx-target={fmt.Sprintf("#pd-%d", pd.ID)} hx-swap="outerHTML" hx-confirm="Are you sure you want to change you availability status?" type="button">

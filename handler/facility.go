@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DukeRupert/haven/db"
+	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/validation"
 	"github.com/DukeRupert/haven/view/alert"
 	"github.com/DukeRupert/haven/view/page"
@@ -16,87 +16,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 )
-
-// GET /app/facilities
-// func (h *Handler) GetFacilities(c echo.Context) error {
-// 	facs, err := h.db.ListFacilities(c.Request().Context())
-// 	if err != nil {
-// 		// You might want to implement a custom error handler
-// 		return echo.NewHTTPError(http.StatusInternalServerError,
-// 			"Failed to retrieve facilities")
-// 	}
-
-// 	title := "Facilities"
-// 	description := "A list of all facilities including their name and code."
-// 	return render(c, page.Facilities(title, description, facs))
-// }
-
-// POST /app/facilities
-// func (h *Handler) PostFacilities(c echo.Context) error {
-// 	logger := zerolog.Ctx(c.Request().Context())
-
-// 	var params db.CreateFacilityParams
-// 	if err := c.Bind(&params); err != nil {
-// 		logger.Error().
-// 			Err(err).
-// 			Msg("failed to bind request payload")
-
-// 		return render(c, alert.Error(
-// 			"Invalid request",
-// 			[]string{"The submitted form data was invalid"},
-// 		))
-// 	}
-
-// 	// Collect validation errors
-// 	var errors []string
-
-// 	// Validate facility name
-// 	name, err := validation.ValidateFacilityName(params.Name)
-// 	if err != nil {
-// 		errors = append(errors, err.Error())
-// 	} else {
-// 		params.Name = string(name)
-// 	}
-
-// 	// Validate facility code
-// 	code, err := validation.ValidateFacilityCode(params.Code)
-// 	if err != nil {
-// 		errors = append(errors, err.Error())
-// 	} else {
-// 		params.Code = string(code)
-// 	}
-
-// 	if len(errors) > 0 {
-// 		logger.Error().
-// 			Strs("validation_errors", errors).
-// 			Msg("validation failed")
-
-// 		heading := "There was 1 error with your submission"
-// 		if len(errors) > 1 {
-// 			heading = fmt.Sprintf("There were %d errors with your submission", len(errors))
-// 		}
-
-// 		return render(c, alert.Error(heading, errors))
-// 	}
-
-// 	facility, err := h.db.CreateFacility(c.Request().Context(), params)
-// 	if err != nil {
-// 		logger.Error().
-// 			Err(err).
-// 			Interface("params", params).
-// 			Msg("failed to create facility in database")
-// 		return render(c, alert.Error("System error",
-// 			[]string{"Failed to create facility. Please try again later"}))
-// 	}
-
-// 	logger.Info().
-// 		Int("facility_id", facility.ID).
-// 		Str("name", facility.Name).
-// 		Str("code", facility.Code).
-// 		Msg("facility created successfully")
-
-// 	return render(c, super.FacilityListItem(*facility))
-// }
 
 // GET /app/facilities/create
 func (h *Handler) CreateFacilityForm(c echo.Context) error {
@@ -154,7 +73,7 @@ func (h *Handler) UpdateFacility(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid facility ID")
 	}
 
-	var params db.UpdateFacilityParams
+	var params types.UpdateFacilityParams
 	if err := c.Bind(&params); err != nil {
 		logger.Error().
 			Err(err).

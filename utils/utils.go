@@ -3,7 +3,7 @@ package utils
 import (
 	"time"
 
-	"github.com/DukeRupert/haven/db"
+	"github.com/DukeRupert/haven/types"
 )
 
 // WeekdayString returns a readable string of the weekday
@@ -73,16 +73,16 @@ func getDaysInMonth(date time.Time) []time.Time {
 	return days
 }
 
-func canToggleDate(protectedDate *db.ProtectedDate, userRole db.UserRole, currentUserID int) bool {
+func canToggleDate(protectedDate *types.ProtectedDate, userRole types.UserRole, currentUserID int) bool {
 	if protectedDate == nil {
 		return false
 	}
-	return userRole == db.UserRoleSuper ||
-		userRole == db.UserRoleAdmin ||
+	return userRole == types.UserRoleSuper ||
+		userRole == types.UserRoleAdmin ||
 		protectedDate.UserID == currentUserID
 }
 
-func findProtectedDate(date time.Time, protectedDates []db.ProtectedDate) *db.ProtectedDate {
+func findProtectedDate(date time.Time, protectedDates []types.ProtectedDate) *types.ProtectedDate {
 	for _, pd := range protectedDates {
 		if pd.Date.Year() == date.Year() &&
 			pd.Date.Month() == date.Month() &&

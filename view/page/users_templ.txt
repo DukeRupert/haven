@@ -1,7 +1,8 @@
 <header class=\"md:flex md:items-center md:justify-between\"><div class=\"min-w-0 flex-1\"><h1 class=\"text-2xl/7 font-bold text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight\">
 </h1><p class=\"mt-2 max-w-4xl text-sm text-gray-500\">
 </p></div>
-<div class=\"mt-4 flex md:ml-4 md:mt-0\"><button hx-get=\"./create\" hx-target=\"#create-user-form\" hx-swap=\"outerHTML\" type=\"button\" class=\"ml-3 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600\">Add</button></div>
+<div class=\"mt-4 flex md:ml-4 md:mt-0\"><button hx-get=\"
+\" hx-target=\"#create-user-form\" hx-swap=\"outerHTML\" type=\"button\" class=\"ml-3 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600\">Add</button></div>
 </header><main class=\"py-12 sm:py-16\"><ul id=\"facility-list\" role=\"list\" class=\"mt-8 divide-y divide-gray-100\"><li id=\"create-user-form\"></li>
 </ul></main>
 <a href=\"

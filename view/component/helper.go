@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/types"
 )
 
@@ -43,16 +42,16 @@ func getDaysInMonth(date time.Time) []time.Time {
 	return days
 }
 
-func canToggleDate(protectedDate *db.ProtectedDate, userRole db.UserRole, currentUserID int) bool {
+func canToggleDate(protectedDate *types.ProtectedDate, userRole types.UserRole, currentUserID int) bool {
 	if protectedDate == nil {
 		return false
 	}
-	return userRole == db.UserRoleSuper ||
-		userRole == db.UserRoleAdmin ||
+	return userRole == types.UserRoleSuper ||
+		userRole == types.UserRoleAdmin ||
 		protectedDate.ScheduleID == currentUserID
 }
 
-func findProtectedDate(date time.Time, protectedDates []db.ProtectedDate) *db.ProtectedDate {
+func findProtectedDate(date time.Time, protectedDates []types.ProtectedDate) *types.ProtectedDate {
 	for _, pd := range protectedDates {
 		if pd.Date.Year() == date.Year() &&
 			pd.Date.Month() == date.Month() &&
@@ -64,8 +63,8 @@ func findProtectedDate(date time.Time, protectedDates []db.ProtectedDate) *db.Pr
 }
 
 // Helper function to group protected dates by date
-func groupProtectedDates(dates []db.ProtectedDate) map[string][]db.ProtectedDate {
-    groups := make(map[string][]db.ProtectedDate)
+func groupProtectedDates(dates []types.ProtectedDate) map[string][]types.ProtectedDate {
+    groups := make(map[string][]types.ProtectedDate)
     for _, date := range dates {
         key := date.Date.Format("2006-01-02")
         groups[key] = append(groups[key], date)
@@ -74,8 +73,8 @@ func groupProtectedDates(dates []db.ProtectedDate) map[string][]db.ProtectedDate
 }
 
 // Update helper function to return all protected dates for a given day
-func findProtectedDates(date time.Time, dates []db.ProtectedDate) []db.ProtectedDate {
-    var dayDates []db.ProtectedDate
+func findProtectedDates(date time.Time, dates []types.ProtectedDate) []types.ProtectedDate {
+    var dayDates []types.ProtectedDate
     for _, pd := range dates {
         if pd.Date.Year() == date.Year() && 
            pd.Date.Month() == date.Month() && 

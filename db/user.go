@@ -6,17 +6,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/DukeRupert/haven/types"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 )
 
-type UserDetails struct {
-	User     User
-	Facility Facility
-	Schedule Schedule
-}
-
-func (db *DB) GetUsersByFacilityCode(ctx context.Context, facilityCode string) ([]User, error) {
+func (db *DB) GetUsersByFacilityCode(ctx context.Context, facilityCode string) ([]types.User, error) {
 	rows, err := db.pool.Query(ctx, `
         SELECT u.id, u.created_at, u.updated_at, u.first_name, u.last_name, 
                u.initials, u.email, u.facility_id, u.role
@@ -30,9 +26,9 @@ func (db *DB) GetUsersByFacilityCode(ctx context.Context, facilityCode string) (
 	}
 	defer rows.Close()
 
-	var users []User
+	var users []types.User
 	for rows.Next() {
-		var user User
+		var user types.User
 		err := rows.Scan(
 			&user.ID,
 			&user.CreatedAt,
@@ -57,8 +53,8 @@ func (db *DB) GetUsersByFacilityCode(ctx context.Context, facilityCode string) (
 	return users, nil
 }
 
-func (db *DB) GetUserByID(ctx context.Context, id int) (*User, error) {
-	var user User
+func (db *DB) GetUserByID(ctx context.Context, id int) (*types.User, error) {
+	var user types.User
 	err := db.pool.QueryRow(ctx, `
         SELECT 
             id, 
@@ -89,8 +85,8 @@ func (db *DB) GetUserByID(ctx context.Context, id int) (*User, error) {
 	return &user, nil
 }
 
-func (db *DB) GetUserByInitialsAndFacility(ctx context.Context, initials string, facilityID int) (*User, error) {
-	var user User
+func (db *DB) GetUserByInitialsAndFacility(ctx context.Context, initials string, facilityID int) (*types.User, error) {
+	var user types.User
 	err := db.pool.QueryRow(ctx, `
         SELECT 
             id, 
@@ -123,7 +119,7 @@ func (db *DB) GetUserByInitialsAndFacility(ctx context.Context, initials string,
 	return &user, nil
 }
 
-func (db *DB) GetUserDetails(ctx context.Context, initials string, facilityID int) (*UserDetails, error) {
+func (db *DB) GetUserDetails(ctx context.Context, initials string, facilityID int) (*types.UserDetails, error) {
 	// Get user first (need this to get other data)
 	user, err := db.GetUserByInitialsAndFacility(ctx, initials, facilityID)
 	if err != nil {
@@ -132,11 +128,11 @@ func (db *DB) GetUserDetails(ctx context.Context, initials string, facilityID in
 
 	// Create channels for results
 	facilityChan := make(chan struct {
-		facility *Facility
+		facility *types.Facility
 		err      error
 	})
 	scheduleChan := make(chan struct {
-		schedule *Schedule
+		schedule *types.Schedule
 		err      error
 	})
 
@@ -144,7 +140,7 @@ func (db *DB) GetUserDetails(ctx context.Context, initials string, facilityID in
 	go func() {
 		facility, err := db.GetFacilityByID(ctx, user.FacilityID)
 		facilityChan <- struct {
-			facility *Facility
+			facility *types.Facility
 			err      error
 		}{facility, err}
 	}()
@@ -155,7 +151,7 @@ func (db *DB) GetUserDetails(ctx context.Context, initials string, facilityID in
 			err = nil // Convert "no rows" to nil error
 		}
 		scheduleChan <- struct {
-			schedule *Schedule
+			schedule *types.Schedule
 			err      error
 		}{schedule, err}
 	}()
@@ -172,23 +168,23 @@ func (db *DB) GetUserDetails(ctx context.Context, initials string, facilityID in
 	}
 
 	// Create the schedule - either empty or from result
-	var schedule Schedule
+	var schedule types.Schedule
 	if scheduleResult.schedule == nil {
-		schedule = Schedule{
+		schedule = types.Schedule{
 			UserID: user.ID, // Set only the UserID for empty schedule
 		}
 	} else {
 		schedule = *scheduleResult.schedule
 	}
 
-	return &UserDetails{
+	return &types.UserDetails{
 		User:     *user,
 		Facility: *facilityResult.facility,
 		Schedule: schedule, // Not a pointer here
 	}, nil
 }
 
-func (db *DB) CreateUser(ctx context.Context, params CreateUserParams) (*User, error) {
+func (db *DB) CreateUser(ctx context.Context, params types.CreateUserParams) (*types.User, error) {
 	// Log params received by database method
 	log.Debug().
 		Str("first_name", params.FirstName).
@@ -213,7 +209,7 @@ func (db *DB) CreateUser(ctx context.Context, params CreateUserParams) (*User, e
 		return nil, fmt.Errorf("email already exists: %s", params.Email)
 	}
 
-	var user User
+	var user types.User
 	now := time.Now()
 	err = db.pool.QueryRow(ctx, `
         INSERT INTO users (
@@ -266,7 +262,7 @@ func (db *DB) CreateUser(ctx context.Context, params CreateUserParams) (*User, e
 	return &user, nil
 }
 
-func (db *DB) UpdateUser(ctx context.Context, userID int, params CreateUserParams) (*User, error) {
+func (db *DB) UpdateUser(ctx context.Context, userID int, params types.CreateUserParams) (*types.User, error) {
 	// First check if email is unique (excluding current user)
 	var count int
 	err := db.pool.QueryRow(ctx, `
@@ -281,7 +277,7 @@ func (db *DB) UpdateUser(ctx context.Context, userID int, params CreateUserParam
 		return nil, fmt.Errorf("email already exists: %s", params.Email)
 	}
 
-	var user User
+	var user types.User
 	now := time.Now()
 
 	// If password is empty, keep existing password

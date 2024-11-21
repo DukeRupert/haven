@@ -5,32 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/DukeRupert/haven/types"
+
 	"github.com/jackc/pgx/v5"
 )
 
-// Facility represents a facility in the database
-type Facility struct {
-	ID        int       `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Name      string    `json:"name"`
-	Code      string    `json:"code"`
-}
-
-// CreateFacilityParams holds the parameters needed to create a new facility
-type CreateFacilityParams struct {
-	Name string `json:"name" form:"name"` // Add form tag
-	Code string `json:"code" form:"code"` // Add form tag
-}
-
-// UpdateFacilityParams holds the parameters needed to update a facility
-type UpdateFacilityParams struct {
-	Name string `json:"name" form:"name"`
-	Code string `json:"code" form:"code"`
-}
-
 // ListFacilities retrieves all facilities from the database
-func (db *DB) ListFacilities(ctx context.Context) ([]Facility, error) {
+func (db *DB) ListFacilities(ctx context.Context) ([]types.Facility, error) {
 	// Option 2: Use a unique name for the prepared statement
 	rows, err := db.pool.Query(ctx, `
 	       SELECT id, created_at, name, code
@@ -42,9 +23,9 @@ func (db *DB) ListFacilities(ctx context.Context) ([]Facility, error) {
 	}
 	defer rows.Close()
 
-	var facs []Facility
+	var facs []types.Facility
 	for rows.Next() {
-		var facility Facility
+		var facility types.Facility
 		err := rows.Scan(
 			&facility.ID,
 			&facility.CreatedAt,
@@ -84,8 +65,8 @@ func (db *DB) IsFacilityCodeUnique(ctx context.Context, code string, excludeID *
 }
 
 // GetFacilityByID retrieves a facility from the database by its ID
-func (db *DB) GetFacilityByID(ctx context.Context, id int) (*Facility, error) {
-	var facility Facility
+func (db *DB) GetFacilityByID(ctx context.Context, id int) (*types.Facility, error) {
+	var facility types.Facility
 	err := db.QueryRow(ctx, `
         SELECT id, created_at, updated_at, name, code
         FROM facilities
@@ -107,8 +88,8 @@ func (db *DB) GetFacilityByID(ctx context.Context, id int) (*Facility, error) {
 }
 
 // GetFacilityByCode retrieves a facility from the database by its code
-func (db *DB) GetFacilityByCode(ctx context.Context, code string) (*Facility, error) {
-	var facility Facility
+func (db *DB) GetFacilityByCode(ctx context.Context, code string) (*types.Facility, error) {
+	var facility types.Facility
 	err := db.QueryRow(ctx, `
         SELECT id, created_at, updated_at, name, code
         FROM facilities
@@ -127,7 +108,7 @@ func (db *DB) GetFacilityByCode(ctx context.Context, code string) (*Facility, er
 }
 
 // CreateFacility creates a new facility in the database
-func (db *DB) CreateFacility(ctx context.Context, params CreateFacilityParams) (*Facility, error) {
+func (db *DB) CreateFacility(ctx context.Context, params types.CreateFacilityParams) (*types.Facility, error) {
 	// Check for unique code first
 	isUnique, err := db.IsFacilityCodeUnique(ctx, params.Code, nil)
 	if err != nil {
@@ -137,7 +118,7 @@ func (db *DB) CreateFacility(ctx context.Context, params CreateFacilityParams) (
 		return nil, ErrDuplicateFacilityCode
 	}
 
-	var facility Facility
+	var facility types.Facility
 	now := time.Now()
 	err = db.QueryRow(ctx, `
 		INSERT INTO facilities (created_at, updated_at, name, code)  -- Added updated_at
@@ -157,7 +138,7 @@ func (db *DB) CreateFacility(ctx context.Context, params CreateFacilityParams) (
 }
 
 // UpdateFacility updates an existing facility in the database
-func (db *DB) UpdateFacility(ctx context.Context, id int, params UpdateFacilityParams) (*Facility, error) {
+func (db *DB) UpdateFacility(ctx context.Context, id int, params types.UpdateFacilityParams) (*types.Facility, error) {
 	// Check for unique code first, excluding the current facility ID
 	isUnique, err := db.IsFacilityCodeUnique(ctx, params.Code, &id)
 	if err != nil {
@@ -167,7 +148,7 @@ func (db *DB) UpdateFacility(ctx context.Context, id int, params UpdateFacilityP
 		return nil, ErrDuplicateFacilityCode
 	}
 
-	var facility Facility
+	var facility types.Facility
 	now := time.Now()
 
 	err = db.QueryRow(ctx, `

@@ -6,12 +6,14 @@ import (
 	"time"
 	"errors"
 
+    "github.com/DukeRupert/haven/types"
+
 	"github.com/jackc/pgx/v5"
 )
 
 // GetScheduleByUserID retrieves a schedule by user ID
-func (db *DB) GetScheduleByUserID(ctx context.Context, userID int) (*Schedule, error) {
-	var schedule Schedule
+func (db *DB) GetScheduleByUserID(ctx context.Context, userID int) (*types.Schedule, error) {
+	var schedule types.Schedule
 	err := db.pool.QueryRow(ctx, `
         SELECT 
             id,
@@ -39,8 +41,8 @@ func (db *DB) GetScheduleByUserID(ctx context.Context, userID int) (*Schedule, e
 	return &schedule, nil
 }
 
-func (db *DB) GetScheduleByCode(ctx context.Context, facilityCode, userInitials string) (*Schedule, error) {
-	var schedule Schedule
+func (db *DB) GetScheduleByCode(ctx context.Context, facilityCode, userInitials string) (*types.Schedule, error) {
+	var schedule types.Schedule
 
 	err := db.QueryRow(ctx, `
         SELECT 
@@ -76,9 +78,9 @@ func (db *DB) GetScheduleByCode(ctx context.Context, facilityCode, userInitials 
 }
 
 // NewSchedule creates a new Schedule with default values
-func NewSchedule(userID int, firstWeekday, secondWeekday time.Weekday, startDate time.Time) *Schedule {
+func NewSchedule(userID int, firstWeekday, secondWeekday time.Weekday, startDate time.Time) *types.Schedule {
 	now := time.Now()
-	return &Schedule{
+	return &types.Schedule{
 		CreatedAt:     now,
 		UpdatedAt:     now,
 		UserID:        userID,
@@ -90,8 +92,8 @@ func NewSchedule(userID int, firstWeekday, secondWeekday time.Weekday, startDate
 
 // GetSchedule retrieves a schedule by its ID. This is a direct lookup on the schedules
 // table and returns all schedule fields. Returns nil if no schedule is found.
-func (db *DB) GetSchedule(ctx context.Context, id int) (*Schedule, error) {
-	var schedule Schedule
+func (db *DB) GetSchedule(ctx context.Context, id int) (*types.Schedule, error) {
+	var schedule types.Schedule
 	err := db.pool.QueryRow(ctx, `
         SELECT 
             id,
@@ -121,8 +123,8 @@ func (db *DB) GetSchedule(ctx context.Context, id int) (*Schedule, error) {
 
 // UpdateSchedule updates an existing schedule record with the provided schedule data.
 // It returns the updated schedule or an error if the update fails.
-func (db *DB) UpdateSchedule(ctx context.Context, scheduleID int, params UpdateScheduleParams) (*Schedule, error) {
-    var schedule Schedule
+func (db *DB) UpdateSchedule(ctx context.Context, scheduleID int, params types.UpdateScheduleParams) (*types.Schedule, error) {
+    var schedule types.Schedule
     err := db.QueryRow(ctx, `
         UPDATE schedules 
         SET 
@@ -161,7 +163,7 @@ func (db *DB) UpdateSchedule(ctx context.Context, scheduleID int, params UpdateS
 // at a given facility, identified by facility ID. Results are ordered by creation date.
 // Since protected_dates contains facility_id, we query through it directly without
 // needing the users table join.
-func (db *DB) GetSchedulesByFacilityID(ctx context.Context, facilityID int) ([]Schedule, error) {
+func (db *DB) GetSchedulesByFacilityID(ctx context.Context, facilityID int) ([]types.Schedule, error) {
 	rows, err := db.pool.Query(ctx, `
         SELECT DISTINCT
             s.id,
@@ -181,9 +183,9 @@ func (db *DB) GetSchedulesByFacilityID(ctx context.Context, facilityID int) ([]S
 	}
 	defer rows.Close()
 
-	var schedules []Schedule
+	var schedules []types.Schedule
 	for rows.Next() {
-		var schedule Schedule
+		var schedule types.Schedule
 		err := rows.Scan(
 			&schedule.ID,
 			&schedule.CreatedAt,
@@ -207,8 +209,8 @@ func (db *DB) GetSchedulesByFacilityID(ctx context.Context, facilityID int) ([]S
 // Results are ordered by user_id to maintain consistent ordering across queries.
 // Since protected_dates now contains facility_id, we can query through it directly
 // without joining through the users table.
-func (db *DB) GetSchedulesByFacilityCode(ctx context.Context, facilityCode string) ([]Schedule, error) {
-	schedules := []Schedule{}
+func (db *DB) GetSchedulesByFacilityCode(ctx context.Context, facilityCode string) ([]types.Schedule, error) {
+	schedules := []types.Schedule{}
 	rows, err := db.pool.Query(ctx, `
         SELECT DISTINCT
             s.id,
@@ -230,7 +232,7 @@ func (db *DB) GetSchedulesByFacilityCode(ctx context.Context, facilityCode strin
 	defer rows.Close()
 
 	for rows.Next() {
-		var schedule Schedule
+		var schedule types.Schedule
 		err := rows.Scan(
 			&schedule.ID,
 			&schedule.CreatedAt,
@@ -256,8 +258,8 @@ func (db *DB) GetSchedulesByFacilityCode(ctx context.Context, facilityCode strin
 // GetScheduleByUserInitials retrieves a schedule by matching a user's initials and facility ID.
 // Despite protected_dates having facility_id, we still query through users table since
 // that's where initials are stored. Returns nil if no schedule is found.
-func (db *DB) GetScheduleByUserInitials(ctx context.Context, initials string, facilityID int) (*Schedule, error) {
-	var schedule Schedule
+func (db *DB) GetScheduleByUserInitials(ctx context.Context, initials string, facilityID int) (*types.Schedule, error) {
+	var schedule types.Schedule
 	err := db.pool.QueryRow(ctx, `
         SELECT 
             s.id,
@@ -300,7 +302,7 @@ func (db *DB) DeleteSchedule(ctx context.Context, id int) error {
 	return nil
 }
 
-func (db *DB) CreateScheduleByCode(ctx context.Context, params CreateScheduleByCodeParams) (*Schedule, error) {
+func (db *DB) CreateScheduleByCode(ctx context.Context, params types.CreateScheduleByCodeParams) (*types.Schedule, error) {
 	// First, get the user ID using a join between facilities and users
 	var userID int
 	err := db.QueryRow(ctx, `
@@ -327,7 +329,7 @@ func (db *DB) CreateScheduleByCode(ctx context.Context, params CreateScheduleByC
 		return nil, ErrUserScheduleExists
 	}
 
-	var schedule Schedule
+	var schedule types.Schedule
 	now := time.Now()
 	err = db.QueryRow(ctx, `
         INSERT INTO schedules (
@@ -356,7 +358,7 @@ func (db *DB) CreateScheduleByCode(ctx context.Context, params CreateScheduleByC
 	return &schedule, nil
 }
 
-func (db *DB) UpdateScheduleByCode(ctx context.Context, facilityCode, userInitials string, params UpdateScheduleParams) (*Schedule, error) {
+func (db *DB) UpdateScheduleByCode(ctx context.Context, facilityCode, userInitials string, params types.UpdateScheduleParams) (*types.Schedule, error) {
 	// First, get the schedule ID using joins between facilities, users, and schedules
 	var scheduleID int
 	err := db.QueryRow(ctx, `
@@ -375,7 +377,7 @@ func (db *DB) UpdateScheduleByCode(ctx context.Context, facilityCode, userInitia
 		return nil, fmt.Errorf("error finding schedule: %w", err)
 	}
 
-	var schedule Schedule
+	var schedule types.Schedule
 	err = db.QueryRow(ctx, `
         UPDATE schedules 
         SET 
@@ -407,8 +409,8 @@ func (db *DB) UpdateScheduleByCode(ctx context.Context, facilityCode, userInitia
 	return &schedule, nil
 }
 // GetProtectedDate retrieves a single protected date by ID
-func (db *DB) GetProtectedDate(ctx context.Context, id int) (ProtectedDate, error) {
-    var date ProtectedDate
+func (db *DB) GetProtectedDate(ctx context.Context, id int) (types.ProtectedDate, error) {
+    var date types.ProtectedDate
     err := db.pool.QueryRow(ctx, `
         SELECT 
             id,
@@ -443,7 +445,7 @@ func (db *DB) GetProtectedDate(ctx context.Context, id int) (ProtectedDate, erro
 }
 
 // GetProtectedDatesByUserID retrieves all protected dates for a specific user
-func (db *DB) GetProtectedDatesByUserID(ctx context.Context, userID int) ([]ProtectedDate, error) {
+func (db *DB) GetProtectedDatesByUserID(ctx context.Context, userID int) ([]types.ProtectedDate, error) {
     rows, err := db.pool.Query(ctx, `
         SELECT 
             id,
@@ -467,7 +469,7 @@ func (db *DB) GetProtectedDatesByUserID(ctx context.Context, userID int) ([]Prot
 }
 
 // GetProtectedDatesByUserInitials retrieves all protected dates for a user by their initials and facility
-func (db *DB) GetProtectedDatesByUserInitials(ctx context.Context, initials string, facilityID int) ([]ProtectedDate, error) {
+func (db *DB) GetProtectedDatesByUserInitials(ctx context.Context, initials string, facilityID int) ([]types.ProtectedDate, error) {
     rows, err := db.pool.Query(ctx, `
         SELECT 
             pd.id,
@@ -492,7 +494,7 @@ func (db *DB) GetProtectedDatesByUserInitials(ctx context.Context, initials stri
 }
 
 // GetProtectedDatesByFacilityCode retrieves all protected dates for all users at a facility
-func (db *DB) GetProtectedDatesByFacilityCode(ctx context.Context, facilityCode string) ([]ProtectedDate, error) {
+func (db *DB) GetProtectedDatesByFacilityCode(ctx context.Context, facilityCode string) ([]types.ProtectedDate, error) {
     rows, err := db.pool.Query(ctx, `
         SELECT 
             pd.id,
@@ -517,10 +519,10 @@ func (db *DB) GetProtectedDatesByFacilityCode(ctx context.Context, facilityCode 
 }
 
 // Helper function to scan rows into ProtectedDate slices
-func scanProtectedDates(rows pgx.Rows) ([]ProtectedDate, error) {
-    var dates []ProtectedDate
+func scanProtectedDates(rows pgx.Rows) ([]types.ProtectedDate, error) {
+    var dates []types.ProtectedDate
     for rows.Next() {
-        var date ProtectedDate
+        var date types.ProtectedDate
         err := rows.Scan(
             &date.ID,
             &date.CreatedAt,
@@ -545,8 +547,8 @@ func scanProtectedDates(rows pgx.Rows) ([]ProtectedDate, error) {
 }
 
 // ToggleProtectedDateAvailability toggles the available status of a protected date and returns the updated record
-func (db *DB) ToggleProtectedDateAvailability(ctx context.Context, dateID int) (ProtectedDate, error) {
-    var date ProtectedDate
+func (db *DB) ToggleProtectedDateAvailability(ctx context.Context, dateID int) (types.ProtectedDate, error) {
+    var date types.ProtectedDate
     err := db.pool.QueryRow(ctx, `
         UPDATE protected_dates 
         SET 

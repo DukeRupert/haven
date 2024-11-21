@@ -2,11 +2,11 @@ package page
 
 import (
 	"fmt"
-	"github.com/DukeRupert/haven/db"
+
 	"github.com/DukeRupert/haven/types"
 )
 
-templ ScheduleCard(auth db.AuthContext, schedule db.Schedule) {
+templ ScheduleCard(auth types.AuthContext, schedule types.Schedule) {
 	<div id="schedule-card" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
@@ -70,7 +70,7 @@ templ WeekDayBox(day string, isSelected bool) {
 	</div>
 }
 
-templ EmptyScheduleCard(route types.RouteContext, auth db.AuthContext, schedule db.Schedule) {
+templ EmptyScheduleCard(route types.RouteContext, auth types.AuthContext, schedule types.Schedule) {
 	<div id="schedule-card" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
@@ -78,7 +78,7 @@ templ EmptyScheduleCard(route types.RouteContext, auth db.AuthContext, schedule 
 					<h3 class="text-lg font-medium text-gray-900">Schedule Details</h3>
 					if auth.Role == "admin" || auth.Role == "super" {
 						<button
-							hx-get={ route.BuildURL("/schedule/new") }
+							hx-get={ fmt.Sprintf("/api/schedule/%s/%s", route.PathFacility, route.PathInitials)}
 							hx-target="#schedule-card"
 							hx-swap="outerHTML"
 							class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"

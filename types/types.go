@@ -4,21 +4,27 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DukeRupert/haven/db"
-
 	"github.com/rs/zerolog"
 )
 
-type Role = db.UserRole // alias for your existing UserRole type
+type AuthContext struct {
+	UserID       int
+	Role         UserRole
+	Initials     string
+	FacilityID   int
+	FacilityCode string
+}
 
 type RouteContext struct {
 	BasePath     string
-	UserRole     Role
+	UserRole     UserRole
 	UserInitials string
 	FacilityID   int
 	FacilityCode string
-	User         *db.User     // Optional: full user object if needed
-	Facility     *db.Facility // Optional: full facility object if needed
+	User         User     // Optional: full user object if needed
+	Facility     Facility // Optional: full facility object if needed
+	PathFacility string 
+    PathInitials string 
 }
 
 type NavItem struct {
@@ -27,6 +33,14 @@ type NavItem struct {
 	Icon    string // Icon identifier (for CSS/SVG icons)
 	Active  bool   // Whether this is the current active route
 	Visible bool   // Whether this item should be shown to the user
+}
+
+type Route struct {
+    Path        string
+    Name        string
+    Icon        string
+    MinRole     UserRole    // Minimum role required
+    NeedsFacility bool  // Whether route requires facility context
 }
 
 // MarshalZerologObject implements zerolog.LogObjectMarshaler
@@ -51,7 +65,7 @@ type Breadcrumb struct {
 type CalendarPageProps struct {
 	Route 	RouteContext
 	NavItems		[]NavItem
-	Auth	*db.AuthContext
+	Auth	AuthContext
 	Title	string
 	Description string
 	Calendar CalendarProps
@@ -60,36 +74,21 @@ type CalendarPageProps struct {
 type CalendarProps struct {
     CurrentMonth    time.Time
     FacilityCode   string
-    ProtectedDates []db.ProtectedDate
-    UserRole       db.UserRole
+    ProtectedDates []ProtectedDate
+    UserRole       UserRole
     CurrentUserID  int
 }
 
 type CalendarDayProps struct {
     Date           time.Time
     CurrentMonth   time.Time
-    ProtectedDates []db.ProtectedDate
-    UserRole       db.UserRole
+    ProtectedDates []ProtectedDate
+    UserRole       UserRole
     CurrentUserID  int
     FacilityCode   string
 }
 
 type ProtectedDateGroup struct {
     Date     time.Time
-    Dates    []db.ProtectedDate
+    Dates    []ProtectedDate
 }
-
-// func (rc RouteContext) GetBreadcrumbs() []Breadcrumb {
-// 	parts := strings.Split(strings.Trim(rc.BuildURL(), "/"), "/")
-// 	breadcrumbs := make([]Breadcrumb, len(parts))
-// 	caser := cases.Title(language.English)
-
-// 	for i, part := range parts {
-// 		breadcrumbs[i] = Breadcrumb{
-// 			Label: caser.String(strings.ReplaceAll(part, "_", " ")),
-// 			URL:   "/" + strings.Join(parts[:i+1], "/"),
-// 		}
-// 	}
-
-// 	return breadcrumbs
-// }

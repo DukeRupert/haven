@@ -1,10 +1,8 @@
 package component
 
-import (
-  "github.com/DukeRupert/haven/types"
-)
+import "fmt"
 
-templ CreateScheduleForm(route types.RouteContext) {
+templ CreateScheduleForm(facility_code string, initials string) {
 	<div id="create-schedule-form" hx-target="this" hx-target-error="#global-alert" hx-swap="outerHTML" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
@@ -13,7 +11,7 @@ templ CreateScheduleForm(route types.RouteContext) {
 				</div>
 				<div class="mt-6">
 					<form
-						hx-post={ route.BuildURL("/schedule")}
+						hx-post={ fmt.Sprintf("/api/schedule/%s/%s", facility_code, initials) }
 						hx-target="#create-schedule-form"
 						hx-swap="outerHTML"
 						hx-target-error="#global-alert"

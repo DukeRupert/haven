@@ -1,13 +1,12 @@
 package page
 
 import (
-	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/layout"
 )
 
 // "github.com/DukeRupert/haven/utils"
-templ UserPage( route types.RouteContext, navItems []types.NavItem, Title string, Description string, AuthContext *db.AuthContext, UserDetails *db.UserDetails) {
+templ Profile( route types.RouteContext, navItems []types.NavItem, Title string, Description string, AuthContext *types.AuthContext, UserDetails *types.UserDetails) {
 	@layout.BaseLayout() {
 		@layout.AppLayout(route, navItems) {
 			<!-- Bento Grid -->

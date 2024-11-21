@@ -10,12 +10,12 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"fmt"
-	"github.com/DukeRupert/haven/db"
+
 	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/layout"
 )
 
-func Facilities(route types.RouteContext, navItems []types.NavItem, title string, description string, facs []db.Facility) templ.Component {
+func Facilities(route types.RouteContext, navItems []types.NavItem, title string, description string, facs []types.Facility) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -112,7 +112,7 @@ func Facilities(route types.RouteContext, navItems []types.NavItem, title string
 	})
 }
 
-func FacilityListItem(f db.Facility) templ.Component {
+func FacilityListItem(f types.Facility) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -244,7 +244,7 @@ func CreateFacilityForm() templ.Component {
 	})
 }
 
-func UpdateFacilityForm(f db.Facility) templ.Component {
+func UpdateFacilityForm(f types.Facility) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {

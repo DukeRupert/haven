@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/DukeRupert/haven/db"
+	"github.com/DukeRupert/haven/types"
 )
 
 func TestValidateUserName(t *testing.T) {
@@ -350,7 +350,7 @@ func TestValidateUserRole(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		expected      db.UserRole
+		expected      types.UserRole
 		expectedError error
 	}{
 		{

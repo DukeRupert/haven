@@ -1,13 +1,13 @@
 package page
 
 import (
-	"github.com/DukeRupert/haven/db"
+
 	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/layout"
 	"fmt"
 )
 
-templ ShowFacilities(route types.RouteContext, navItems []types.NavItem, title string, description string, role db.UserRole, users []db.User) {
+templ ShowUsers(route types.RouteContext, navItems []types.NavItem, title string, description string, role types.UserRole, users []types.User) {
 	@layout.BaseLayout() {
 		@layout.AppLayout(route, navItems) {
 			<header class="md:flex md:items-center md:justify-between">
@@ -17,7 +17,7 @@ templ ShowFacilities(route types.RouteContext, navItems []types.NavItem, title s
 				</div>
 				if role == "admin" || role == "super" {
 					<div class="mt-4 flex md:ml-4 md:mt-0">
-						<button hx-get="./create" hx-target="#create-user-form" hx-swap="outerHTML" type="button" class="ml-3 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Add</button>
+						<button hx-get={ fmt.Sprintf("/api/user/%s", route.FacilityCode)} hx-target="#create-user-form" hx-swap="outerHTML" type="button" class="ml-3 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Add</button>
 					</div>
 				}
 			</header>
@@ -33,7 +33,7 @@ templ ShowFacilities(route types.RouteContext, navItems []types.NavItem, title s
 	}
 }
 
-templ UserListItem(route types.RouteContext, u db.User) {
+templ UserListItem(route types.RouteContext, u types.User) {
     <a href={ templ.URL(fmt.Sprintf("./%s", u.Initials)) } class="block hover:bg-gray-50">
         <li class="relative flex justify-between gap-x-6 py-5 px-4">
             <div class="flex min-w-0 gap-x-4">

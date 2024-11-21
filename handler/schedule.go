@@ -5,30 +5,25 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/DukeRupert/haven/db"
+	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/component"
 	"github.com/DukeRupert/haven/view/page"
 	"github.com/labstack/echo/v4"
 )
 
-func (h *Handler) CreateScheduleForm(c echo.Context) error {
-	route := h.RouteCtx
-	return render(c, component.CreateScheduleForm(route))
-}
-
-// isAuthorizedToToggle checks if a user is authorized to toggle a protected date's availability
-func isAuthorized(userID int, role db.UserRole, recordID int) bool {
-	// Allow access if user is admin or super
-	if role == "admin" || role == "super" {
-		return true
+func (h *Handler) createScheduleForm(c echo.Context) error {
+	// Get facility code and user initials from params
+	facility := c.Param("facility")
+	if facility == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Missing facility parameter")
 	}
 
-	// Allow access if user owns the protected date
-	if role == "user" && userID == recordID {
-		return true
+	initials := c.Param("initials")
+	if initials == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Missing initials parameter")
 	}
 
-	return false
+	return render(c, component.CreateScheduleForm(facility, initials))
 }
 
 func (h *Handler) updateScheduleForm(c echo.Context) error {
@@ -114,17 +109,22 @@ func (h *Handler) GetScheduleHandler(c echo.Context) error {
 	return render(c, page.ScheduleCard( *auth, *schedule))
 }
 
-type CreateScheduleRequest struct {
-	FirstWeekday  int    `form:"first_weekday" validate:"required,min=0,max=6"`
-	SecondWeekday int    `form:"second_weekday" validate:"required,min=0,max=6"`
-	StartDate     string `form:"start_date" validate:"required"`
-}
-
-func (h *Handler) CreateScheduleHandler(c echo.Context) error {
+func (h *Handler) handleCreateSchedule(c echo.Context) error {
 	logger := h.logger
 
+	// Get facility code and user initials from params
+	facility := c.Param("facility")
+	if facility == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Missing facility parameter")
+	}
+
+	initials := c.Param("initials")
+	if initials == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Missing initials parameter")
+	}
+
 	// Parse form data
-	var formData CreateScheduleRequest
+	var formData types.CreateScheduleRequest
 	if err := c.Bind(&formData); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
@@ -136,9 +136,9 @@ func (h *Handler) CreateScheduleHandler(c echo.Context) error {
 	}
 
 	// Create parameters with converted values
-	params := db.CreateScheduleByCodeParams{
-		FacilityCode:  h.RouteCtx.FacilityCode,
-		UserInitials:  h.RouteCtx.UserInitials,
+	params := types.CreateScheduleByCodeParams{
+		FacilityCode:  facility,
+		UserInitials:  initials,
 		FirstWeekday:  time.Weekday(formData.FirstWeekday),
 		SecondWeekday: time.Weekday(formData.SecondWeekday),
 		StartDate:     startDate,
@@ -204,7 +204,7 @@ func (h *Handler) handleUpdateSchedule(c echo.Context) error {
 	}
 
 	// Create update parameters with converted values
-	params := db.UpdateScheduleParams{
+	params := types.UpdateScheduleParams{
 		FirstWeekday:  time.Weekday(formData.FirstWeekday),
 		SecondWeekday: time.Weekday(formData.SecondWeekday),
 		StartDate:     startDate,
@@ -239,4 +239,19 @@ func (h *Handler) handleUpdateSchedule(c echo.Context) error {
 	)
 
 	return component.Render(c.Request().Context(), c.Response().Writer)
+}
+
+// isAuthorized checks if a user is authorized to toggle a protected date's availability
+func isAuthorized(userID int, role types.UserRole, recordID int) bool {
+	// Allow access if user is admin or super
+	if role == "admin" || role == "super" {
+		return true
+	}
+
+	// Allow access if user owns the protected date
+	if role == "user" && userID == recordID {
+		return true
+	}
+
+	return false
 }

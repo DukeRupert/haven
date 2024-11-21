@@ -3,46 +3,37 @@ package handler
 import (
     "fmt"
 
-    "github.com/DukeRupert/haven/db"
     "github.com/DukeRupert/haven/types"
 	"github.com/labstack/echo/v4"
 )
 
-type Route struct {
-    Path        string
-    Name        string
-    Icon        string
-    MinRole     db.UserRole    // Minimum role required
-    NeedsFacility bool  // Whether route requires facility context
-}
-
-var AppRoutes = []Route{
+var AppRoutes = []types.Route{
     {
         Path: "/dashboard",
         Name: "Dashboard",
         Icon: "dashboard",
-        MinRole: db.UserRole("user"),
+        MinRole: types.UserRole("user"),
         NeedsFacility: true,
     },
     {
         Path: "/calendar",
         Name: "Calendar",
         Icon: "calendar",
-        MinRole: db.UserRole("user"),
+        MinRole: types.UserRole("user"),
         NeedsFacility: true,
     },
     {
         Path: "/controllers",
         Name: "Controllers",
         Icon: "settings",
-        MinRole: db.UserRole("admin"),
+        MinRole: types.UserRole("admin"),
         NeedsFacility: true,
     },
     {
         Path: "/profile",
         Name: "Profile",
         Icon: "user",
-        MinRole: db.UserRole("user"),
+        MinRole: types.UserRole("user"),
         NeedsFacility: false,
     },
 }
@@ -61,17 +52,3 @@ func BuildRoutePath(routeCtx *types.RouteContext, path string) string {
     }
     return fmt.Sprintf("/%s%s", routeCtx.BasePath, path)
 }
-
-// middleware/route_context.go
-// func SetRouteContext(h *Handler) echo.MiddlewareFunc {
-//     return func(next echo.HandlerFunc) echo.HandlerFunc {
-//         return func(c echo.Context) error {
-//             h.RouteCtx = types.RouteContext{
-//                 FacilityCode: c.Param("code"),
-//                 UserInitials: c.Param("initials"),
-//                 BasePath:    "/app",
-//             }
-//             return next(c)
-//         }
-//     }
-// }

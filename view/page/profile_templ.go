@@ -9,13 +9,12 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/layout"
 )
 
 // "github.com/DukeRupert/haven/utils"
-func UserPage(route types.RouteContext, navItems []types.NavItem, Title string, Description string, AuthContext *db.AuthContext, UserDetails *db.UserDetails) templ.Component {
+func Profile(route types.RouteContext, navItems []types.NavItem, Title string, Description string, AuthContext *types.AuthContext, UserDetails *types.UserDetails) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -67,7 +66,7 @@ func UserPage(route types.RouteContext, navItems []types.NavItem, Title string, 
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(UserDetails.User.Initials)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/user.templ`, Line: 22, Col: 87}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/profile.templ`, Line: 21, Col: 87}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -80,7 +79,7 @@ func UserPage(route types.RouteContext, navItems []types.NavItem, Title string, 
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(UserDetails.User.FirstName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/user.templ`, Line: 25, Col: 84}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/profile.templ`, Line: 24, Col: 84}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -93,7 +92,7 @@ func UserPage(route types.RouteContext, navItems []types.NavItem, Title string, 
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(UserDetails.User.LastName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/user.templ`, Line: 25, Col: 114}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/profile.templ`, Line: 24, Col: 114}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -106,7 +105,7 @@ func UserPage(route types.RouteContext, navItems []types.NavItem, Title string, 
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(UserDetails.User.Email)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/user.templ`, Line: 26, Col: 67}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/profile.templ`, Line: 25, Col: 67}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -128,7 +127,7 @@ func UserPage(route types.RouteContext, navItems []types.NavItem, Title string, 
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var8).String())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/user.templ`, Line: 1, Col: 0}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/profile.templ`, Line: 1, Col: 0}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -141,7 +140,7 @@ func UserPage(route types.RouteContext, navItems []types.NavItem, Title string, 
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(UserDetails.User.Role.String())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/user.templ`, Line: 30, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/profile.templ`, Line: 29, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -169,7 +168,7 @@ func UserPage(route types.RouteContext, navItems []types.NavItem, Title string, 
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(UserDetails.Facility.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/user.templ`, Line: 52, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/profile.templ`, Line: 51, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -182,7 +181,7 @@ func UserPage(route types.RouteContext, navItems []types.NavItem, Title string, 
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(UserDetails.Facility.Code)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/user.templ`, Line: 56, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/page/profile.templ`, Line: 55, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {

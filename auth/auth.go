@@ -75,7 +75,7 @@ type LoginParams struct {
 //
 // Session values set:
 // - user_id: int
-// - role: db.UserRole
+// - role: types.UserRole
 // - facility_code: string (new)
 // - facility_id: int (new)
 func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
@@ -172,10 +172,10 @@ func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
 // authenticateUser verifies the email and password combination
-func authenticateUser(ctx context.Context, database *db.DB, email, password string) (*db.User, error) {
+func authenticateUser(ctx context.Context, database *db.DB, email, password string) (*types.User, error) {
 	log := zerolog.Ctx(ctx).With().Str("method", "authenticateUser").Logger()
 
-	var user db.User
+	var user types.User
 	err := database.QueryRow(ctx,
 		`SELECT id, created_at, updated_at, first_name, last_name, 
                 initials, email, password, facility_id, role 
@@ -284,7 +284,7 @@ type PublicRoute struct {
 //
 // Context values set:
 // - user_id: int
-// - user_role: db.UserRole
+// - user_role: types.UserRole
 // - user_initials: string
 // - facility_id: int (if user has facility)
 // - facility_code: string (if user has facility)
@@ -360,7 +360,7 @@ func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
 			}
 
 			// Fetch facility data if user has facility association
-			var facility *db.Facility
+			var facility *types.Facility
 			if user.FacilityID != 0 {
 				facility, err = h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
 				if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -417,7 +417,7 @@ func (h *AuthHandler) IsPublicRoute(path, method string) bool {
 // It verifies session auth, validates user_id and role, and enforces minimum role requirements.
 // Returns 403 Forbidden for insufficient permissions or redirects to login for auth failures.
 // Usage: e.GET("/admin", handler, h.RoleAuthMiddleware("super"))
-func (h *AuthHandler) RoleAuthMiddleware(minimumRole db.UserRole) echo.MiddlewareFunc {
+func (h *AuthHandler) RoleAuthMiddleware(minimumRole types.UserRole) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			logger := h.logger.With().
@@ -441,7 +441,7 @@ func (h *AuthHandler) RoleAuthMiddleware(minimumRole db.UserRole) echo.Middlewar
 			}
 
 			// Check role if present
-			role, ok := sess.Values["role"].(db.UserRole)
+			role, ok := sess.Values["role"].(types.UserRole)
 			if !ok {
 				logger.Debug().Str("role", string(role)).Int("user_id", userID).Msg("no valid role in session")
 				return redirectToLogin(c)
@@ -463,10 +463,14 @@ func (h *AuthHandler) WithRouteContext() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// Get values set by AuthMiddleware
-			userRole, _ := c.Get("user_role").(db.UserRole)
+			userRole, _ := c.Get("user_role").(types.UserRole)
 			userInitials, _ := c.Get("user_initials").(string)
 			facilityID, _ := c.Get("facility_id").(int)
 			facilityCode, _ := c.Get("facility_code").(string)
+
+						// Get path parameters if they exist
+						pathFacility := c.Param("facility")
+						pathInitials := c.Param("initials")
 
 			// Determine base path based on role and facility
 			var basePath string
@@ -481,6 +485,8 @@ func (h *AuthHandler) WithRouteContext() echo.MiddlewareFunc {
 				UserInitials: userInitials,
 				FacilityID:   facilityID,
 				FacilityCode: facilityCode,
+				PathFacility: pathFacility,
+				PathInitials: pathInitials, 
 			}
 
 			// Store in context

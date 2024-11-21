@@ -2,7 +2,7 @@ package component
 
 templ CreateUserForm(code string) {
 	<li id="create-user-form" class="flex flex-col py-5">
-		<form hx-post="./" hx-target="#create-user-form" hx-swap="outerHTML" hx-target-error="#global-alert" class="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0">
+		<form hx-post="/api/user" hx-target="#create-user-form" hx-swap="outerHTML" hx-target-error="#global-alert" class="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0">
 			 <!-- Hidden Facility ID -->
              <input 
                 type="hidden" 
