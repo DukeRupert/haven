@@ -23,7 +23,7 @@ templ CreateScheduleForm(facility_code string, initials string) {
 									<select
 										id="first_weekday"
 										name="first_weekday"
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm"
 										required
 									>
 										<option value="0">Sunday</option>
@@ -40,7 +40,7 @@ templ CreateScheduleForm(facility_code string, initials string) {
 									<select
 										id="second_weekday"
 										name="second_weekday"
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm"
 										required
 									>
 										<option value="0">Sunday</option>
@@ -58,7 +58,7 @@ templ CreateScheduleForm(facility_code string, initials string) {
 										type="date"
 										id="start_date"
 										name="start_date"
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm"
 										required
 									/>
 								</div>
@@ -68,13 +68,13 @@ templ CreateScheduleForm(facility_code string, initials string) {
 									type="button"
 									hx-get="./schedule/cancel"
 									hx-target="closest div.lg\\:col-span-2"
-									class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+									class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-picton-blue-500 focus:ring-offset-2"
 								>
 									Cancel
 								</button>
 								<button
 									type="submit"
-									class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+									class="inline-flex justify-center rounded-md border border-transparent bg-picton-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-picton-blue-700 focus:outline-none focus:ring-2 focus:ring-picton-blue-500 focus:ring-offset-2"
 								>
 									Create
 								</button>
