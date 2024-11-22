@@ -1,10 +1,6 @@
 services:
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - ENVIRONMENT=${ENVIRONMENT}
+    image: dukerupert/haven:latest
     ports:
       - "${PORT}:${PORT}"
     environment:

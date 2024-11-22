@@ -4,7 +4,6 @@ import (
 	"embed"
 	"encoding/gob"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -45,19 +44,17 @@ func runMigrations(dbURL string, command string) error {
 	}
 
 	switch command {
-	case "up":
-		return goose.Up(db, "migrations")
-	case "down":
-		return goose.Down(db, "migrations")
+	case "status":
+		return goose.Status(db, "migrations")
 	case "reset":
 		if err := goose.Reset(db, "migrations"); err != nil {
 			return err
 		}
 		return goose.Up(db, "migrations")
-	case "status":
-		return goose.Status(db, "migrations")
+	case "down":
+		return goose.Down(db, "migrations")
 	default:
-		return fmt.Errorf("unknown migration command: %s", command)
+		return goose.Up(db, "migrations")
 	}
 }
 
@@ -67,8 +64,8 @@ func init() {
 }
 
 func main() {
-	// Parse flags
-	migrateCmd := flag.String("migrate", "", "Migration command (up/down/reset/status)")
+	// Parse flags, default to "migrate up"
+	migrateCmd := flag.String("migrate", "up", "Migration command (up/down/reset/status)")
 	flag.Parse()
 
 	// Initialize logger
