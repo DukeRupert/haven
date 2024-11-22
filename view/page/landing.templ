@@ -8,7 +8,21 @@ templ Landing() {
 			<nav class="bg-white shadow-sm">
 				<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 					<div class="flex justify-between h-16 items-center">
-						<div class="flex-shrink-0">
+						<div class="flex items-center space-x-3">
+							<svg class="h-10 w-10" viewBox="0 0 80 60">
+								<defs>
+									<radialGradient id="planet-gradient" cx="60%" cy="40%">
+										<stop offset="0%" style="stop-color:#7dd5fc"></stop>
+										<stop offset="40%" style="stop-color:#0ea5e9"></stop>
+										<stop offset="100%" style="stop-color:#0370a1"></stop>
+									</radialGradient>
+								</defs>
+								<circle cx="40" cy="30" r="25" fill="url(#planet-gradient)"></circle>
+								<path d="M20 25 Q40 45 60 25" fill="none" stroke="#7dd5fc" stroke-width="2" opacity="0.8"></path>
+								<circle cx="15" cy="10" r="1" fill="#bae8fd"></circle>
+								<circle cx="65" cy="50" r="1" fill="#bae8fd"></circle>
+								<circle cx="70" cy="15" r="1" fill="#bae8fd"></circle>
+							</svg>
 							<span class="text-2xl font-bold text-picton-blue-600">Miranda</span>
 						</div>
 						<div class="flex space-x-4">

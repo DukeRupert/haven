@@ -1,0 +1,4 @@
+<header class=\"md:flex md:items-center md:justify-between\"><div class=\"min-w-0 flex-1\"><h1 class=\"text-xl font-bold text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight\">
+</h1><p class=\"mt-2 max-w-4xl text-sm text-gray-500\">
+</p></div><div class=\"mt-4 flex md:ml-4 md:mt-0\">
+</div></header>
