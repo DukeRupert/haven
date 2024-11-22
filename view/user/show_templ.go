@@ -43,7 +43,7 @@ func Show() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 1)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<h1 class=\"text-blue-500\">Hello from the user page</h1><div class=\"container\"><h1 class=\"title\">Logout from Haven</h1><form id=\"logoutForm\" method=\"POST\" action=\"/logout\"><button type=\"submit\" class=\"logout-btn\">Logout</button></form></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

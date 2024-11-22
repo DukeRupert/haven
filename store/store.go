@@ -48,8 +48,8 @@ func NewPgxStore(db *db.DB, keyPairs ...[]byte) (*PgxStore, error) {
 			Path:     "/",
 			MaxAge:   86400 * 7, // 7 days
 			HttpOnly: true,
-			Secure:   true, // Enable for HTTPS
-			SameSite: http.SameSiteStrictMode,
+			Secure:   true, // true in production
+			SameSite: http.SameSiteLaxMode,
 		},
 	}
 

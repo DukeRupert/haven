@@ -1,11 +1,13 @@
 package main
 
 import (
+	"embed"
 	"encoding/gob"
-	"time"
+	"flag"
+	"fmt"
 	"log"
-	"net/http"
 	"os"
+	"time"
 
 	"github.com/DukeRupert/haven/auth"
 	"github.com/DukeRupert/haven/config"
@@ -13,27 +15,78 @@ import (
 	"github.com/DukeRupert/haven/handler"
 	"github.com/DukeRupert/haven/store"
 	"github.com/DukeRupert/haven/types"
-	"github.com/gorilla/sessions"
-	"github.com/labstack/echo-contrib/session"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/pressly/goose/v3"
 	"github.com/rs/zerolog"
 )
 
+//go:embed migrations/*.sql
+var embedMigrations embed.FS
+
+// runMigrations handles database migrations using goose
+func runMigrations(dbURL string, command string) error {
+	// Parse the connection config
+	config, err := pgx.ParseConfig(dbURL)
+	if err != nil {
+		return err
+	}
+
+	// Convert to *sql.DB
+	db := stdlib.OpenDB(*config)
+	defer db.Close()
+
+	goose.SetBaseFS(embedMigrations)
+
+	if err := goose.SetDialect("postgres"); err != nil {
+		return err
+	}
+
+	switch command {
+	case "up":
+		return goose.Up(db, "migrations")
+	case "down":
+		return goose.Down(db, "migrations")
+	case "reset":
+		if err := goose.Reset(db, "migrations"); err != nil {
+			return err
+		}
+		return goose.Up(db, "migrations")
+	case "status":
+		return goose.Status(db, "migrations")
+	default:
+		return fmt.Errorf("unknown migration command: %s", command)
+	}
+}
+
 func init() {
-    gob.Register(types.UserRole(""))
+	gob.Register(types.UserRole(""))
 	gob.Register(time.Time{})
 }
 
 func main() {
+	// Parse flags
+	migrateCmd := flag.String("migrate", "", "Migration command (up/down/reset/status)")
+	flag.Parse()
+
 	// Initialize logger
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	l := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 	// Load configuration
 	config, err := config.Load()
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
+	}
+
+	// Run migrations
+	if *migrateCmd != "" {
+		if err := runMigrations(config.DatabaseURL, *migrateCmd); err != nil {
+			l.Fatal().Err(err).Str("command", *migrateCmd).Msg("Migration failed")
+		}
+		return
 	}
 
 	// Initialize Echo instance
@@ -43,41 +96,26 @@ func main() {
 
 	// Initialize database
 	dbConfig := db.DefaultConfig()
-	database, err := db.New(config.DatabaseURL, dbConfig)
+	db, err := db.New(config.DatabaseURL, dbConfig)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	defer database.Close()
+	defer db.Close()
 
-	// Initialize session store
-	store, err := store.NewPgxStore(database, []byte(config.SessionKey))
+	// Initialize session s
+	s, err := store.NewPgxStore(db, []byte(config.SessionKey))
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to create session store")
+		l.Fatal().Err(err).Msg("Failed to create session store")
 	}
 
-	// Configure session store
-	store.Options = &sessions.Options{
-		Path:     "/",
-		MaxAge:   86400 * 7, // 7 days
-		HttpOnly: true,
-		Secure:   true, // true in production
-		SameSite: http.SameSiteLaxMode,
-	}
+	// Initialize handlers
+	h := handler.NewHandler(db, l)
+	authHandler := auth.NewAuthHandler(db, s, l)
 
-	// Global middleware that should apply to all routes
-    e.Use(middleware.Recover())
-    e.Use(middleware.RequestID())
-    e.Use(middleware.Logger())
-    e.Use(session.Middleware(store))
-
-    // Initialize handlers
-    h := handler.NewHandler(database, logger)
-    authHandler := auth.NewAuthHandler(database, store, logger)
-
-    // Setup all routes
-    handler.SetupRoutes(e, h, authHandler)
+	// Setup all routes
+	handler.SetupRoutes(e, h, authHandler, s)
 
 	// Start server
-	logger.Info().Msg("Starting server on :8080")
+	l.Info().Msg("Starting server on :8080")
 	e.Logger.Fatal(e.Start(":8080"))
 }

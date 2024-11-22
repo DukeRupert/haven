@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DukeRupert/haven/auth"
+	"github.com/DukeRupert/haven/store"
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/component"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -60,10 +62,15 @@ func NewHandler(db *db.DB, logger zerolog.Logger) *Handler {
 	}
 }
 
-func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler) {
+func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.PgxStore) {
 	// Define static assets
 	e.Static("/static", "assets")
-	// Apply middleware globally
+
+	// Apply global middleware
+	e.Use(middleware.Recover())
+	e.Use(middleware.RequestID())
+	e.Use(middleware.Logger())
+	e.Use(session.Middleware(store))
 	e.Use(auth.AuthMiddleware())
 	e.Use(auth.WithRouteContext())
 
