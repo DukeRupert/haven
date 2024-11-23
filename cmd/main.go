@@ -65,7 +65,7 @@ func init() {
 
 func main() {
 	// Parse flags, default to "migrate up"
-	migrateCmd := flag.String("migrate", "up", "Migration command (up/down/reset/status)")
+	migrateCmd := flag.String("migrate", "", "Migration command (up/down/reset/status)")
 	flag.Parse()
 
 	// Initialize logger
@@ -76,6 +76,11 @@ func main() {
 	config, err := config.Load()
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
+	}
+
+	// Run initial migrations regardless of flag
+	if err := runMigrations(config.DatabaseURL, "up"); err != nil {
+		l.Fatal().Err(err).Msg("Initial migration failed")
 	}
 
 	// Run migrations
