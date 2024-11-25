@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/DukeRupert/haven/auth"
-	"github.com/DukeRupert/haven/store"
 	"github.com/DukeRupert/haven/db"
+	"github.com/DukeRupert/haven/store"
 	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/component"
 	"github.com/DukeRupert/haven/view/page"
@@ -18,7 +18,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 type Handler struct {
@@ -29,30 +28,6 @@ type Handler struct {
 
 // HandlerFunc is the type for your page handlers
 type HandlerFunc func(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error
-
-// WithNav wraps your handler functions with common navigation logic
-func (h *Handler) WithNav(fn HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		logger := h.logger.With().
-			Str("middleware", "WithNav").
-			Str("path", c.Request().URL.Path).
-			Logger()
-
-		// Get route context
-		routeCtx, err := GetRouteContext(c)
-		if err != nil {
-			logger.Error().Err(err).Msg("failed to get route context")
-			return err
-		}
-
-		// Build navigation
-		currentPath := c.Request().URL.Path
-		navItems := BuildNav(routeCtx, currentPath)
-
-		// Call the wrapped handler
-		return fn(c, routeCtx, navItems)
-	}
-}
 
 // NewSuperHandler creates a new handler with both pool and store
 func NewHandler(db *db.DB, logger zerolog.Logger) *Handler {
@@ -74,6 +49,49 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.
 	e.Use(auth.AuthMiddleware())
 	e.Use(auth.WithRouteContext())
 
+	// Public routes
+	e.GET("/", h.ShowHome)
+	e.GET("/login", h.GetLogin, auth.RedirectIfAuthenticated())
+	e.POST("/login", auth.LoginHandler())
+	e.POST("/logout", auth.LogoutHandler())
+
+	// Protected routes
+	// Super-only routes
+	e.GET("/facilities", h.WithNav(h.handleFacilities), RouteMiddleware("/facilities"))
+
+	// Admin and above routes
+	e.GET("/controllers", h.WithNav(h.handleUsers), RouteMiddleware("/controllers"))
+	e.GET("/:facility/controllers", h.WithNav(h.handleUsers), RouteMiddleware("/controllers"))
+
+	// User and above routes
+	e.GET("/calendar", h.WithNav(h.handleCalendar), RouteMiddleware("/calendar"))
+	e.GET("/:facility/calendar", h.WithNav(h.handleCalendar), RouteMiddleware("/calendar"))
+	e.GET("/profile", h.WithNav(h.handleProfile), RouteMiddleware("/profile"))
+	e.GET("/:facility/profile", h.WithNav(h.handleProfile), RouteMiddleware("/profile"))
+
+	// API routes
+	api := e.Group("/api")
+	api.POST("/available/:id", h.handleAvailabilityToggle)
+	api.GET("/schedule/:facility/:initials", h.createScheduleForm)
+	api.POST("/schedule/:facility/:initials", h.handleCreateSchedule)
+	api.POST("/schedule/:id", h.handleUpdateSchedule)
+	api.GET("/schedule/update/:id", h.updateScheduleForm)
+	api.GET("/user/:facility", h.createUserForm)
+	api.POST("/user", h.handleCreateUser)
+}
+
+func OldSetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.PgxStore) {
+	// Define static assets
+	e.Static("/static", "assets")
+
+	// Apply global middleware
+	e.Use(middleware.Recover())
+	e.Use(middleware.RequestID())
+	e.Use(middleware.Logger())
+	e.Use(session.Middleware(store))
+	e.Use(auth.AuthMiddleware())
+	e.Use(auth.WithRouteContext())
+
 	// Define all routes - public and protected
 	// Public routes (these match the publicRoutes map in the middleware)
 	e.GET("/", h.ShowHome)
@@ -81,11 +99,17 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.
 	e.POST("/login", auth.LoginHandler())
 	e.POST("/logout", auth.LogoutHandler())
 
+	// Protected routes with role hierarchy
+	e.GET("/facilities", h.WithNav(h.handleFacilities),
+		RequireMinRole(types.UserRole("super")))
+
+	// Routes that require both role and facility access checks
+	e.GET("/:facility/controllers", h.WithNav(h.handleUsers),
+		RequireMinRole(types.UserRole("admin")), // Must be at least admin
+		RequireFacilityAccess())                 // Must have access to the facility
+
 	// Protected routes
-	e.GET("/dashboard", h.WithNav(h.handleDashboard))
-	e.GET("/:facility/dashboard", h.WithNav(h.handleDashboard))
 	e.GET("/controllers", h.WithNav(h.handleUsers))
-	e.GET("/:facility/controllers", h.WithNav(h.handleUsers))
 	e.GET("/profile", h.WithNav(h.handleProfile))
 	e.GET("/:facility/profile", h.WithNav(h.handleProfile))
 	e.GET("/:facility/:initials", h.WithNav(h.handleProfile))
@@ -106,95 +130,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.
 	// protected.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
 }
 
-func wrapHandler(route types.Route, handler echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		routeCtx, err := GetRouteContext(c)
-		if err != nil {
-			return err
-		}
-
-		// If route needs facility and we don't have one, redirect to non-facility version
-		if route.NeedsFacility && routeCtx.FacilityCode == "" {
-			return c.Redirect(http.StatusTemporaryRedirect, route.Path)
-		}
-
-		// If we're on non-facility route but have a facility, redirect to facility version
-		if route.NeedsFacility && c.Param("facility") == "" && routeCtx.FacilityCode != "" {
-			return c.Redirect(http.StatusTemporaryRedirect,
-				BuildRoutePath(routeCtx, route.Path))
-		}
-
-		return handler(c)
-	}
-}
-
-func BuildNav(routeCtx *types.RouteContext, currentPath string) []types.NavItem {
-	logger := log.With().
-		Str("function", "BuildNav").
-		Str("current_path", currentPath).
-		Str("facility_code", routeCtx.FacilityCode).
-		Logger()
-
-	// Strip facility prefix for comparison
-	strippedPath := currentPath
-	if routeCtx.FacilityCode != "" {
-		prefix := "/" + routeCtx.FacilityCode
-		strippedPath = strings.TrimPrefix(currentPath, prefix)
-	}
-
-	logger.Debug().
-		Str("stripped_path", strippedPath).
-		Msg("building navigation items")
-
-	navItems := []types.NavItem{
-		{
-			Path:    buildPath(routeCtx.FacilityCode, "/dashboard"),
-			Name:    "Dashboard",
-			Active:  strippedPath == "/dashboard",
-			Visible: true,
-		},
-		{
-			Path:    buildPath(routeCtx.FacilityCode, "/calendar"),
-			Name:    "Calendar",
-			Active:  strippedPath == "/calendar",
-			Visible: true,
-		},
-		{
-			Path:    buildPath(routeCtx.FacilityCode, "/controllers"),
-			Name:    "Controllers",
-			Active:  strippedPath == "/controllers",
-			Visible: true,
-		},
-		{
-			Path:    buildPath(routeCtx.FacilityCode, "/profile"),
-			Name:    "Profile",
-			Active:  strippedPath == "/profile",
-			Visible: true,
-		},
-	}
-
-	// Debug logging
-	// for _, item := range navItems {
-	// 	logger.Debug().
-	// 		Str("name", item.Name).
-	// 		Str("path", item.Path).
-	// 		Bool("active", item.Active).
-	// 		Str("compare_path", strippedPath).
-	// 		Msg("nav item state")
-	// }
-
-	return navItems
-}
-
-// Helper function to build correct paths
-func buildPath(facilityCode string, path string) string {
-	if facilityCode == "" {
-		return path
-	}
-	return fmt.Sprintf("/%s%s", facilityCode, path)
-}
-
-func (h *Handler) handleDashboard(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
+func (h *Handler) handleFacilities(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
 	facs, err := h.db.ListFacilities(c.Request().Context())
 	if err != nil {
 		// You might want to implement a custom error handler
@@ -215,11 +151,9 @@ func (h *Handler) handleDashboard(c echo.Context, routeCtx *types.RouteContext, 
 	return component.Render(c.Request().Context(), c.Response().Writer)
 }
 
-
 func (h *Handler) GetLogin(c echo.Context) error {
 	return render(c, page.Login())
 }
-
 
 // handleCalendar handles GET requests for the calendar view
 func (h *Handler) handleCalendar(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
@@ -337,19 +271,6 @@ func isAuthorizedToToggle(userID int, role types.UserRole, protectedDate types.P
 	return false
 }
 
-// func (h *Handler) handleProfile(c echo.Context) error {
-//     routeCtx, err := GetRouteContext(c)
-//     if err != nil {
-//         return err
-//     }
-
-//     // Your calendar logic here
-//     return c.Render(http.StatusOK, "calendar.html", map[string]interface{}{
-//         "routeCtx": routeCtx,
-//         "navItems": BuildNav(*routeCtx, c.Path()),
-//     })
-// }
-
 // Main route handler that dispatches to specific handlers
 func (h *Handler) handleRoute(c echo.Context) error {
 	logger := h.logger.With().
@@ -386,9 +307,9 @@ func (h *Handler) handleRoute(c echo.Context) error {
 
 	switch path {
 	case "/dashboard":
-		handler = "handleDashboard"
-		logger.Debug().Msg("routing to dashboard handler")
-		handlerFunc = h.handleDashboard
+		handler = "handleFacilities"
+		logger.Debug().Msg("routing to facilities handler")
+		handlerFunc = h.handleFacilities
 
 	case "/controllers":
 		handler = "handleControllers"

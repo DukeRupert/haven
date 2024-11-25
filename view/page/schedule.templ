@@ -6,7 +6,7 @@ import (
 	"github.com/DukeRupert/haven/types"
 )
 
-templ ScheduleCard(auth types.AuthContext, schedule types.Schedule) {
+templ ScheduleCard(route types.RouteContext, schedule types.Schedule) {
 	<div id="schedule-card" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
@@ -70,13 +70,13 @@ templ WeekDayBox(day string, isSelected bool) {
 	</div>
 }
 
-templ EmptyScheduleCard(route types.RouteContext, auth types.AuthContext, schedule types.Schedule) {
+templ EmptyScheduleCard(route types.RouteContext, schedule types.Schedule) {
 	<div id="schedule-card" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
 				<div class="flex items-center justify-between">
 					<h3 class="text-lg font-medium text-gray-900">Schedule Details</h3>
-					if auth.Role == "admin" || auth.Role == "super" {
+					if  == "admin" || auth.Role == "super" {
 						<button
 							hx-get={ fmt.Sprintf("/api/schedule/%s/%s", route.PathFacility, route.PathInitials)}
 							hx-target="#schedule-card"
