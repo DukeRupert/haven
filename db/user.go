@@ -384,3 +384,56 @@ func (db *DB) DeleteUser(ctx context.Context, userID int) error {
 
 	return nil
 }
+
+// VerifyUserCredentials checks if a user exists with matching facility_id, initials, and email
+func (db *DB) VerifyUserCredentials(ctx context.Context, facilityID int, initials, email string) (*types.User, error) {
+	var user types.User
+	err := db.pool.QueryRow(ctx, `
+        SELECT 
+            id, 
+            created_at, 
+            updated_at, 
+            first_name, 
+            last_name, 
+            initials, 
+            email,
+            facility_id,
+            role
+        FROM users
+        WHERE facility_id = $1 
+        AND UPPER(initials) = UPPER($2)
+        AND LOWER(email) = LOWER($3)
+    `, facilityID, initials, email).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+		&user.FirstName,
+		&user.LastName,
+		&user.Initials,
+		&user.Email,
+		&user.FacilityID,
+		&user.Role,
+	)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error verifying user credentials: %w", err)
+	}
+	return &user, nil
+}
+
+// UpdateUserPassword updates the password hash for a user
+func (db *DB) UpdateUserPassword(ctx context.Context, userID int, hashedPassword string) error {
+	_, err := db.pool.Exec(ctx, `
+        UPDATE users 
+        SET 
+            password = $1,
+            updated_at = NOW()
+        WHERE id = $2
+    `, hashedPassword, userID)
+	if err != nil {
+		return fmt.Errorf("error updating user password: %w", err)
+	}
+	return nil
+}

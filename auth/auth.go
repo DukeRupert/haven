@@ -68,126 +68,126 @@ type LoginParams struct {
 
 // LoginResponse handles both the alert and potential redirect for login attempts
 func (h *AuthHandler) LoginResponse(c echo.Context, status int, heading string, messages []string, redirectURL string) error {
-    c.Response().Status = status
-    
-    // For successful login with redirect
-    if status == http.StatusOK && redirectURL != "" {
-        c.Response().Header().Set("HX-Redirect", redirectURL)
-        return c.String(http.StatusOK, "")
-    }
+	c.Response().Status = status
 
-    // For errors, return the alert component
-    return alert.Error(heading, messages).Render(c.Request().Context(), c.Response().Writer)
+	// For successful login with redirect
+	if status == http.StatusOK && redirectURL != "" {
+		c.Response().Header().Set("HX-Redirect", redirectURL)
+		return c.String(http.StatusOK, "")
+	}
+
+	// For errors, return the alert component
+	return alert.Error(heading, messages).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // LoginHandler handles the login form submission
 func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
-    return func(c echo.Context) error {
-        logger := h.logger.With().
-            Str("component", "auth").
-            Str("handler", "LoginHandler").
-            Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
-            Logger()
+	return func(c echo.Context) error {
+		logger := h.logger.With().
+			Str("component", "auth").
+			Str("handler", "LoginHandler").
+			Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+			Logger()
 
-        logger.Debug().Msg("Processing login request")
+		logger.Debug().Msg("Processing login request")
 
-        // Get session
-        sess, err := session.Get(DefaultSessionName, c)
-        if err != nil {
-            logger.Error().
-                Err(err).
-                Str("session_name", DefaultSessionName).
-                Msg("Failed to get session")
-            return h.LoginResponse(c, 
-                http.StatusInternalServerError,
-                "System Error",
-                []string{"Unable to process login request. Please try again."},
-                "")
-        }
+		// Get session
+		sess, err := session.Get(DefaultSessionName, c)
+		if err != nil {
+			logger.Error().
+				Err(err).
+				Str("session_name", DefaultSessionName).
+				Msg("Failed to get session")
+			return h.LoginResponse(c,
+				http.StatusInternalServerError,
+				"System Error",
+				[]string{"Unable to process login request. Please try again."},
+				"")
+		}
 
-        // Bind form data
-        params := new(LoginParams)
-        if err := c.Bind(params); err != nil {
-            logger.Debug().
-                Err(err).
-                Str("email", params.Email).
-                Msg("Invalid form data submitted")
-            return h.LoginResponse(c,
-                http.StatusUnauthorized,
-                "Invalid Request",
-                []string{"Please check your email and password and try again."},
-                "")
-        }
+		// Bind form data
+		params := new(LoginParams)
+		if err := c.Bind(params); err != nil {
+			logger.Debug().
+				Err(err).
+				Str("email", params.Email).
+				Msg("Invalid form data submitted")
+			return h.LoginResponse(c,
+				http.StatusUnauthorized,
+				"Invalid Request",
+				[]string{"Please check your email and password and try again."},
+				"")
+		}
 
-        logger.Debug().Str("email", params.Email).Msg("Attempting user authentication")
+		logger.Debug().Str("email", params.Email).Msg("Attempting user authentication")
 
-        // Authenticate user
-        user, err := authenticateUser(c.Request().Context(), h.database, params.Email, params.Password)
-        if err != nil {
-            logger.Debug().
-                Err(err).
-                Str("email", params.Email).
-                Msg("Authentication failed")
-            return h.LoginResponse(c,
-                http.StatusUnauthorized,
-                "Login Failed",
-                []string{"Invalid email or password. Please try again."},
-                "")
-        }
+		// Authenticate user
+		user, err := authenticateUser(c.Request().Context(), h.database, params.Email, params.Password)
+		if err != nil {
+			logger.Debug().
+				Err(err).
+				Str("email", params.Email).
+				Msg("Authentication failed")
+			return h.LoginResponse(c,
+				http.StatusUnauthorized,
+				"Login Failed",
+				[]string{"Invalid email or password. Please try again."},
+				"")
+		}
 
-        // Get user's facility
-        facility, err := h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
-        if err != nil {
-            logger.Error().
-                Err(err).
-                Int("user_id", user.ID).
-                Int("facility_id", user.FacilityID).
-                Msg("Failed to get user's facility")
-            return h.LoginResponse(c,
-                http.StatusInternalServerError,
-                "System Error",
-                []string{"Unable to complete login process. Please try again."},
-                "")
-        }
+		// Get user's facility
+		facility, err := h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
+		if err != nil {
+			logger.Error().
+				Err(err).
+				Int("user_id", user.ID).
+				Int("facility_id", user.FacilityID).
+				Msg("Failed to get user's facility")
+			return h.LoginResponse(c,
+				http.StatusInternalServerError,
+				"System Error",
+				[]string{"Unable to complete login process. Please try again."},
+				"")
+		}
 
-        // Set session values
-        logger.Debug().
-            Int("user_id", user.ID).
-            Str("role", string(user.Role)).
-            Msg("Setting session values")
+		// Set session values
+		logger.Debug().
+			Int("user_id", user.ID).
+			Str("role", string(user.Role)).
+			Msg("Setting session values")
 
-        sess.Values["user_id"] = user.ID
-        sess.Values["user_role"] = user.Role
-        sess.Values["user_initials"] = user.Initials
-        sess.Values["facility_code"] = facility.Code
-        sess.Values["facility_id"] = facility.ID
-        sess.Values["last_access"] = time.Now()
+		sess.Values["user_id"] = user.ID
+		sess.Values["user_role"] = user.Role
+		sess.Values["user_initials"] = user.Initials
+		sess.Values["facility_code"] = facility.Code
+		sess.Values["facility_id"] = facility.ID
+		sess.Values["last_access"] = time.Now()
 
-        // Save session
-        if err := sess.Save(c.Request(), c.Response()); err != nil {
-            logger.Error().
-                Err(err).
-                Int("user_id", user.ID).
-                Str("session_id", sess.ID).
-                Msg("Failed to save session")
-            return h.LoginResponse(c,
-                http.StatusInternalServerError,
-                "System Error",
-                []string{"Unable to complete login process. Please try again."},
-                "")
-        }
+		// Save session
+		if err := sess.Save(c.Request(), c.Response()); err != nil {
+			logger.Error().
+				Err(err).
+				Int("user_id", user.ID).
+				Str("session_id", sess.ID).
+				Msg("Failed to save session")
+			return h.LoginResponse(c,
+				http.StatusInternalServerError,
+				"System Error",
+				[]string{"Unable to complete login process. Please try again."},
+				"")
+		}
 
-        redirectURL := fmt.Sprintf("/%s/calendar", facility.Code)
-        logger.Info().
-            Int("user_id", user.ID).
-            Str("email", params.Email).
-            Str("facility_code", facility.Code).
-            Str("redirect_url", redirectURL).
-            Msg("Login successful")
+		redirectURL := fmt.Sprintf("/%s/calendar", facility.Code)
+		logger.Info().
+			Int("user_id", user.ID).
+			Str("email", params.Email).
+			Str("facility_code", facility.Code).
+			Str("redirect_url", redirectURL).
+			Msg("Login successful")
 
-        // On success, redirect to the calendar
-        return h.LoginResponse(c, http.StatusOK, "", nil, redirectURL)
-    }
+		// On success, redirect to the calendar
+		return h.LoginResponse(c, http.StatusOK, "", nil, redirectURL)
+	}
 }
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
@@ -226,40 +226,40 @@ func authenticateUser(ctx context.Context, database *db.DB, email, password stri
 }
 
 func (h *AuthHandler) LogoutHandler() echo.HandlerFunc {
-    return func(c echo.Context) error {
-        logger := h.logger.With().Str("handler", "LogoutHandler").Logger()
+	return func(c echo.Context) error {
+		logger := h.logger.With().Str("handler", "LogoutHandler").Logger()
 
-        // Get the session
-        sess, err := session.Get(DefaultSessionName, c)
-        if err != nil {
-            logger.Error().Err(err).Msg("failed to get session")
-        }
+		// Get the session
+		sess, err := session.Get(DefaultSessionName, c)
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to get session")
+		}
 
-        // Log initial state
-        logger.Debug().
-            Bool("is_new", sess.IsNew).
-            Str("session_id", sess.ID).
-            Interface("values", sess.Values).
-            Msg("starting logout process")
+		// Log initial state
+		logger.Debug().
+			Bool("is_new", sess.IsNew).
+			Str("session_id", sess.ID).
+			Interface("values", sess.Values).
+			Msg("starting logout process")
 
-        // Clear the session regardless of whether it's new or not
-        sess.Values = make(map[interface{}]interface{})
-        sess.Options.MaxAge = -1
+		// Clear the session regardless of whether it's new or not
+		sess.Values = make(map[interface{}]interface{})
+		sess.Options.MaxAge = -1
 
-        // Force save the cleared session
-        if err = sess.Save(c.Request(), c.Response()); err != nil {
-            logger.Error().Err(err).Msg("failed to save cleared session")
-            // Continue with redirect anyway
-        }
+		// Force save the cleared session
+		if err = sess.Save(c.Request(), c.Response()); err != nil {
+			logger.Error().Err(err).Msg("failed to save cleared session")
+			// Continue with redirect anyway
+		}
 
-        // Add Cache-Control header to prevent browser caching
-        c.Response().Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, post-check=0, pre-check=0")
-        
-        logger.Debug().Msg("logout completed, redirecting to login page")
-        
-        // Use StatusSeeOther (303) to ensure GET request
-        return c.Redirect(http.StatusSeeOther, "/login")
-    }
+		// Add Cache-Control header to prevent browser caching
+		c.Response().Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, post-check=0, pre-check=0")
+
+		logger.Debug().Msg("logout completed, redirecting to login page")
+
+		// Use StatusSeeOther (303) to ensure GET request
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
 }
 
 // Helper function to convert session values for logging
@@ -279,20 +279,6 @@ type PublicRoute struct {
 }
 
 // AuthMiddleware ensures requests are authenticated and maintains session state.
-// It performs the following:
-// - Validates session exists and contains valid user_id
-// - Fetches fresh user data from database
-// - Fetches associated facility data if applicable
-// - Updates session with current user/facility information
-// - Sets user/facility data in request context for handlers
-// - Redirects unauthenticated requests to login
-//
-// Context values set:
-// - user_id: int
-// - user_role: types.UserRole
-// - user_initials: string
-// - facility_id: int (if user has facility)
-// - facility_code: string (if user has facility)
 func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
 	// Define public paths that should skip authentication
 	publicRoutes := map[PublicRoute]bool{
@@ -301,14 +287,14 @@ func (h *AuthHandler) AuthMiddleware() echo.MiddlewareFunc {
 		{Path: "/login", Method: "POST"}:  true,
 		{Path: "/logout", Method: "POST"}: true,
 
+		// Registration routes
+		{Path: "/register", Method: "GET"}:      true,
+		{Path: "/register", Method: "POST"}:     true,
+		{Path: "/set-password", Method: "GET"}:  true,
+		{Path: "/set-password", Method: "POST"}: true,
+
 		// Public pages
 		{Path: "/", Method: "GET"}: true,
-
-		// Add more public routes here as needed, for example:
-		// {Path: "/about", Method: "GET"}: true,
-		// {Path: "/contact", Method: "GET"}: true,
-		// {Path: "/health", Method: "GET"}: true,
-		// {Path: "/api/public/status", Method: "GET"}: true,
 	}
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {

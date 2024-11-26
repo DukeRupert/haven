@@ -28,7 +28,7 @@ type Handler struct {
 // HandlerFunc is the type for your page handlers
 type HandlerFunc func(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error
 
-// NewSuperHandler creates a new handler with both pool and store
+// NewHandler creates a new handler with both pool and store
 func NewHandler(db *db.DB, logger zerolog.Logger) *Handler {
 	return &Handler{
 		db:     db,
@@ -53,6 +53,10 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.
 	e.GET("/login", h.GetLogin, auth.RedirectIfAuthenticated())
 	e.POST("/login", auth.LoginHandler())
 	e.POST("/logout", auth.LogoutHandler())
+	e.GET("/register", h.GetRegister)
+	e.POST("/register", h.HandleRegistration)
+	e.GET("/set-password", h.GetSetPassword)
+	e.POST("/set-password", h.HandleSetPassword)
 
 	// Protected routes
 	// Super-only routes

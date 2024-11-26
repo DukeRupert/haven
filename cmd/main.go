@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"encoding/gob"
 	"flag"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/DukeRupert/haven/auth"
@@ -14,6 +17,7 @@ import (
 	"github.com/DukeRupert/haven/handler"
 	"github.com/DukeRupert/haven/store"
 	"github.com/DukeRupert/haven/types"
+	workers "github.com/DukeRupert/haven/worker"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v4"
@@ -66,7 +70,7 @@ func init() {
 func main() {
 	// parse db migrate flags
 	migrateCmd := flag.String("migrate", "", "Migration command (up/down/reset/status)")
-    flag.Parse()
+	flag.Parse()
 
 	// Initialize logger
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -79,15 +83,15 @@ func main() {
 	}
 
 	// Run up migrations regardless of flag
-    if err := runMigrations(config.DatabaseURL, "up"); err != nil {
-        l.Fatal().Err(err).Msg("Initial migration failed")
-    }
+	if err := runMigrations(config.DatabaseURL, "up"); err != nil {
+		l.Fatal().Err(err).Msg("Initial migration failed")
+	}
 
 	// If migration command was explicitly provided, exit after running it
-    if *migrateCmd != "" {
-        l.Info().Msg("Migrations completed successfully")
-        return
-    }
+	if *migrateCmd != "" {
+		l.Info().Msg("Migrations completed successfully")
+		return
+	}
 
 	// Initialize Echo instance
 	e := echo.New()
@@ -114,6 +118,29 @@ func main() {
 
 	// Setup all routes
 	handler.SetupRoutes(e, h, authHandler, s)
+
+	// Initialize and start token cleaner
+	cleaner := workers.NewTokenCleaner(db, l, 15*time.Minute)
+	cleaner.Start()
+
+	// Setup graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-quit
+		l.Info().Msg("Shutting down server")
+
+		// Stop the token cleaner
+		cleaner.Stop()
+
+		// Shutdown Echo server
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := e.Shutdown(ctx); err != nil {
+			l.Fatal().Err(err).Msg("Failed to shutdown server gracefully")
+		}
+	}()
 
 	// Start server
 	l.Info().Msg("Starting server on :8080")
