@@ -8,26 +8,26 @@ services:
       - PORT=${PORT}
       - ENVIRONMENT=${ENVIRONMENT}
       - SESSION_KEY=${SESSION_KEY}
-      
       # Database Configuration
       - DB_HOST=${DB_HOST}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
-      - DB_PORT=${DB_PORT}
-      
+      - DB_PORT=5432
       # Goose Migration Configuration
       - GOOSE_DRIVER=postgres
       - GOOSE_MIGRATION_DIR=/app/migrations
-      - GOOSE_DBSTRING=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable
-      
+      - GOOSE_DBSTRING=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}?sslmode=disable
       # Migration Control
       - RESET_MIGRATIONS=${RESET_MIGRATIONS}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - app-network
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
   db:
     image: postgres:15-alpine
@@ -47,6 +47,20 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - $HOME/.docker/config.json:/config.json
+    command: --interval 30 --cleanup --include-stopped --include-restarting
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_DEBUG=true
+      - WATCHTOWER_TRACE=true
+    restart: unless-stopped
+    networks:
+      - app-network
 
 volumes:
   postgres_data:
