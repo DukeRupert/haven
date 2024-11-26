@@ -15,7 +15,9 @@ templ BaseLayout() {
 		</head>
 		<body class="preload" hx-ext="response-targets" style="height: 100%;">
 			<!-- Fixed container for alerts -->
-			<div id="global-alert" class="absolute bottom-4 right-4 w-96 max-w-[calc(100vw-2rem)] h-full"></div>
+			<div id="global-alert" class="absolute bottom-4 right-4 w-96 max-w-[calc(100vw-2rem)] h-full -z-10"></div>
+			<!-- Loading overlay -->
+			@LoadingOverlay()
 			{ children... }
 		</body>
 	</html>

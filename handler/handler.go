@@ -67,12 +67,14 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.
 	e.GET("/:facility/calendar", h.WithNav(h.handleCalendar), RouteMiddleware("/calendar"))
 	e.GET("/profile", h.WithNav(h.handleProfile), RouteMiddleware("/profile"))
 	e.GET("/:facility/profile", h.WithNav(h.handleProfile), RouteMiddleware("/profile"))
+	e.GET("/:facility/:initials", h.WithNav(h.handleProfile), RouteMiddleware("/profile"))
 
 	// API routes
 	api := e.Group("/api")
 	api.POST("/available/:id", h.handleAvailabilityToggle)
 	api.GET("/schedule/:facility/:initials", h.createScheduleForm)
 	api.POST("/schedule/:facility/:initials", h.handleCreateSchedule)
+	api.GET("/schedule/:id", h.handleGetSchedule)
 	api.POST("/schedule/:id", h.handleUpdateSchedule)
 	api.GET("/schedule/update/:id", h.updateScheduleForm)
 	api.GET("/user/:facility", h.createUserForm)

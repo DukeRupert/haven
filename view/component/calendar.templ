@@ -14,6 +14,8 @@ templ Calendar(props types.CalendarProps) {
 				class="-m-1.5 flex flex-none items-center justify-center p-1.5 text-gray-400 hover:text-gray-500"
 				hx-get={ fmt.Sprintf("/%s/calendar?month=%s", props.FacilityCode, props.CurrentMonth.AddDate(0, -1, 0).Format("2006-01")) }
 				hx-target="closest div.mt-10"
+				hx-target-error="#global-alert" 
+				hx-indicator="#loading-overlay"
 			>
 				<span class="sr-only">Previous month</span>
 				<svg class="size-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -28,6 +30,8 @@ templ Calendar(props types.CalendarProps) {
 				class="-m-1.5 flex flex-none items-center justify-center p-1.5 text-gray-400 hover:text-gray-500"
 				hx-get={ fmt.Sprintf("/%s/calendar?month=%s", props.FacilityCode, props.CurrentMonth.AddDate(0, 1, 0).Format("2006-01")) }
 				hx-target="closest div.mt-10"
+				hx-target-error="#global-alert" 
+				hx-indicator="#loading-overlay"
 			>
 				<span class="sr-only">Next month</span>
 				<svg class="size-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -107,7 +111,7 @@ templ CalendarDay(props types.CalendarDayProps) {
 templ ProtectedDay(currentUserID int, pd types.ProtectedDate) {
 	<div id={ fmt.Sprintf("pd-%d", pd.ID)} class="flex items-center justify-center">
 		if pd.UserID == currentUserID {
-			<button hx-post={ fmt.Sprintf("/api/available/%d", pd.ID) } hx-target={fmt.Sprintf("#pd-%d", pd.ID)} hx-swap="outerHTML" hx-confirm="Are you sure you want to change you availability status?" type="button">
+			<button hx-post={ fmt.Sprintf("/api/available/%d", pd.ID) } hx-target={fmt.Sprintf("#pd-%d", pd.ID)} hx-swap="outerHTML" hx-confirm="Are you sure you want to change you availability status?" hx-target-error="#global-alert" hx-indicator="#loading-overlay" type="button">
 				if pd.Available {
 					<svg class="size-full fill-picton-blue-400 stroke-picton-blue-400" viewBox="0 0 8 8" aria-hidden="true">
 						<circle cx="4" cy="4" r="3" stroke-width="1"></circle>

@@ -34,7 +34,7 @@ func UpdateScheduleForm(schedule types.Schedule) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"update-schedule-form\" hx-target=\"this\" hx-target-error=\"#global-alert\" hx-swap=\"outerHTML\" class=\"relative lg:col-span-2\"><div class=\"h-full overflow-hidden rounded-lg bg-white shadow\"><div class=\"px-6 py-8\"><div class=\"flex items-center justify-between\"><h3 class=\"text-lg font-medium text-gray-900\">Update Schedule</h3></div><div class=\"mt-6\"><form hx-post=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"update-schedule-form\" hx-target=\"this\" hx-target-error=\"#global-alert\" hx-indicator=\"#loading-overlay\" hx-swap=\"outerHTML\" class=\"relative lg:col-span-2\"><div class=\"h-full overflow-hidden rounded-lg bg-white shadow\"><div class=\"px-6 py-8\"><div class=\"flex items-center justify-between\"><h3 class=\"text-lg font-medium text-gray-900\">Update Schedule</h3></div><div class=\"mt-6\"><form hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -213,7 +213,7 @@ func UpdateScheduleForm(schedule types.Schedule) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-target=\"#update-schedule-form\" hx-swap=\"outerHTML\" class=\"rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-picton-blue-500 focus:ring-offset-2\">Cancel</button> <button type=\"submit\" class=\"inline-flex justify-center rounded-md border border-transparent bg-picton-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-picton-blue-700 focus:outline-none focus:ring-2 focus:ring-picton-blue-500 focus:ring-offset-2\">Update</button></div></div></form></div></div></div></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-target=\"#update-schedule-form\" hx-swap=\"outerHTML\" hx-target-error=\"#global-alert\" hx-indicator=\"#loading-overlay\" class=\"rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-picton-blue-500 focus:ring-offset-2\">Cancel</button> <button type=\"submit\" class=\"inline-flex justify-center rounded-md border border-transparent bg-picton-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-picton-blue-700 focus:outline-none focus:ring-2 focus:ring-picton-blue-500 focus:ring-offset-2\">Update</button></div></div></form></div></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

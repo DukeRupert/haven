@@ -8,9 +8,9 @@ import (
 	"github.com/DukeRupert/haven/view/alert"
 	"github.com/DukeRupert/haven/view/component"
 	"github.com/DukeRupert/haven/view/page"
-	
-	"golang.org/x/crypto/bcrypt"
+
 	"github.com/labstack/echo/v4"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Helper function to validate role
@@ -38,7 +38,7 @@ func (h *Handler) handleProfile(c echo.Context, routeCtx *types.RouteContext, na
 
 	// Check for initials query param
 	initials := c.Param("initials")
-	
+
 	// If no initials provided, show the current user's profile
 	if initials == "" {
 		initials = auth.Initials // Assuming this exists in your auth context
@@ -110,95 +110,91 @@ func canViewOtherProfiles(auth *types.AuthContext) bool {
 
 // Create handles POST /api/user
 func (h *Handler) handleCreateUser(c echo.Context) error {
-    logger := h.logger
+	logger := h.logger
 
-    // Create a struct specifically for form binding
-    var formData struct {
-        FirstName    string `form:"first_name"`
-        LastName     string `form:"last_name"`
-        Initials     string `form:"initials"`
-        Email        string `form:"email"`
-        Password     string `form:"password"`
-        Role         string `form:"role"`
-        FacilityCode string `form:"facility_code"`
-    }
+	// Create a struct specifically for form binding
+	var params types.CreateUserParams
 
-    // Bind the form data first
-    if err := c.Bind(&formData); err != nil {
-        return h.ErrorResponse(c, http.StatusBadRequest, "Invalid Request", 
-            []string{"The submitted form data was invalid"})
-    }
+	// Bind the form data directly to params
+	if err := c.Bind(&params); err != nil {
+		return h.ErrorResponse(c, http.StatusBadRequest, "Invalid Request",
+			[]string{"The submitted form data was invalid"})
+	}
 
-    // Validate and collect all validation errors
-    var errors []string
-    var params types.CreateUserParams
+	// Validate and collect all validation errors
+	var errors []string
 
-    // Validate facility code and get facility
-    if formData.FacilityCode == "" {
-        errors = append(errors, "Facility code is required")
-    } else {
-        facility, err := h.db.GetFacilityByCode(c.Request().Context(), formData.FacilityCode)
-        if err != nil {
-            logger.Error().
-                Err(err).
-                Str("facility_code", formData.FacilityCode).
-                Msg("failed to find facility by code")
-            errors = append(errors, "The specified facility code was not found")
-        } else {
-            params.FacilityID = facility.ID
-        }
-    }
+	// Validate facility code and get facility
+	if params.FacilityCode == "" {
+		errors = append(errors, "Facility code is required")
+	} else {
+		facility, err := h.db.GetFacilityByCode(c.Request().Context(), params.FacilityCode)
+		if err != nil {
+			logger.Error().
+				Err(err).
+				Str("facility_code", params.FacilityCode).
+				Msg("failed to find facility by code")
+			errors = append(errors, "The specified facility code was not found")
+		} else {
+			params.FacilityID = facility.ID
+		}
+	}
 
-    // ... rest of your validation code ...
+	// Return all validation errors if any exist
+	if len(errors) > 0 {
+		return h.ValidationError(c, errors)
+	}
 
-    // Return all validation errors if any exist
-    if len(errors) > 0 {
-        return h.ValidationError(c, errors)
-    }
+	// Hash the password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return h.SystemError(c, err, "failed to hash password")
+	}
+	params.Password = string(hashedPassword)
 
-    // Hash the password
-    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.DefaultCost)
-    if err != nil {
-        return h.SystemError(c, err, "failed to hash password")
-    }
-    params.Password = string(hashedPassword)
+	// Create the user
+	user, err := h.db.CreateUser(c.Request().Context(), params)
+	if err != nil {
+		return h.SystemError(c, err, "failed to create user in database")
+	}
 
-    // Create the user
-    user, err := h.db.CreateUser(c.Request().Context(), params)
-    if err != nil {
-        return h.SystemError(c, err, "failed to create user in database")
-    }
+	// Log success
+	logger.Info().
+		Int("user_id", user.ID).
+		Str("email", user.Email).
+		Int("facility_id", user.FacilityID).
+		Str("role", string(user.Role)).
+		Msg("user created successfully")
 
-    // Log success
-    logger.Info().
-        Int("user_id", user.ID).
-        Str("email", user.Email).
-        Int("facility_id", user.FacilityID).
-        Str("role", string(user.Role)).
-        Msg("user created successfully")
+	// For successful creation, you might want to show a success message
+	if c.Request().Header.Get("HX-Request") == "true" {
+		// Return both the success alert and the new user list item
+		return render(c, ComponentGroup(
+			alert.Success("User Created", fmt.Sprintf("Successfully created user %s %s", user.FirstName, user.LastName)),
+			page.UserListItem(h.RouteCtx, *user),
+		))
+	}
 
-    // For successful creation, you might want to show a success message
-    if c.Request().Header.Get("HX-Request") == "true" {
-        // Return both the success alert and the new user list item
-        return render(c, ComponentGroup(
-            alert.Success("User Created", fmt.Sprintf("Successfully created user %s %s", user.FirstName, user.LastName)),
-            page.UserListItem(h.RouteCtx, *user),
-        ))
-    }
-
-    return render(c, page.UserListItem(h.RouteCtx, *user))
+	return render(c, page.UserListItem(h.RouteCtx, *user))
 }
 
 func (h *Handler) createUserForm(c echo.Context) error {
 	// Get facility code from route parameter
 	code := c.Param("facility")
+
 	if code == "" {
 		h.logger.Error().Msg("facility code is missing from request")
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "facility code is required",
 		})
 	}
-	return render(c, component.CreateUserForm(code))
+
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+	}
+
+	return render(c, component.CreateUserForm(code, string(auth.Role)))
 }
 
 func (h *Handler) handleUsers(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
@@ -243,5 +239,3 @@ func (h *Handler) handleUsers(c echo.Context, routeCtx *types.RouteContext, navI
 	)
 	return component.Render(c.Request().Context(), c.Response().Writer)
 }
-
-

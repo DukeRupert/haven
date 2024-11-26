@@ -72,7 +72,7 @@ func Facilities(route types.RouteContext, navItems []types.NavItem, title string
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button hx-get=\"./facilities/create\" hx-target=\"#facility-list\" hx-swap=\"afterbegin\" type=\"button\" class=\"ml-3 inline-flex items-center rounded-md bg-picton-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600\">Add</button>")
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button hx-get=\"./facilities/create\" hx-target=\"#facility-list\" hx-swap=\"afterbegin\" hx-target-error=\"#global-alert\" hx-indicator=\"#loading-overlay\" type=\"button\" class=\"ml-3 inline-flex items-center rounded-md bg-picton-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600\">Add</button>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

@@ -151,12 +151,12 @@ func Profile(route types.RouteContext, navItems []types.NavItem, Title string, D
 					return templ_7745c5c3_Err
 				}
 				if UserDetails.Schedule.ID == 0 {
-					templ_7745c5c3_Err = EmptyScheduleCard(route, *AuthContext, UserDetails.Schedule).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = EmptyScheduleCard(route, UserDetails.Schedule).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = ScheduleCard(*AuthContext, UserDetails.Schedule).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = ScheduleCard(route.UserRole, UserDetails.Schedule).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

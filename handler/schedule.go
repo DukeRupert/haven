@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/DukeRupert/haven/types"
+	"github.com/DukeRupert/haven/view/alert"
 	"github.com/DukeRupert/haven/view/component"
 	"github.com/DukeRupert/haven/view/page"
 	"github.com/labstack/echo/v4"
@@ -69,23 +70,30 @@ func (h *Handler) updateScheduleForm(c echo.Context) error {
 	return component.Render(c.Request().Context(), c.Response().Writer)
 }
 
-func (h *Handler) GetScheduleHandler(c echo.Context) error {
+func (h *Handler) handleGetSchedule(c echo.Context) error {
 	logger := h.logger
 
 	// Get route parameters
-	code := c.Param("code")
-	initials := c.Param("initials")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Str("facility_id", c.Param("id")).
+			Msg("invalid facility ID format")
+		return render(c, alert.Error(
+			"Invalid request",
+			[]string{"Invalid schedule ID provided"},
+		))
+	}
 
 	// Get schedule from database
-	schedule, err := h.db.GetScheduleByCode(
+	schedule, err := h.db.GetSchedule(
 		c.Request().Context(),
-		code,
-		initials,
+		id,
 	)
 	if err != nil {
 		logger.Error().Err(err).
-			Str("facility_code", code).
-			Str("user_initials", initials).
+			Int("schedule id", id).
 			Msg("Failed to get schedule")
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get schedule")
 	}
@@ -96,17 +104,8 @@ func (h *Handler) GetScheduleHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
 	}
 
-	// Log successful retrieval
-	logger.Info().
-		Int("schedule_id", schedule.ID).
-		Str("facility_code", code).
-		Str("user_initials", initials).
-		Time("start_date", schedule.StartDate).
-		Msgf("schedule retrieved successfully with weekdays %s and %s",
-			schedule.FirstWeekday, schedule.SecondWeekday)
-
 	// Return the schedule card
-	return render(c, page.ScheduleCard( *auth, *schedule))
+	return render(c, page.ScheduleCard(auth.Role, *schedule))
 }
 
 func (h *Handler) handleCreateSchedule(c echo.Context) error {
@@ -168,7 +167,7 @@ func (h *Handler) handleCreateSchedule(c echo.Context) error {
 			schedule.FirstWeekday, schedule.SecondWeekday)
 
 	// Return the updated schedule card
-	return render(c, page.ScheduleCard(*auth, *schedule))
+	return render(c, page.ScheduleCard(auth.Role, *schedule))
 }
 
 func (h *Handler) handleUpdateSchedule(c echo.Context) error {
@@ -215,7 +214,7 @@ func (h *Handler) handleUpdateSchedule(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "error fetching protected date")
 	}
-	
+
 	// Check authorization
 	if !isAuthorized(auth.UserID, auth.Role, schedule.UserID) {
 		return echo.NewHTTPError(http.StatusForbidden, "unauthorized to modify this protected date")
@@ -234,7 +233,7 @@ func (h *Handler) handleUpdateSchedule(c echo.Context) error {
 	}
 
 	component := page.ScheduleCard(
-		*auth,
+		auth.Role,
 		*schedule,
 	)
 

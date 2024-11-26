@@ -21,7 +21,7 @@ templ Login() {
 }
 
 templ LoginForm() {
-	<form id="login-form" class="space-y-6" hx-post="/login" hx-swap="none" hx-target-error="#global-alert">
+	<form id="login-form" class="space-y-6" hx-post="/login" hx-swap="none" hx-target-error="#global-alert" hx-indicator="#loading-overlay">
 		<div>
 			<label for="email" class="block text-sm/6 font-medium text-gray-900">Email address</label>
 			<div class="mt-2">

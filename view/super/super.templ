@@ -17,7 +17,7 @@ templ ShowFacilities(route types.RouteContext, navItems []types.NavItem, title s
       <p class="mt-2 text-sm text-gray-700">A list of all facilities including their name and code.</p>
     </div>
     <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-      <button hx-get="./facilities/create" hx-target="#facility-list" hx-swap="afterbegin" class="block rounded-md bg-picton-blue-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600">
+      <button hx-get="./facilities/create" hx-target="#facility-list" hx-swap="afterbegin" hx-target-error="#global-alert" hx-indicator="#loading-overlay" class="block rounded-md bg-picton-blue-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600">
         Add Facility
       </button>
     </div>
