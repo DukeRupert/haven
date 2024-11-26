@@ -66,104 +66,128 @@ type LoginParams struct {
 	Password string `json:"password" form:"password" validate:"required"`
 }
 
-// LoginHandler processes user login requests and establishes authenticated sessions.
-// It performs the following:
-// - Validates login credentials (email/password)
-// - Creates new session with core auth values (user_id, role)
-// - Queries user's facility and sets facility-related session data
-// - Redirects to facility-specific dashboard
-//
-// Session values set:
-// - user_id: int
-// - role: types.UserRole
-// - facility_code: string (new)
-// - facility_id: int (new)
+// LoginResponse handles both the alert and potential redirect for login attempts
+func (h *AuthHandler) LoginResponse(c echo.Context, status int, heading string, messages []string, redirectURL string) error {
+    c.Response().Status = status
+    
+    // For successful login with redirect
+    if status == http.StatusOK && redirectURL != "" {
+        c.Response().Header().Set("HX-Redirect", redirectURL)
+        return c.String(http.StatusOK, "")
+    }
+
+    // For errors, return the alert component
+    return alert.Error(heading, messages).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// LoginHandler handles the login form submission
 func (h *AuthHandler) LoginHandler() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		logger := h.logger.With().
-			Str("component", "auth").
-			Str("handler", "LoginHandler").
-			Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
-			Logger()
+    return func(c echo.Context) error {
+        logger := h.logger.With().
+            Str("component", "auth").
+            Str("handler", "LoginHandler").
+            Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+            Logger()
 
-		logger.Debug().Msg("Processing login request")
+        logger.Debug().Msg("Processing login request")
 
-		sess, err := session.Get(DefaultSessionName, c)
-		if err != nil {
-			logger.Error().
-				Err(err).
-				Str("session_name", DefaultSessionName).
-				Msg("Failed to get session")
-			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
-		}
+        // Get session
+        sess, err := session.Get(DefaultSessionName, c)
+        if err != nil {
+            logger.Error().
+                Err(err).
+                Str("session_name", DefaultSessionName).
+                Msg("Failed to get session")
+            return h.LoginResponse(c, 
+                http.StatusInternalServerError,
+                "System Error",
+                []string{"Unable to process login request. Please try again."},
+                "")
+        }
 
-		params := new(LoginParams)
-		if err := c.Bind(params); err != nil {
-			logger.Debug().
-				Err(err).
-				Str("email", params.Email).
-				Msg("Invalid form data submitted")
-			c.Response().WriteHeader(http.StatusUnauthorized)
-			return alert.Error("Invalid request", []string{"The submitted form data was invalid"}).
-				Render(c.Request().Context(), c.Response().Writer)
-		}
+        // Bind form data
+        params := new(LoginParams)
+        if err := c.Bind(params); err != nil {
+            logger.Debug().
+                Err(err).
+                Str("email", params.Email).
+                Msg("Invalid form data submitted")
+            return h.LoginResponse(c,
+                http.StatusUnauthorized,
+                "Invalid Request",
+                []string{"Please check your email and password and try again."},
+                "")
+        }
 
-		logger.Debug().Str("email", params.Email).Msg("Attempting user authentication")
+        logger.Debug().Str("email", params.Email).Msg("Attempting user authentication")
 
-		user, err := authenticateUser(c.Request().Context(), h.database, params.Email, params.Password)
-		if err != nil {
-			logger.Debug().
-				Err(err).
-				Str("email", params.Email).
-				Msg("Authentication failed")
-			c.Response().WriteHeader(http.StatusUnauthorized)
-			return alert.Error("Invalid request", []string{"Invalid credentials."}).
-				Render(c.Request().Context(), c.Response().Writer)
-		}
+        // Authenticate user
+        user, err := authenticateUser(c.Request().Context(), h.database, params.Email, params.Password)
+        if err != nil {
+            logger.Debug().
+                Err(err).
+                Str("email", params.Email).
+                Msg("Authentication failed")
+            return h.LoginResponse(c,
+                http.StatusUnauthorized,
+                "Login Failed",
+                []string{"Invalid email or password. Please try again."},
+                "")
+        }
 
-		logger.Debug().
-			Int("user_id", user.ID).
-			Str("role", string(user.Role)).
-			Msg("Setting session values")
+        // Get user's facility
+        facility, err := h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
+        if err != nil {
+            logger.Error().
+                Err(err).
+                Int("user_id", user.ID).
+                Int("facility_id", user.FacilityID).
+                Msg("Failed to get user's facility")
+            return h.LoginResponse(c,
+                http.StatusInternalServerError,
+                "System Error",
+                []string{"Unable to complete login process. Please try again."},
+                "")
+        }
 
-		facility, err := h.database.GetFacilityByID(c.Request().Context(), user.FacilityID)
-		if err != nil {
-			logger.Error().
-				Err(err).
-				Int("user_id", user.ID).
-				Int("facility_id", user.FacilityID).
-				Msg("Failed to get user's facility")
-			return echo.NewHTTPError(http.StatusInternalServerError, "facility error")
-		}
+        // Set session values
+        logger.Debug().
+            Int("user_id", user.ID).
+            Str("role", string(user.Role)).
+            Msg("Setting session values")
 
-		sess.Values["user_id"] = user.ID
-		sess.Values["user_role"] = user.Role         // Changed from "role" to "user_role"
-		sess.Values["user_initials"] = user.Initials // Add initials
-		sess.Values["facility_code"] = facility.Code
-		sess.Values["facility_id"] = facility.ID
-		sess.Values["last_access"] = time.Now()
+        sess.Values["user_id"] = user.ID
+        sess.Values["user_role"] = user.Role
+        sess.Values["user_initials"] = user.Initials
+        sess.Values["facility_code"] = facility.Code
+        sess.Values["facility_id"] = facility.ID
+        sess.Values["last_access"] = time.Now()
 
-		// Save session
-		if err := sess.Save(c.Request(), c.Response()); err != nil {
-			logger.Error().
-				Err(err).
-				Int("user_id", user.ID).
-				Str("session_id", sess.ID).
-				Msg("Failed to save session")
-			return echo.NewHTTPError(http.StatusInternalServerError, "session error")
-		}
+        // Save session
+        if err := sess.Save(c.Request(), c.Response()); err != nil {
+            logger.Error().
+                Err(err).
+                Int("user_id", user.ID).
+                Str("session_id", sess.ID).
+                Msg("Failed to save session")
+            return h.LoginResponse(c,
+                http.StatusInternalServerError,
+                "System Error",
+                []string{"Unable to complete login process. Please try again."},
+                "")
+        }
 
-		redirectURL := fmt.Sprintf("/%s/dashboard", facility.Code)
-		logger.Info().
-			Int("user_id", user.ID).
-			Str("email", params.Email).
-			Str("facility_code", facility.Code).
-			Str("redirect_url", redirectURL).
-			Msg("Login successful")
+        redirectURL := fmt.Sprintf("/%s/calendar", facility.Code)
+        logger.Info().
+            Int("user_id", user.ID).
+            Str("email", params.Email).
+            Str("facility_code", facility.Code).
+            Str("redirect_url", redirectURL).
+            Msg("Login successful")
 
-		c.Response().Header().Set("HX-Redirect", redirectURL)
-		return c.String(http.StatusOK, "")
-	}
+        // On success, redirect to the calendar
+        return h.LoginResponse(c, http.StatusOK, "", nil, redirectURL)
+    }
 }
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
@@ -519,10 +543,10 @@ func (h *AuthHandler) RedirectIfAuthenticated() echo.MiddlewareFunc {
 			logger.Debug().
 				Int("user_id", userID).
 				Str("facility_code", facilityCode).
-				Msg("redirecting authenticated user from login page to facility dashboard")
+				Msg("redirecting authenticated user from login page to facility calendar")
 
 			// Changed to match the path pattern seen in logs
-			redirectURL := fmt.Sprintf("/%s/dashboard", facilityCode)
+			redirectURL := fmt.Sprintf("/%s/calendar", facilityCode)
 			return c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 		}
 	}

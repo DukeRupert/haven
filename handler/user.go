@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/DukeRupert/haven/types"
-	"github.com/DukeRupert/haven/validation"
 	"github.com/DukeRupert/haven/view/alert"
 	"github.com/DukeRupert/haven/view/component"
 	"github.com/DukeRupert/haven/view/page"
@@ -109,152 +108,85 @@ func canViewOtherProfiles(auth *types.AuthContext) bool {
 	}
 }
 
-// Create handles POST app/admin/:code/users
+// Create handles POST /api/user
 func (h *Handler) handleCreateUser(c echo.Context) error {
-	logger := h.logger
+    logger := h.logger
 
-	// Create a struct specifically for form binding
-	var formData struct {
-		FirstName    string `form:"first_name"`
-		LastName     string `form:"last_name"`
-		Initials     string `form:"initials"`
-		Email        string `form:"email"`
-		Password     string `form:"password"`
-		Role         string `form:"role"` // Start as string for form binding
-		FacilityCode string `form:"facility_code"`
-	}
+    // Create a struct specifically for form binding
+    var formData struct {
+        FirstName    string `form:"first_name"`
+        LastName     string `form:"last_name"`
+        Initials     string `form:"initials"`
+        Email        string `form:"email"`
+        Password     string `form:"password"`
+        Role         string `form:"role"`
+        FacilityCode string `form:"facility_code"`
+    }
 
-	// Bind the form data first
-	if err := c.Bind(&formData); err != nil {
-		logger.Error().
-			Err(err).
-			Msg("failed to bind request payload")
-		return render(c, alert.Error(
-			"Invalid request",
-			[]string{"The submitted form data was invalid"},
-		))
-	}
+    // Bind the form data first
+    if err := c.Bind(&formData); err != nil {
+        return h.ErrorResponse(c, http.StatusBadRequest, "Invalid Request", 
+            []string{"The submitted form data was invalid"})
+    }
 
-	// Validate and collect all validation errors
-	var errors []string
-	var params types.CreateUserParams
+    // Validate and collect all validation errors
+    var errors []string
+    var params types.CreateUserParams
 
-	// Validate facility code and get facility
-	if formData.FacilityCode == "" {
-		errors = append(errors, "Facility code is required")
-	} else {
-		facility, err := h.db.GetFacilityByCode(c.Request().Context(), formData.FacilityCode)
-		if err != nil {
-			logger.Error().
-				Err(err).
-				Str("facility_code", formData.FacilityCode).
-				Msg("failed to find facility by code")
-			errors = append(errors, "The specified facility code was not found")
-		} else {
-			params.FacilityID = facility.ID
-		}
-	}
+    // Validate facility code and get facility
+    if formData.FacilityCode == "" {
+        errors = append(errors, "Facility code is required")
+    } else {
+        facility, err := h.db.GetFacilityByCode(c.Request().Context(), formData.FacilityCode)
+        if err != nil {
+            logger.Error().
+                Err(err).
+                Str("facility_code", formData.FacilityCode).
+                Msg("failed to find facility by code")
+            errors = append(errors, "The specified facility code was not found")
+        } else {
+            params.FacilityID = facility.ID
+        }
+    }
 
-	// Validate first name
-	if firstName, err := validation.ValidateUserName(formData.FirstName, "First name"); err != nil {
-		errors = append(errors, err.Error())
-	} else {
-		params.FirstName = string(firstName)
-	}
+    // ... rest of your validation code ...
 
-	// Validate last name
-	if lastName, err := validation.ValidateUserName(formData.LastName, "Last name"); err != nil {
-		errors = append(errors, err.Error())
-	} else {
-		params.LastName = string(lastName)
-	}
+    // Return all validation errors if any exist
+    if len(errors) > 0 {
+        return h.ValidationError(c, errors)
+    }
 
-	// Validate initials
-	if initials, err := validation.ValidateUserInitials(formData.Initials); err != nil {
-		errors = append(errors, err.Error())
-	} else {
-		params.Initials = string(initials)
-	}
+    // Hash the password
+    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.DefaultCost)
+    if err != nil {
+        return h.SystemError(c, err, "failed to hash password")
+    }
+    params.Password = string(hashedPassword)
 
-	// Validate email
-	if email, err := validation.ValidateUserEmail(formData.Email); err != nil {
-		errors = append(errors, err.Error())
-	} else {
-		params.Email = string(email)
-	}
+    // Create the user
+    user, err := h.db.CreateUser(c.Request().Context(), params)
+    if err != nil {
+        return h.SystemError(c, err, "failed to create user in database")
+    }
 
-	// Validate password
-	if password, err := validation.ValidateUserPassword(formData.Password); err != nil {
-		errors = append(errors, err.Error())
-	} else {
-		params.Password = string(password)
-	}
+    // Log success
+    logger.Info().
+        Int("user_id", user.ID).
+        Str("email", user.Email).
+        Int("facility_id", user.FacilityID).
+        Str("role", string(user.Role)).
+        Msg("user created successfully")
 
-	// Validate role
-	if validatedRole, err := validation.ValidateUserRole(formData.Role); err != nil {
-		errors = append(errors, err.Error())
-	} else {
-		params.Role = validatedRole
-	}
+    // For successful creation, you might want to show a success message
+    if c.Request().Header.Get("HX-Request") == "true" {
+        // Return both the success alert and the new user list item
+        return render(c, ComponentGroup(
+            alert.Success("User Created", fmt.Sprintf("Successfully created user %s %s", user.FirstName, user.LastName)),
+            page.UserListItem(h.RouteCtx, *user),
+        ))
+    }
 
-	// Return all validation errors if any exist
-	if len(errors) > 0 {
-		logger.Error().
-			Strs("validation_errors", errors).
-			Msg("validation failed")
-		heading := "There was 1 error with your submission"
-		if len(errors) > 1 {
-			heading = fmt.Sprintf("There were %d errors with your submission", len(errors))
-		}
-		c.Response().Status = http.StatusUnprocessableEntity // Code 422
-		return render(c, alert.Error(heading, errors))
-	}
-
-	// Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.DefaultCost)
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Msg("failed to hash password")
-		return render(c, alert.Error(
-			"System error",
-			[]string{"Failed to create user. Please try again later"},
-		))
-	}
-	params.Password = string(hashedPassword)
-
-	logger.Debug().
-		Str("first_name", params.FirstName).
-		Str("last_name", params.LastName).
-		Str("initials", params.Initials).
-		Str("email", params.Email).
-		Str("role", string(params.Role)).
-		Int("facility_id", params.FacilityID).
-		Msg("attempting to create user with params")
-
-	// Create the user
-	user, err := h.db.CreateUser(c.Request().Context(), params)
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Interface("params", params).
-			Msg("failed to create user in database")
-		c.Response().Status = http.StatusInternalServerError // Code 500
-		return render(c, alert.Error(
-			"System error",
-			[]string{"Failed to create user. Please try again later"},
-		))
-	}
-
-	route := h.RouteCtx
-	logger.Info().
-		Int("user_id", user.ID).
-		Str("email", user.Email).
-		Int("facility_id", user.FacilityID).
-		Str("role", string(user.Role)).
-		Msg("user created successfully")
-
-	return render(c, page.UserListItem(route, *user))
+    return render(c, page.UserListItem(h.RouteCtx, *user))
 }
 
 func (h *Handler) createUserForm(c echo.Context) error {

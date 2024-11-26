@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/DukeRupert/haven/auth"
@@ -78,56 +77,6 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.
 	api.GET("/schedule/update/:id", h.updateScheduleForm)
 	api.GET("/user/:facility", h.createUserForm)
 	api.POST("/user", h.handleCreateUser)
-}
-
-func OldSetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.PgxStore) {
-	// Define static assets
-	e.Static("/static", "assets")
-
-	// Apply global middleware
-	e.Use(middleware.Recover())
-	e.Use(middleware.RequestID())
-	e.Use(middleware.Logger())
-	e.Use(session.Middleware(store))
-	e.Use(auth.AuthMiddleware())
-	e.Use(auth.WithRouteContext())
-
-	// Define all routes - public and protected
-	// Public routes (these match the publicRoutes map in the middleware)
-	e.GET("/", h.ShowHome)
-	e.GET("/login", h.GetLogin, auth.RedirectIfAuthenticated())
-	e.POST("/login", auth.LoginHandler())
-	e.POST("/logout", auth.LogoutHandler())
-
-	// Protected routes with role hierarchy
-	e.GET("/facilities", h.WithNav(h.handleFacilities),
-		RequireMinRole(types.UserRole("super")))
-
-	// Routes that require both role and facility access checks
-	e.GET("/:facility/controllers", h.WithNav(h.handleUsers),
-		RequireMinRole(types.UserRole("admin")), // Must be at least admin
-		RequireFacilityAccess())                 // Must have access to the facility
-
-	// Protected routes
-	e.GET("/controllers", h.WithNav(h.handleUsers))
-	e.GET("/profile", h.WithNav(h.handleProfile))
-	e.GET("/:facility/profile", h.WithNav(h.handleProfile))
-	e.GET("/:facility/:initials", h.WithNav(h.handleProfile))
-	e.GET("/calendar", h.WithNav(h.handleCalendar))
-	e.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
-
-	// Api routes
-	api := e.Group("/api")
-	api.POST("/available/:id", h.handleAvailabilityToggle)
-	api.GET("/schedule/:facility/:initials", h.createScheduleForm)
-	api.POST("/schedule/:facility/:initials", h.handleCreateSchedule)
-	api.POST("/schedule/:id", h.handleUpdateSchedule)
-	api.GET("/schedule/update/:id", h.updateScheduleForm)
-	api.GET("/user/:facility", h.createUserForm)
-	api.POST("/user", h.handleCreateUser)
-
-	// protected.GET("/calendar", h.WithNav(h.handleCalendar))
-	// protected.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
 }
 
 func (h *Handler) handleFacilities(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
@@ -256,92 +205,6 @@ func (h *Handler) handleAvailabilityToggle(c echo.Context) error {
 	return component.Render(c.Request().Context(), c.Response().Writer)
 }
 
-// isAuthorizedToToggle checks if a user is authorized to toggle a protected date's availability
-func isAuthorizedToToggle(userID int, role types.UserRole, protectedDate types.ProtectedDate) bool {
-	// Allow access if user is admin or super
-	if role == "admin" || role == "super" {
-		return true
-	}
-
-	// Allow access if user owns the protected date
-	if role == "user" && userID == protectedDate.UserID {
-		return true
-	}
-
-	return false
-}
-
-// Main route handler that dispatches to specific handlers
-func (h *Handler) handleRoute(c echo.Context) error {
-	logger := h.logger.With().
-		Str("handler", "handleRoute").
-		Str("request_path", c.Request().URL.Path).
-		Str("echo_path", c.Path()).
-		Logger()
-
-	logger.Debug().Msg("starting route handler")
-
-	// Use Request().URL.Path instead of c.Path() to get actual path
-	path := c.Request().URL.Path
-
-	// Strip facility prefix if present
-	if facility := c.Param("facility"); facility != "" {
-		logger.Debug().
-			Str("facility", facility).
-			Str("original_path", path).
-			Msg("stripping facility prefix from path")
-
-		path = strings.TrimPrefix(path, "/"+facility)
-
-		logger.Debug().
-			Str("stripped_path", path).
-			Msg("facility prefix stripped")
-	}
-
-	logger.Debug().
-		Str("final_path", path).
-		Msg("routing request")
-
-	var handler string
-	var handlerFunc HandlerFunc
-
-	switch path {
-	case "/dashboard":
-		handler = "handleFacilities"
-		logger.Debug().Msg("routing to facilities handler")
-		handlerFunc = h.handleFacilities
-
-	case "/controllers":
-		handler = "handleControllers"
-		logger.Debug().Msg("routing to controller handler")
-		handlerFunc = h.handleUsers
-
-	default:
-		logger.Warn().
-			Str("path", path).
-			Msg("no route match found")
-		return echo.NewHTTPError(http.StatusNotFound, "Page not found")
-	}
-
-	// Wrap the handler with navigation and execute it
-	err := h.WithNav(handlerFunc)(c)
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Str("handler", handler).
-			Str("path", path).
-			Msg("handler returned error")
-		return err
-	}
-
-	logger.Debug().
-		Str("handler", handler).
-		Str("path", path).
-		Msg("handler completed successfully")
-
-	return nil
-}
-
 func GetAuthContext(c echo.Context) (*types.AuthContext, error) {
 	sess, err := session.Get("session", c)
 	if err != nil {
@@ -397,11 +260,4 @@ func LogAuthContext(logger zerolog.Logger, auth *types.AuthContext) {
 
 func (h *Handler) ShowHome(c echo.Context) error {
 	return render(c, page.Landing())
-}
-
-// PlaceholderMessage handles rendering a simple string message
-func (h *Handler) PlaceholderMessage(c echo.Context) error {
-	// Here you would typically have your component.PlaceholderMessage
-	// For this example, we'll return the raw message
-	return c.String(http.StatusOK, "Fix me. I need some love.")
 }

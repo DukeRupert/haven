@@ -64,8 +64,9 @@ func init() {
 }
 
 func main() {
+	// parse db migrate flags
 	migrateCmd := flag.String("migrate", "", "Migration command (up/down/reset/status)")
-	flag.Parse()
+    flag.Parse()
 
 	// Initialize logger
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -77,16 +78,16 @@ func main() {
 		log.Fatalf("Error loading config: %v", err)
 	}
 
-	if *migrateCmd != "" {
-		if err := runMigrations(config.DatabaseURL, *migrateCmd); err != nil {
-			l.Fatal().Err(err).Str("command", *migrateCmd).Msg("Migration failed")
-		}
-		l.Info().Msg("Migrations completed successfully")
-		// Only exit if migrations were explicitly requested
-		if flag.Lookup("migrate").Value.String() != "" {
-			return
-		}
-	}
+	// Run up migrations regardless of flag
+    if err := runMigrations(config.DatabaseURL, "up"); err != nil {
+        l.Fatal().Err(err).Msg("Initial migration failed")
+    }
+
+	// If migration command was explicitly provided, exit after running it
+    if *migrateCmd != "" {
+        l.Info().Msg("Migrations completed successfully")
+        return
+    }
 
 	// Initialize Echo instance
 	e := echo.New()
@@ -101,7 +102,7 @@ func main() {
 	}
 	defer db.Close()
 
-	// Initialize session s
+	// Initialize session store
 	s, err := store.NewPgxStore(db, []byte(config.SessionKey))
 	if err != nil {
 		l.Fatal().Err(err).Msg("Failed to create session store")
