@@ -423,17 +423,18 @@ func (db *DB) VerifyUserCredentials(ctx context.Context, facilityID int, initial
 	return &user, nil
 }
 
-// UpdateUserPassword updates the password hash for a user
-func (db *DB) UpdateUserPassword(ctx context.Context, userID int, hashedPassword string) error {
+func (db *DB) SetUserPassword(ctx context.Context, userID int, hashedPassword string) error {
 	_, err := db.pool.Exec(ctx, `
         UPDATE users 
         SET 
             password = $1,
-            updated_at = NOW()
+            registration_completed = true,
+            updated_at = CURRENT_TIMESTAMP
         WHERE id = $2
     `, hashedPassword, userID)
 	if err != nil {
-		return fmt.Errorf("error updating user password: %w", err)
+		return fmt.Errorf("error setting user password: %w", err)
 	}
+
 	return nil
 }

@@ -254,10 +254,13 @@ func (h *Handler) HandleSetPassword(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Could not process password"})
 	}
 
-	// Update user password
-	err = h.db.UpdateUserPassword(ctx, userID, hashedPassword)
+	// Update user password and registration status
+	err = h.db.SetUserPassword(ctx, userID, hashedPassword)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Could not update password"})
+		return alert.Error(
+			"System Error",
+			[]string{"Unable to set password. Please try again."},
+		).Render(c.Request().Context(), c.Response().Writer)
 	}
 
 	// Clean up used token
