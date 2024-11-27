@@ -45,7 +45,7 @@ func (h *Handler) updateScheduleForm(c echo.Context) error {
 	}
 
 	// Query database for record
-	schedule, err := h.db.GetSchedule(
+	schedule, err := h.db.GetScheduleByID(
 		c.Request().Context(),
 		scheduleID,
 	)
@@ -87,7 +87,7 @@ func (h *Handler) handleGetSchedule(c echo.Context) error {
 	}
 
 	// Get schedule from database
-	schedule, err := h.db.GetSchedule(
+	schedule, err := h.db.GetScheduleByID(
 		c.Request().Context(),
 		id,
 	)
@@ -210,7 +210,7 @@ func (h *Handler) handleUpdateSchedule(c echo.Context) error {
 	}
 
 	// Fetch the protected date to check ownership
-	schedule, err := h.db.GetSchedule(c.Request().Context(), scheduleID)
+	schedule, err := h.db.GetScheduleByID(c.Request().Context(), scheduleID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "error fetching protected date")
 	}

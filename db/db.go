@@ -100,14 +100,6 @@ func (db *DB) Pool() *pgxpool.Pool {
 	return db.pool
 }
 
-// HealthCheck performs a health check on the database
-func (db *DB) HealthCheck(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	return db.pool.Ping(ctx)
-}
-
 // QueryRow executes a query that is expected to return at most one row
 func (db *DB) QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row {
 	return db.pool.QueryRow(ctx, query, args...)
@@ -121,33 +113,4 @@ func (db *DB) Query(ctx context.Context, query string, args ...interface{}) (pgx
 // Exec executes a query that doesn't return rows
 func (db *DB) Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error) {
 	return db.pool.Exec(ctx, query, args...)
-}
-
-// GetContext returns a context with timeout
-func (db *DB) GetContext(timeout time.Duration) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), timeout)
-}
-
-// Transaction executes operations within a transaction
-func (db *DB) Transaction(ctx context.Context, fn func(pgx.Tx) error) error {
-    tx, err := db.pool.Begin(ctx)
-    if err != nil {
-        return fmt.Errorf("begin transaction: %w", err)
-    }
-    
-    defer func() {
-        if err != nil {
-            tx.Rollback(ctx)
-        }
-    }()
-
-    if err = fn(tx); err != nil {
-        return err
-    }
-
-    if err = tx.Commit(ctx); err != nil {
-        return fmt.Errorf("commit transaction: %w", err)
-    }
-
-    return nil
 }

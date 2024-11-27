@@ -12,6 +12,38 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func (db *DB) GetUserByID(ctx context.Context, id int) (*types.User, error) {
+	var user types.User
+	err := db.pool.QueryRow(ctx, `
+        SELECT 
+            id, 
+            created_at, 
+            updated_at, 
+            first_name, 
+            last_name, 
+            initials, 
+            email, 
+            facility_id, 
+            role
+        FROM users
+        WHERE id = $1
+    `, id).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+		&user.FirstName,
+		&user.LastName,
+		&user.Initials,
+		&user.Email,
+		&user.FacilityID,
+		&user.Role,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user by id: %w", err)
+	}
+	return &user, nil
+}
+
 func (db *DB) GetUsersByFacilityCode(ctx context.Context, facilityCode string) ([]types.User, error) {
 	rows, err := db.pool.Query(ctx, `
         SELECT u.id, u.created_at, u.updated_at, u.first_name, u.last_name, 
@@ -51,38 +83,6 @@ func (db *DB) GetUsersByFacilityCode(ctx context.Context, facilityCode string) (
 	}
 
 	return users, nil
-}
-
-func (db *DB) GetUserByID(ctx context.Context, id int) (*types.User, error) {
-	var user types.User
-	err := db.pool.QueryRow(ctx, `
-        SELECT 
-            id, 
-            created_at, 
-            updated_at, 
-            first_name, 
-            last_name, 
-            initials, 
-            email, 
-            facility_id, 
-            role
-        FROM users
-        WHERE id = $1
-    `, id).Scan(
-		&user.ID,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-		&user.FirstName,
-		&user.LastName,
-		&user.Initials,
-		&user.Email,
-		&user.FacilityID,
-		&user.Role,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("error getting user by id: %w", err)
-	}
-	return &user, nil
 }
 
 func (db *DB) GetUserByInitialsAndFacility(ctx context.Context, initials string, facilityID int) (*types.User, error) {
