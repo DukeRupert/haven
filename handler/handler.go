@@ -74,15 +74,23 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.
 	e.GET("/:facility/:initials", h.WithNav(h.handleProfile), RouteMiddleware("/profile"))
 
 	// API routes
-	api := e.Group("/api")
-	api.POST("/available/:id", h.handleAvailabilityToggle)
-	api.GET("/schedule/:facility/:initials", h.createScheduleForm)
-	api.POST("/schedule/:facility/:initials", h.handleCreateSchedule)
-	api.GET("/schedule/:id", h.handleGetSchedule)
-	api.POST("/schedule/:id", h.handleUpdateSchedule)
-	api.GET("/schedule/update/:id", h.updateScheduleForm)
-	api.GET("/user/:facility", h.createUserForm)
-	api.POST("/user", h.handleCreateUser)
+	api := e.Group("/api", API_Role_Middleware())
+	// Todo: Super only facility endpoints
+	// api.POST("/facility", h.handleCreateFacility)
+	// api.PUT("/facility/:id", h.handleUpdateFacility)
+	api.GET("/facility/create", h.CreateFacilityForm)
+	// api.GET("/facility/update", h.updateFacilityForm)
+	// Facility specific endpoints go here
+	facility := api.Group("/:facility", FacilityAPIMiddleware())
+	facility.POST("/available/:id", h.handleAvailabilityToggle)
+	facility.GET("/schedule/:facility/:initials", h.createScheduleForm)
+	facility.POST("/schedule/:facility/:initials", h.handleCreateSchedule)
+	facility.GET("/schedule/:id", h.handleGetSchedule)
+	facility.POST("/schedule/:id", h.handleUpdateSchedule)
+	facility.GET("/schedule/update/:id", h.updateScheduleForm)
+	facility.GET("/user/:facility", h.createUserForm)
+	facility.POST("/user", h.handleCreateUser)
+	facility.DELETE("/user/:id", h.DeleteUser)
 }
 
 func (h *Handler) handleFacilities(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
@@ -205,6 +213,7 @@ func (h *Handler) handleAvailabilityToggle(c echo.Context) error {
 
 	component := component.ProtectedDay(
 		auth.UserID,
+		auth.FacilityCode,
 		protectedDate,
 	)
 

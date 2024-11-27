@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/DukeRupert/haven/types"
 	"github.com/labstack/echo/v4"
@@ -204,4 +205,86 @@ func IsAtLeastRole(currentRole string, minimumRole string) bool {
 		return false
 	}
 	return currentLevel >= requiredLevel
+}
+
+type APIRouteConfig struct {
+	MinRole types.UserRole
+}
+
+var APIRouteConfigs = map[string]APIRouteConfig{
+	"/api/facility": {
+		MinRole: "super",
+	},
+	"/api/schedule": {
+		MinRole: "admin",
+	},
+	"/api/user": {
+		MinRole: "user",
+	},
+	"/api/available": {
+		MinRole: "user",
+	},
+}
+
+func API_Role_Middleware() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			path := getBasePath(c.Path())
+			config, exists := APIRouteConfigs[path]
+			if !exists {
+				return echo.NewHTTPError(http.StatusNotFound, "route not found")
+			}
+
+			auth, err := GetAuthContext(c)
+			if err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+			}
+
+			if !IsAtLeastRole(string(auth.Role), string(config.MinRole)) {
+				return echo.NewHTTPError(http.StatusForbidden, "insufficient permissions")
+			}
+
+			return next(c)
+		}
+	}
+}
+
+func getBasePath(path string) string {
+	parts := strings.Split(path, "/")
+	if len(parts) < 3 {
+		return path
+	}
+
+	// Handle paths with facility parameter
+	if parts[2] == ":facility" || len(parts[2]) == 3 { // Assuming facility codes are 3 characters
+		if len(parts) >= 4 {
+			return fmt.Sprintf("/api/%s", parts[3])
+		}
+		return "/api"
+	}
+
+	return fmt.Sprintf("/api/%s", parts[2])
+}
+
+func FacilityAPIMiddleware() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			auth, err := GetAuthContext(c)
+			if err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+			}
+
+			// Super users bypass facility check
+			if auth.Role == "super" {
+				return next(c)
+			}
+
+			facilityCode := c.Param("facility")
+			if facilityCode != auth.FacilityCode {
+				return echo.NewHTTPError(http.StatusForbidden, "unauthorized facility access")
+			}
+
+			return next(c)
+		}
+	}
 }

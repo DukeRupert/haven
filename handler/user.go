@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/alert"
@@ -238,4 +239,66 @@ func (h *Handler) handleUsers(c echo.Context, routeCtx *types.RouteContext, navI
 		users,
 	)
 	return component.Render(c.Request().Context(), c.Response().Writer)
+}
+
+// DeleteUser handles DELETE /api/user/:id
+func (h *Handler) DeleteUser(c echo.Context) error {
+    logger := h.logger.With().
+        Str("component", "handler").
+        Str("handler", "DeleteUser").
+        Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+        Logger()
+
+    // Parse user ID from path
+    userID, err := strconv.Atoi(c.Param("id"))
+    if err != nil {
+        logger.Debug().
+            Err(err).
+            Str("user_id", c.Param("id")).
+            Msg("Invalid user ID format")
+        return h.ErrorResponse(c, http.StatusBadRequest, "Invalid Request",
+            []string{"Invalid user ID format"})
+    }
+
+    // Get the user to check if exists and for logging
+    user, err := h.db.GetUserByID(c.Request().Context(), userID)
+    if err != nil {
+        logger.Error().
+            Err(err).
+            Int("user_id", userID).
+            Msg("Failed to fetch user")
+        return h.SystemError(c, err, "Failed to fetch user")
+    }
+    if user == nil {
+        return h.ErrorResponse(c, http.StatusNotFound, "Not Found",
+            []string{"User not found"})
+    }
+
+    // Delete the user
+    err = h.db.DeleteUser(c.Request().Context(), userID)
+    if err != nil {
+        logger.Error().
+            Err(err).
+            Int("user_id", userID).
+            Msg("Failed to delete user")
+        return h.SystemError(c, err, "Failed to delete user")
+    }
+
+    // Log success
+    logger.Info().
+        Int("user_id", user.ID).
+        Str("email", user.Email).
+        Int("facility_id", user.FacilityID).
+        Msg("User deleted successfully")
+
+    // For HTMX requests, return a success message
+    if c.Request().Header.Get("HX-Request") == "true" {
+        return render(c, alert.Success(
+            "User Deleted",
+            fmt.Sprintf("Successfully deleted user %s %s", user.FirstName, user.LastName),
+        ))
+    }
+
+    // For non-HTMX requests, return a 204 No Content
+    return c.NoContent(http.StatusNoContent)
 }

@@ -102,16 +102,16 @@ templ CalendarDay(props types.CalendarDayProps) {
 				</time>
 			</div>
 			for _, pd := range props.ProtectedDates {
-				@ProtectedDay(props.CurrentUserID, pd)
+				@ProtectedDay(props.CurrentUserID, props.FacilityCode, pd)
 			}
 		</div>
 	</div>
 }
 
-templ ProtectedDay(currentUserID int, pd types.ProtectedDate) {
+templ ProtectedDay(currentUserID int, facilityCode string, pd types.ProtectedDate) {
 	<div id={ fmt.Sprintf("pd-%d", pd.ID)} class="flex items-center justify-center">
 		if pd.UserID == currentUserID {
-			<button hx-post={ fmt.Sprintf("/api/available/%d", pd.ID) } hx-target={fmt.Sprintf("#pd-%d", pd.ID)} hx-swap="outerHTML" hx-confirm="Are you sure you want to change you availability status?" hx-target-error="#global-alert" hx-indicator="#loading-overlay" type="button">
+			<button hx-post={ fmt.Sprintf("/api/%s/available/%d", facilityCode, pd.ID) } hx-target={fmt.Sprintf("#pd-%d", pd.ID)} hx-swap="outerHTML" hx-confirm="Are you sure you want to change you availability status?" hx-target-error="#global-alert" hx-indicator="#loading-overlay" type="button">
 				if pd.Available {
 					<svg class="size-full fill-picton-blue-400 stroke-picton-blue-400" viewBox="0 0 8 8" aria-hidden="true">
 						<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
