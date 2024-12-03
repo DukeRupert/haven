@@ -118,7 +118,7 @@ func (h *Handler) handleCreateUser(c echo.Context) error {
 
 	// Bind the form data directly to params
 	if err := c.Bind(&params); err != nil {
-		return h.ErrorResponse(c, http.StatusBadRequest, "Invalid Request",
+		return ErrorResponse(c, http.StatusBadRequest, "Invalid Request",
 			[]string{"The submitted form data was invalid"})
 	}
 
@@ -143,20 +143,22 @@ func (h *Handler) handleCreateUser(c echo.Context) error {
 
 	// Return all validation errors if any exist
 	if len(errors) > 0 {
-		return h.ValidationError(c, errors)
+		return ValidationError(c, errors)
 	}
 
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return h.SystemError(c, err, "failed to hash password")
+		logger.Error().Msg("Failed to hash password")
+		return SystemError(c)
 	}
 	params.Password = string(hashedPassword)
 
 	// Create the user
 	user, err := h.db.CreateUser(c.Request().Context(), params)
 	if err != nil {
-		return h.SystemError(c, err, "failed to create user in database")
+		logger.Error().Msg("Failed to create user in database")
+		return SystemError(c)
 	}
 
 	// Log success
@@ -243,62 +245,177 @@ func (h *Handler) handleUsers(c echo.Context, routeCtx *types.RouteContext, navI
 
 // DeleteUser handles DELETE /api/user/:id
 func (h *Handler) DeleteUser(c echo.Context) error {
-    logger := h.logger.With().
-        Str("component", "handler").
-        Str("handler", "DeleteUser").
-        Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
-        Logger()
+	logger := h.logger.With().
+		Str("component", "handler").
+		Str("handler", "DeleteUser").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
 
-    // Parse user ID from path
-    userID, err := strconv.Atoi(c.Param("id"))
-    if err != nil {
-        logger.Debug().
-            Err(err).
-            Str("user_id", c.Param("id")).
-            Msg("Invalid user ID format")
-        return h.ErrorResponse(c, http.StatusBadRequest, "Invalid Request",
-            []string{"Invalid user ID format"})
-    }
+	// Parse user ID from path
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		logger.Debug().
+			Err(err).
+			Str("user_id", c.Param("id")).
+			Msg("Invalid user ID format")
+		return ErrorResponse(c, http.StatusBadRequest, "Invalid Request",
+			[]string{"Invalid user ID format"})
+	}
 
-    // Get the user to check if exists and for logging
-    user, err := h.db.GetUserByID(c.Request().Context(), userID)
-    if err != nil {
-        logger.Error().
-            Err(err).
-            Int("user_id", userID).
-            Msg("Failed to fetch user")
-        return h.SystemError(c, err, "Failed to fetch user")
-    }
-    if user == nil {
-        return h.ErrorResponse(c, http.StatusNotFound, "Not Found",
-            []string{"User not found"})
-    }
+	// Get the user to check if exists and for logging
+	user, err := h.db.GetUserByID(c.Request().Context(), userID)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Int("user_id", userID).
+			Msg("Failed to fetch user")
+		return SystemError(c)
+	}
+	if user == nil {
+		return ErrorResponse(c, http.StatusNotFound, "Not Found",
+			[]string{"User not found"})
+	}
 
-    // Delete the user
-    err = h.db.DeleteUser(c.Request().Context(), userID)
-    if err != nil {
-        logger.Error().
-            Err(err).
-            Int("user_id", userID).
-            Msg("Failed to delete user")
-        return h.SystemError(c, err, "Failed to delete user")
-    }
+	// Delete the user
+	err = h.db.DeleteUser(c.Request().Context(), userID)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Int("user_id", userID).
+			Msg("Failed to delete user")
+		return SystemError(c)
+	}
 
-    // Log success
-    logger.Info().
-        Int("user_id", user.ID).
-        Str("email", user.Email).
-        Int("facility_id", user.FacilityID).
-        Msg("User deleted successfully")
+	// Log success
+	logger.Info().
+		Int("user_id", user.ID).
+		Str("email", user.Email).
+		Int("facility_id", user.FacilityID).
+		Msg("User deleted successfully")
 
-    // For HTMX requests, return a success message
-    if c.Request().Header.Get("HX-Request") == "true" {
-        return render(c, alert.Success(
-            "User Deleted",
-            fmt.Sprintf("Successfully deleted user %s %s", user.FirstName, user.LastName),
-        ))
-    }
+	// For HTMX requests, return a success message
+	if c.Request().Header.Get("HX-Request") == "true" {
+		return render(c, alert.Success(
+			"User Deleted",
+			fmt.Sprintf("Successfully deleted user %s %s", user.FirstName, user.LastName),
+		))
+	}
 
-    // For non-HTMX requests, return a 204 No Content
-    return c.NoContent(http.StatusNoContent)
+	// For non-HTMX requests, return a 204 No Content
+	return c.NoContent(http.StatusNoContent)
+}
+
+// handles /api/user/:id/password
+func (h *Handler) updatePasswordForm(c echo.Context) error {
+	// Get user id from params
+	user_id, err := strconv.Atoi(c.Param("user_id"))
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Missing user_id parameter")
+		return SystemError(c)
+	}
+
+	return render(c, component.Update_Password_Form(user_id))
+}
+
+type UpdatePasswordParams struct {
+	Password string `form:"password"`
+	Confirm  string `form:"confirm"`
+}
+
+func (h *Handler) handleUpdatePassword(c echo.Context) error {
+	logger := h.logger.With().
+		Str("handler", "handleUpdatePassword").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
+
+	// Parse the user ID from the URL
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid user ID")
+		return ErrorResponse(c,
+			http.StatusBadRequest,
+			"Invalid Request",
+			[]string{"Invalid user ID provided"},
+		)
+	}
+
+	// Get authenticated user from context
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		logger.Error().Err(err).Msg("Auth context error")
+		return ErrorResponse(c,
+			http.StatusInternalServerError,
+			"System Error",
+			[]string{"Authentication error occurred"},
+		)
+	}
+
+	// Parse form data
+	var formData UpdatePasswordParams
+	if err := c.Bind(&formData); err != nil {
+		logger.Error().Err(err).Msg("Failed to bind form data")
+		return ErrorResponse(c,
+			http.StatusBadRequest,
+			"Invalid Request",
+			[]string{"Please check your input and try again"},
+		)
+	}
+
+	// Validate passwords match
+	if formData.Password != formData.Confirm {
+		return ErrorResponse(c,
+			http.StatusBadRequest,
+			"Validation Error",
+			[]string{"Passwords do not match"},
+		)
+	}
+
+	// Validate password length
+	if len(formData.Password) < 8 {
+		return ErrorResponse(c,
+			http.StatusBadRequest,
+			"Validation Error",
+			[]string{"Password must be at least 8 characters long"},
+		)
+	}
+
+	// Check authorization
+	if !isAuthorized(auth.UserID, auth.Role, userID) {
+		logger.Warn().
+			Int("requesting_user", auth.UserID).
+			Int("target_user", userID).
+			Msg("Unauthorized password update attempt")
+		return ErrorResponse(c,
+			http.StatusForbidden,
+			"Unauthorized",
+			[]string{"You are not authorized to modify this user's password"},
+		)
+	}
+
+	// Hash the new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(formData.Password), bcrypt.DefaultCost)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to hash password")
+		return ErrorResponse(c,
+			http.StatusInternalServerError,
+			"System Error",
+			[]string{"Failed to process password update"},
+		)
+	}
+
+	// Update password in database
+	err = h.db.UpdateUserPassword(c.Request().Context(), userID, string(hashedPassword))
+	if err != nil {
+		logger.Error().Err(err).
+			Int("user_id", userID).
+			Msg("Failed to update password")
+		return ErrorResponse(c,
+			http.StatusInternalServerError,
+			"System Error",
+			[]string{"Failed to update password"},
+		)
+	}
+
+	// Return success component
+	return SuccessResponse(c, "Sucess", "Password updated")
 }

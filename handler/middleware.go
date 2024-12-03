@@ -232,7 +232,7 @@ func API_Role_Middleware() echo.MiddlewareFunc {
 			path := getBasePath(c.Path())
 			config, exists := APIRouteConfigs[path]
 			if !exists {
-				return echo.NewHTTPError(http.StatusNotFound, "route not found")
+				return SystemError(c)
 			}
 
 			auth, err := GetAuthContext(c)
@@ -240,6 +240,7 @@ func API_Role_Middleware() echo.MiddlewareFunc {
 				return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
 			}
 
+			// Check minimum required role
 			if !IsAtLeastRole(string(auth.Role), string(config.MinRole)) {
 				return echo.NewHTTPError(http.StatusForbidden, "insufficient permissions")
 			}

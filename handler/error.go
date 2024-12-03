@@ -1,46 +1,52 @@
 package handler
 
 import (
-	"fmt"
-    "net/http"
+	"net/http"
 
 	"github.com/DukeRupert/haven/view/alert"
-	
-    "github.com/labstack/echo/v4"
+
+	"github.com/labstack/echo/v4"
 )
 
-// ErrorResponse wraps error responses with proper status codes and HTMX handling
-func (h *Handler) ErrorResponse(c echo.Context, status int, heading string, messages []string) error {
-    // Set the status code
-    c.Response().Status = status
-    
-    // Check if it's an HTMX request
-    if c.Request().Header.Get("HX-Request") == "true" {
-        // For HTMX requests, return just the alert component
-        return render(c, alert.Error(heading, messages))
-    }
-    
-    // For non-HTMX requests, you might want to render a full error page
-    // or redirect with a flash message
-    // TODO: Implement this based on your needs
-    return c.JSON(status, map[string]interface{}{
-        "error": heading,
-        "messages": messages,
-    })
+// ErrorResponse handles returning error alerts via HTMX
+func ErrorResponse(c echo.Context, status int, heading string, messages []string) error {
+	c.Response().Status = status
+	c.Response().Header().Set("HX-Reswap", "none")
+	return alert.Error(heading, messages).Render(c.Request().Context(), c.Response().Writer)
 }
 
-// ValidationError handles validation errors specifically
-func (h *Handler) ValidationError(c echo.Context, errors []string) error {
-    heading := "There was 1 error with your submission"
-    if len(errors) > 1 {
-        heading = fmt.Sprintf("There were %d errors with your submission", len(errors))
-    }
-    return h.ErrorResponse(c, http.StatusUnprocessableEntity, heading, errors)
+// RedirectResponse handles HTMX redirects
+func RedirectResponse(c echo.Context, redirectURL string) error {
+	c.Response().Header().Set("HX-Redirect", redirectURL)
+	return c.String(http.StatusOK, "")
 }
 
-// SystemError handles internal server errors
-func (h *Handler) SystemError(c echo.Context, err error, message string) error {
-    h.logger.Error().Err(err).Msg(message)
-    return h.ErrorResponse(c, http.StatusInternalServerError, "System Error", 
-        []string{"An unexpected error occurred. Please try again later."})
+// Common error helpers
+func SystemError(c echo.Context) error {
+	return ErrorResponse(c,
+		http.StatusInternalServerError,
+		"System Error",
+		[]string{"An unexpected error occurred. Please try again."},
+	)
+}
+
+func UnauthorizedError(c echo.Context) error {
+	return ErrorResponse(c,
+		http.StatusUnauthorized,
+		"Unauthorized",
+		[]string{"You are not authorized to perform this action."},
+	)
+}
+
+func ValidationError(c echo.Context, messages []string) error {
+	return ErrorResponse(c,
+		http.StatusUnprocessableEntity,
+		"Validation Error",
+		messages,
+	)
+}
+
+func SuccessResponse(c echo.Context, heading string, message string) error {
+	c.Response().Status = http.StatusOK
+	return alert.Success(heading, message).Render(c.Request().Context(), c.Response().Writer)
 }

@@ -438,3 +438,17 @@ func (db *DB) SetUserPassword(ctx context.Context, userID int, hashedPassword st
 
 	return nil
 }
+
+func (db *DB) UpdateUserPassword(ctx context.Context, userID int, hashedPassword string) error {
+	_, err := db.pool.Exec(ctx, `
+        UPDATE users 
+        SET 
+            password = $1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+    `, hashedPassword, userID)
+	if err != nil {
+		return fmt.Errorf("error updating user password: %w", err)
+	}
+	return nil
+}
