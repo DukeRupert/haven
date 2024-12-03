@@ -329,7 +329,7 @@ func (h *Handler) handleUpdatePassword(c echo.Context) error {
 		Logger()
 
 	// Parse the user ID from the URL
-	userID, err := strconv.Atoi(c.Param("id"))
+	userID, err := strconv.Atoi(c.Param("user_id"))
 	if err != nil {
 		logger.Error().Err(err).Msg("Invalid user ID")
 		return ErrorResponse(c,
@@ -417,5 +417,5 @@ func (h *Handler) handleUpdatePassword(c echo.Context) error {
 	}
 
 	// Return success component
-	return SuccessResponse(c, "Sucess", "Password updated")
+	return SuccessResponse(c, "Success", "Password updated")
 }

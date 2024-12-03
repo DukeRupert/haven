@@ -81,6 +81,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.
 	api.GET("/facility/create", h.CreateFacilityForm)
 	// api.GET("/facility/update", h.updateFacilityForm)
 	api.GET("/user/:user_id/password", h.updatePasswordForm)
+	api.POST("/user/:user_id/password", h.handleUpdatePassword)
 
 	// Facility specific endpoints go here
 	facility := api.Group("/:facility", FacilityAPIMiddleware())
