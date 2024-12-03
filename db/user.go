@@ -262,8 +262,7 @@ func (db *DB) CreateUser(ctx context.Context, params types.CreateUserParams) (*t
 	return &user, nil
 }
 
-func (db *DB) UpdateUser(ctx context.Context, userID int, params types.CreateUserParams) (*types.User, error) {
-	// First check if email is unique (excluding current user)
+func (db *DB) UpdateUser(ctx context.Context, userID int, params types.UpdateUserParams) (*types.User, error) {
 	var count int
 	err := db.pool.QueryRow(ctx, `
         SELECT COUNT(*) 
@@ -280,76 +279,35 @@ func (db *DB) UpdateUser(ctx context.Context, userID int, params types.CreateUse
 	var user types.User
 	now := time.Now()
 
-	// If password is empty, keep existing password
-	var query string
-	var args []interface{}
-	if params.Password != "" {
-		query = `
-            UPDATE users 
-            SET updated_at = $1,
-                first_name = $2,
-                last_name = $3,
-                initials = $4,
-                email = $5,
-                password = $6,
-                facility_id = $7,
-                role = $8
-            WHERE id = $9
-            RETURNING 
-                id, 
-                created_at, 
-                updated_at, 
-                first_name, 
-                last_name, 
-                initials, 
-                email, 
-                facility_id, 
-                role`
-		args = []interface{}{
-			now,               // $1
-			params.FirstName,  // $2
-			params.LastName,   // $3
-			params.Initials,   // $4
-			params.Email,      // $5
-			params.Password,   // $6 (should be pre-hashed)
-			params.FacilityID, // $7
-			params.Role,       // $8
-			userID,            // $9
-		}
-	} else {
-		query = `
-            UPDATE users 
-            SET updated_at = $1,
-                first_name = $2,
-                last_name = $3,
-                initials = $4,
-                email = $5,
-                facility_id = $6,
-                role = $7
-            WHERE id = $8
-            RETURNING 
-                id, 
-                created_at, 
-                updated_at, 
-                first_name, 
-                last_name, 
-                initials, 
-                email, 
-                facility_id, 
-                role`
-		args = []interface{}{
-			now,               // $1
-			params.FirstName,  // $2
-			params.LastName,   // $3
-			params.Initials,   // $4
-			params.Email,      // $5
-			params.FacilityID, // $6
-			params.Role,       // $7
-			userID,            // $8
-		}
-	}
-
-	err = db.pool.QueryRow(ctx, query, args...).Scan(
+	err = db.pool.QueryRow(ctx, `
+        UPDATE users 
+        SET updated_at = $1,
+            first_name = $2,
+            last_name = $3,
+            initials = $4,
+            email = $5,
+            facility_id = $6,
+            role = $7
+        WHERE id = $8
+        RETURNING 
+            id, 
+            created_at, 
+            updated_at, 
+            first_name, 
+            last_name, 
+            initials, 
+            email, 
+            facility_id, 
+            role`,
+		now,
+		params.FirstName,
+		params.LastName,
+		params.Initials,
+		params.Email,
+		params.FacilityID,
+		params.Role,
+		userID,
+	).Scan(
 		&user.ID,
 		&user.CreatedAt,
 		&user.UpdatedAt,

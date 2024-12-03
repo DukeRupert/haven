@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/view/alert"
@@ -181,6 +182,75 @@ func (h *Handler) handleCreateUser(c echo.Context) error {
 	return render(c, page.UserListItem(h.RouteCtx, *user))
 }
 
+func (h *Handler) handleUpdateUser(c echo.Context) error {
+	logger := h.logger
+	logger.Info().
+		Msg("Execute handleUpdateUser()")
+
+	// Get user ID from path parameter
+	userID, err := strconv.Atoi(c.Param("user_id"))
+	if err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, "Invalid User ID", []string{"The user ID provided is invalid"})
+	}
+
+	// Bind form data
+	var params types.UpdateUserParams
+	if err := c.Bind(&params); err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, "Invalid Request", []string{"The submitted form data was invalid"})
+	}
+
+	h.logger.Debug().Interface("params", params).Msg("update user params")
+
+	// Validate auth context and permissions
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get auth contect")
+		return SystemError(c)
+	}
+	if auth.Role == "user" && auth.UserID != userID {
+		return ErrorResponse(c, http.StatusForbidden, "Forbidden", []string{"You don't have permission to update this user"})
+	}
+
+	// Get existing user to check role changes
+	existingUser, err := h.db.GetUserByID(c.Request().Context(), userID)
+	if err != nil {
+		logger.Error().Err(err).Int("user_id", userID).Msg("failed to fetch existing user")
+		return SystemError(c)
+	}
+
+	// Validate role changes
+	if existingUser.Role != params.Role {
+		if auth.Role != "super" && params.Role == "super" {
+			return ErrorResponse(c, http.StatusForbidden, "Invalid Role", []string{"Only super admins can assign super admin role"})
+		}
+		if auth.Role == "user" {
+			return ErrorResponse(c, http.StatusForbidden, "Invalid Role", []string{"Users cannot change roles"})
+		}
+	}
+
+	// Update user
+	updatedUser, err := h.db.UpdateUser(c.Request().Context(), userID, params)
+	if err != nil {
+		if strings.Contains(err.Error(), "email already exists") {
+			return ValidationError(c, []string{"This email address is already in use"})
+		}
+		logger.Error().Err(err).Int("user_id", userID).Msg("failed to update user")
+		return SystemError(c)
+	}
+
+	logger.Info().
+		Int("user_id", updatedUser.ID).
+		Str("email", updatedUser.Email).
+		Str("role", string(updatedUser.Role)).
+		Msg("user updated successfully")
+
+	return render(c, ComponentGroup(
+		alert.Success("User Updated", fmt.Sprintf("Successfully updated user %s %s", updatedUser.FirstName, updatedUser.LastName)),
+		page.ProfileUserCard(*updatedUser, *auth),
+	))
+
+}
+
 func (h *Handler) createUserForm(c echo.Context) error {
 	// Get facility code from route parameter
 	code := c.Param("facility")
@@ -305,7 +375,7 @@ func (h *Handler) DeleteUser(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// handles /api/user/:id/password
+// handles /api/user/:user_id/password
 func (h *Handler) updatePasswordForm(c echo.Context) error {
 	// Get user id from params
 	user_id, err := strconv.Atoi(c.Param("user_id"))
@@ -418,4 +488,35 @@ func (h *Handler) handleUpdatePassword(c echo.Context) error {
 
 	// Return success component
 	return SuccessResponse(c, "Success", "Password updated")
+}
+
+// handles /api/user/:user_id/update
+func (h *Handler) updateUserForm(c echo.Context) error {
+
+	// Get user id from params
+	user_id, err := strconv.Atoi(c.Param("user_id"))
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Missing user_id parameter")
+		return SystemError(c)
+	}
+
+	// Get user details
+	user, err := h.db.GetUserByID(c.Request().Context(), user_id)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to retrieve user record")
+		return SystemError(c)
+	}
+
+	// Get authenticated user from context
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Auth context error")
+		return ErrorResponse(c,
+			http.StatusInternalServerError,
+			"System Error",
+			[]string{"Authentication error occurred"},
+		)
+	}
+
+	return render(c, component.UpdateUserForm(*user, *auth))
 }

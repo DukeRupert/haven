@@ -15,6 +15,15 @@ type CreateUserParams struct {
 	FacilityID   int      // Set after facility lookup, not from form
 }
 
+type UpdateUserParams struct {
+    FirstName  string    `form:"first_name"`
+    LastName   string    `form:"last_name"`
+    Initials   string    `form:"initials"`
+    Email      string    `form:"email"`
+    FacilityID int       `form:"facility_id"`
+    Role       UserRole  `form:"role"`
+}
+
 type CreateScheduleByCodeParams struct {
 	FacilityCode  string       `form:"facility_code"`
 	UserInitials  string       `form:"user_initials"`

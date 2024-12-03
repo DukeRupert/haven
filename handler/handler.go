@@ -80,6 +80,8 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.
 	// api.PUT("/facility/:id", h.handleUpdateFacility)
 	api.GET("/facility/create", h.CreateFacilityForm)
 	// api.GET("/facility/update", h.updateFacilityForm)
+	api.POST("/user/:user_id", h.handleUpdateUser)
+	api.GET("/user/:user_id/update", h.updateUserForm)
 	api.GET("/user/:user_id/password", h.updatePasswordForm)
 	api.POST("/user/:user_id/password", h.handleUpdatePassword)
 
