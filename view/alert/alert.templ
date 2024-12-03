@@ -20,6 +20,14 @@ templ Success(heading string, message string) {
 				</div>
 			</div>
 		</div>
+		<script>
+            setTimeout(function() {
+                const alert = document.getElementById('global-alert');
+                setTimeout(function() {
+                    alert.innerHTML = '';
+                }, 300);
+            }, 3000);
+        </script>
 	</div>
 }
 
@@ -78,5 +86,13 @@ templ Info(message string, actionText string, actionHref string) {
 				}
 			</div>
 		</div>
+		<script>
+            setTimeout(function() {
+                const alert = document.getElementById('global-alert');
+                setTimeout(function() {
+                    alert.innerHTML = '';
+                }, 300);
+            }, 3000);
+        </script>
 	</div>
 }
