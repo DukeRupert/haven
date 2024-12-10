@@ -41,6 +41,12 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.
 	e.Static("/static", "assets")
 
 	// Apply global middleware
+	// Add CORS middleware
+    e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+        AllowOrigins: []string{"https://sturdy-train-vq455j4p4rwf666v-8080.app.github.dev"},
+        AllowMethods: []string{echo.GET, echo.PUT, echo.POST, echo.DELETE},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+    }))
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
 	e.Use(middleware.Logger())
@@ -81,6 +87,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.
 	api.GET("/facility/create", h.CreateFacilityForm)
 	// api.GET("/facility/update", h.updateFacilityForm)
 	api.POST("/user/:user_id", h.handleUpdateUser)
+	api.DELETE("/user/:user_id", h.WithNav(h.DeleteUser))
 	api.GET("/user/:user_id/update", h.updateUserForm)
 	api.GET("/user/:user_id/password", h.updatePasswordForm)
 	api.POST("/user/:user_id/password", h.handleUpdatePassword)
@@ -95,7 +102,6 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.
 	facility.GET("/schedule/update/:id", h.updateScheduleForm)
 	facility.GET("/user/:facility", h.createUserForm)
 	facility.POST("/user", h.handleCreateUser)
-	facility.DELETE("/user/:id", h.DeleteUser)
 }
 
 func (h *Handler) handleFacilities(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {

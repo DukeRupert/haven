@@ -314,7 +314,7 @@ func (h *Handler) handleUsers(c echo.Context, routeCtx *types.RouteContext, navI
 }
 
 // DeleteUser handles DELETE /api/user/:id
-func (h *Handler) DeleteUser(c echo.Context) error {
+func (h *Handler) DeleteUser(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
 	logger := h.logger.With().
 		Str("component", "handler").
 		Str("handler", "DeleteUser").
@@ -322,7 +322,7 @@ func (h *Handler) DeleteUser(c echo.Context) error {
 		Logger()
 
 	// Parse user ID from path
-	userID, err := strconv.Atoi(c.Param("id"))
+	userID, err := strconv.Atoi(c.Param("user_id"))
 	if err != nil {
 		logger.Debug().
 			Err(err).
@@ -364,15 +364,12 @@ func (h *Handler) DeleteUser(c echo.Context) error {
 		Msg("User deleted successfully")
 
 	// For HTMX requests, return a success message
-	if c.Request().Header.Get("HX-Request") == "true" {
-		return render(c, alert.Success(
-			"User Deleted",
-			fmt.Sprintf("Successfully deleted user %s %s", user.FirstName, user.LastName),
-		))
-	}
+	redirectURL := fmt.Sprintf("/%s/controllers", routeCtx.FacilityCode)
 
-	// For non-HTMX requests, return a 204 No Content
-	return c.NoContent(http.StatusNoContent)
+	// On success, redirect to the controllers
+	c.Response().Header().Set("HX-Redirect", redirectURL)
+	return c.String(http.StatusOK, "")
+
 }
 
 // handles /api/user/:user_id/password
