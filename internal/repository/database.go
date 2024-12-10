@@ -1,5 +1,5 @@
-// db/db.go
-package db
+//  internal/repository/db.go
+package repository
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 // DB represents a database instance with its connection pool
 type DB struct {
 	pool   *pgxpool.Pool
-	config Config
 }
 
 // Config holds database configuration
@@ -69,7 +68,6 @@ func New(databaseURL string, config Config) (*DB, error) {
 					tries+1, config.MaxConnTries)
 				return &DB{
 					pool:   pool,
-					config: config,
 				}, nil
 			}
 		}

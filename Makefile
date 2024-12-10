@@ -19,7 +19,7 @@ live/server:
 
 # run tailwindcss to generate the styles.css bundle in watch mode.
 live/tailwind:
-	npx --yes tailwindcss -i ./input.css -o ./assets/styles.css --minify --watch
+	npx --yes tailwindcss -i ./web/assets/input.css -o ./web/assets/styles.css --minify --watch
 
 # start all 5 watch processes in parallel.
 live: 

@@ -1,0 +1,316 @@
+// internal/repository/schedule/repository.go
+package schedule
+
+import (
+    "context"
+    "errors"
+    "fmt"
+    "time"
+
+    "github.com/DukeRupert/haven/internal/model"
+    "github.com/jackc/pgx/v5"
+    "github.com/jackc/pgx/v5/pgxpool"
+)
+
+// Repository handles schedule-related database operations
+type Repository struct {
+    pool *pgxpool.Pool
+}
+
+// New creates a new schedule repository
+func New(pool *pgxpool.Pool) *Repository {
+    return &Repository{
+        pool: pool,
+    }
+}
+
+// Common errors
+var (
+    ErrNotFound         = fmt.Errorf("schedule not found")
+    ErrAlreadyExists    = fmt.Errorf("user already has a schedule")
+    ErrDateNotFound     = fmt.Errorf("protected date not found")
+)
+
+// creates a new schedule using facility code and user initials
+func (r *Repository) Create(ctx context.Context, params model.CreateScheduleByCodeParams) (*model.Schedule, error) {
+    // First, get the user ID using a join between facilities and users
+    var userID int
+    err := r.pool.QueryRow(ctx, `
+        SELECT u.id 
+        FROM users u
+        JOIN facilities f ON u.facility_id = f.id
+        WHERE f.code = $1 AND u.initials = $2
+    `, params.FacilityCode, params.UserInitials).Scan(&userID)
+    if err == pgx.ErrNoRows {
+        return nil, fmt.Errorf("no user found with facility code %s and initials %s",
+            params.FacilityCode, params.UserInitials)
+    }
+    if err != nil {
+        return nil, fmt.Errorf("finding user: %w", err)
+    }
+
+    // Check for existing schedule
+    exists, err := r.hasSchedule(ctx, userID)
+    if err != nil {
+        return nil, err
+    }
+    if exists {
+        return nil, ErrAlreadyExists
+    }
+
+    // Create new schedule
+    var schedule model.Schedule
+    now := time.Now()
+    err = r.pool.QueryRow(ctx, `
+        INSERT INTO schedules (
+            created_at, updated_at, user_id,
+            first_weekday, second_weekday, start_date
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING 
+            id, created_at, updated_at, user_id,
+            first_weekday, second_weekday, start_date
+    `, now, now, userID, params.FirstWeekday, params.SecondWeekday, params.StartDate).Scan(
+        &schedule.ID, &schedule.CreatedAt, &schedule.UpdatedAt,
+        &schedule.UserID, &schedule.FirstWeekday, &schedule.SecondWeekday,
+        &schedule.StartDate,
+    )
+    if err != nil {
+        return nil, fmt.Errorf("creating schedule: %w", err)
+    }
+    return &schedule, nil
+}
+
+func (r *Repository) Update(ctx context.Context, scheduleID int, params model.UpdateScheduleParams) (*model.Schedule, error) {
+	var schedule model.Schedule
+	err := r.pool.QueryRow(ctx, `
+        UPDATE schedules 
+        SET 
+            updated_at = $1,
+            first_weekday = $2,
+            second_weekday = $3,
+            start_date = $4
+        WHERE id = $5
+        RETURNING id, created_at, updated_at, user_id, first_weekday, second_weekday, start_date
+    `,
+		time.Now(),
+		params.FirstWeekday,
+		params.SecondWeekday,
+		params.StartDate,
+		scheduleID,
+	).Scan(
+		&schedule.ID,
+		&schedule.CreatedAt,
+		&schedule.UpdatedAt,
+		&schedule.UserID,
+		&schedule.FirstWeekday,
+		&schedule.SecondWeekday,
+		&schedule.StartDate,
+	)
+	if err == pgx.ErrNoRows {
+		return nil, fmt.Errorf("no schedule found with ID %d", scheduleID)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error updating schedule: %w", err)
+	}
+
+	return &schedule, nil
+}
+
+func (r *Repository) Delete(ctx context.Context, id int) error {
+	_, err := r.pool.Exec(ctx, `
+        DELETE FROM schedules
+        WHERE id = $1
+    `, id)
+	if err != nil {
+		return fmt.Errorf("error deleting schedule: %w", err)
+	}
+
+	return nil
+}
+
+func (r *Repository) GetByID(ctx context.Context, id int) (*model.Schedule, error) {
+    var schedule model.Schedule
+    err := r.pool.QueryRow(ctx, `
+        SELECT 
+            id, created_at, updated_at, user_id,
+            first_weekday, second_weekday, start_date
+        FROM schedules
+        WHERE id = $1
+    `, id).Scan(
+        &schedule.ID, &schedule.CreatedAt, &schedule.UpdatedAt,
+        &schedule.UserID, &schedule.FirstWeekday, &schedule.SecondWeekday,
+        &schedule.StartDate,
+    )
+    if err == pgx.ErrNoRows {
+        return nil, ErrNotFound
+    }
+    if err != nil {
+        return nil, fmt.Errorf("getting schedule by ID: %w", err)
+    }
+    return &schedule, nil
+}
+
+func (r *Repository) GetByUserID(ctx context.Context, userID int) (*model.Schedule, error) {
+    var schedule model.Schedule
+    err := r.pool.QueryRow(ctx, `
+        SELECT 
+            id, created_at, updated_at, user_id,
+            first_weekday, second_weekday, start_date
+        FROM schedules
+        WHERE user_id = $1
+    `, userID).Scan(
+        &schedule.ID, &schedule.CreatedAt, &schedule.UpdatedAt,
+        &schedule.UserID, &schedule.FirstWeekday, &schedule.SecondWeekday,
+        &schedule.StartDate,
+    )
+    if err == pgx.ErrNoRows {
+        return nil, ErrNotFound
+    }
+    if err != nil {
+        return nil, fmt.Errorf("getting schedule by user ID: %w", err)
+    }
+    return &schedule, nil
+}
+
+func (r *Repository) GetProtectedDateByID(ctx context.Context, id int) (model.ProtectedDate, error) {
+	var date model.ProtectedDate
+	err := r.pool.QueryRow(ctx, `
+        SELECT 
+            id,
+            created_at,
+            updated_at,
+            schedule_id,
+            date,
+            available,
+            user_id,
+            facility_id
+        FROM protected_dates
+        WHERE id = $1
+    `, id).Scan(
+		&date.ID,
+		&date.CreatedAt,
+		&date.UpdatedAt,
+		&date.ScheduleID,
+		&date.Date,
+		&date.Available,
+		&date.UserID,
+		&date.FacilityID,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return date, fmt.Errorf("protected date %d not found: %w", id, err)
+		}
+		return date, fmt.Errorf("error getting protected date %d: %w", id, err)
+	}
+
+	return date, nil
+}
+
+func (r *Repository) GetProtectedDatesByFacilityCode(ctx context.Context, facilityCode string) ([]model.ProtectedDate, error) {
+    rows, err := r.pool.Query(ctx, `
+        SELECT 
+            pd.id, pd.created_at, pd.updated_at,
+            pd.schedule_id, pd.date, pd.available,
+            pd.user_id, pd.facility_id
+        FROM protected_dates pd
+        JOIN facilities f ON pd.facility_id = f.id
+        WHERE f.code = $1
+        ORDER BY pd.date ASC, pd.user_id
+    `, facilityCode)
+    if err != nil {
+        return nil, fmt.Errorf("getting protected dates: %w", err)
+    }
+    defer rows.Close()
+
+    return r.scanProtectedDates(rows)
+}
+
+func (r *Repository) ToggleProtectedDateAvailability(ctx context.Context, dateID int) (model.ProtectedDate, error) {
+    var date model.ProtectedDate
+	err := r.pool.QueryRow(ctx, `
+        UPDATE protected_dates 
+        SET 
+            available = NOT available,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING 
+            id,
+            created_at,
+            updated_at,
+            schedule_id,
+            date,
+            available,
+            user_id,
+            facility_id
+    `, dateID).Scan(
+		&date.ID,
+		&date.CreatedAt,
+		&date.UpdatedAt,
+		&date.ScheduleID,
+		&date.Date,
+		&date.Available,
+		&date.UserID,
+		&date.FacilityID,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return date, fmt.Errorf("protected date %d not found: %w", dateID, err)
+		}
+		return date, fmt.Errorf("error toggling protected date %d: %w", dateID, err)
+	}
+
+	return date, nil
+}
+
+// Helper methods
+func (r *Repository) hasSchedule(ctx context.Context, userID int) (bool, error) {
+    var exists bool
+    err := r.pool.QueryRow(ctx, `
+        SELECT EXISTS(SELECT 1 FROM schedules WHERE user_id = $1)
+    `, userID).Scan(&exists)
+    if err != nil {
+        return false, fmt.Errorf("checking schedule existence: %w", err)
+    }
+    return exists, nil
+}
+
+func (r *Repository) scanProtectedDates(rows pgx.Rows) ([]model.ProtectedDate, error) {
+	var dates []model.ProtectedDate
+	for rows.Next() {
+		var date model.ProtectedDate
+		err := rows.Scan(
+			&date.ID,
+			&date.CreatedAt,
+			&date.UpdatedAt,
+			&date.ScheduleID,
+			&date.Date,
+			&date.Available,
+			&date.UserID,
+			&date.FacilityID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning protected date row: %w", err)
+		}
+		dates = append(dates, date)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating protected date rows: %w", err)
+	}
+
+	return dates, nil
+}
+
+func (r *Repository) doesUserExist(ctx context.Context, userID int) (bool, error) {
+	var exists bool
+	err := r.pool.QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)
+	`, userID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("error checking user existence: %w", err)
+	}
+	return exists, nil
+}

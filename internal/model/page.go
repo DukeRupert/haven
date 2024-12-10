@@ -1,4 +1,4 @@
-package types
+package model
 
 // UserPageData contains all data needed for user page rendering
 type UserPageData struct {
