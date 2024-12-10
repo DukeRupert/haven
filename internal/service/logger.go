@@ -1,4 +1,4 @@
-package logger
+package service
 
 import (
 	"os"
@@ -23,7 +23,7 @@ func Initialize(environment string) *Logger {
 
 	// Configure global settings
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	
+
 	// Set appropriate log level based on environment
 	logLevel := zerolog.InfoLevel
 	if environment == "development" {

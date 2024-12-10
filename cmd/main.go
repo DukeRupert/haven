@@ -17,7 +17,7 @@ import (
 	"github.com/DukeRupert/haven/handler"
 	"github.com/DukeRupert/haven/store"
 	"github.com/DukeRupert/haven/types"
-	workers "github.com/DukeRupert/haven/worker"
+	"github.com/DukeRupert/haven/worker"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v4"
