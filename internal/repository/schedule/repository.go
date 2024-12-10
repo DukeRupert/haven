@@ -7,7 +7,8 @@ import (
     "fmt"
     "time"
 
-    "github.com/DukeRupert/haven/internal/model"
+    "github.com/DukeRupert/haven/internal/model/entity"
+    "github.com/DukeRupert/haven/internal/model/params"
     "github.com/jackc/pgx/v5"
     "github.com/jackc/pgx/v5/pgxpool"
 )
@@ -32,7 +33,7 @@ var (
 )
 
 // creates a new schedule using facility code and user initials
-func (r *Repository) Create(ctx context.Context, params model.CreateScheduleByCodeParams) (*model.Schedule, error) {
+func (r *Repository) Create(ctx context.Context, params params.CreateScheduleByCodeParams) (*entity.Schedule, error) {
     // First, get the user ID using a join between facilities and users
     var userID int
     err := r.pool.QueryRow(ctx, `
@@ -59,7 +60,7 @@ func (r *Repository) Create(ctx context.Context, params model.CreateScheduleByCo
     }
 
     // Create new schedule
-    var schedule model.Schedule
+    var schedule entity.Schedule
     now := time.Now()
     err = r.pool.QueryRow(ctx, `
         INSERT INTO schedules (
@@ -81,8 +82,8 @@ func (r *Repository) Create(ctx context.Context, params model.CreateScheduleByCo
     return &schedule, nil
 }
 
-func (r *Repository) Update(ctx context.Context, scheduleID int, params model.UpdateScheduleParams) (*model.Schedule, error) {
-	var schedule model.Schedule
+func (r *Repository) Update(ctx context.Context, scheduleID int, params params.UpdateScheduleParams) (*entity.Schedule, error) {
+	var schedule entity.Schedule
 	err := r.pool.QueryRow(ctx, `
         UPDATE schedules 
         SET 
@@ -129,8 +130,8 @@ func (r *Repository) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func (r *Repository) GetByID(ctx context.Context, id int) (*model.Schedule, error) {
-    var schedule model.Schedule
+func (r *Repository) GetByID(ctx context.Context, id int) (*entity.Schedule, error) {
+    var schedule entity.Schedule
     err := r.pool.QueryRow(ctx, `
         SELECT 
             id, created_at, updated_at, user_id,
@@ -151,8 +152,8 @@ func (r *Repository) GetByID(ctx context.Context, id int) (*model.Schedule, erro
     return &schedule, nil
 }
 
-func (r *Repository) GetByUserID(ctx context.Context, userID int) (*model.Schedule, error) {
-    var schedule model.Schedule
+func (r *Repository) GetByUserID(ctx context.Context, userID int) (*entity.Schedule, error) {
+    var schedule entity.Schedule
     err := r.pool.QueryRow(ctx, `
         SELECT 
             id, created_at, updated_at, user_id,
@@ -173,8 +174,8 @@ func (r *Repository) GetByUserID(ctx context.Context, userID int) (*model.Schedu
     return &schedule, nil
 }
 
-func (r *Repository) GetProtectedDateByID(ctx context.Context, id int) (model.ProtectedDate, error) {
-	var date model.ProtectedDate
+func (r *Repository) GetProtectedDateByID(ctx context.Context, id int) (entity.ProtectedDate, error) {
+	var date entity.ProtectedDate
 	err := r.pool.QueryRow(ctx, `
         SELECT 
             id,
@@ -208,7 +209,7 @@ func (r *Repository) GetProtectedDateByID(ctx context.Context, id int) (model.Pr
 	return date, nil
 }
 
-func (r *Repository) GetProtectedDatesByFacilityCode(ctx context.Context, facilityCode string) ([]model.ProtectedDate, error) {
+func (r *Repository) GetProtectedDatesByFacilityCode(ctx context.Context, facilityCode string) ([]entity.ProtectedDate, error) {
     rows, err := r.pool.Query(ctx, `
         SELECT 
             pd.id, pd.created_at, pd.updated_at,
@@ -227,8 +228,8 @@ func (r *Repository) GetProtectedDatesByFacilityCode(ctx context.Context, facili
     return r.scanProtectedDates(rows)
 }
 
-func (r *Repository) ToggleProtectedDateAvailability(ctx context.Context, dateID int) (model.ProtectedDate, error) {
-    var date model.ProtectedDate
+func (r *Repository) ToggleProtectedDateAvailability(ctx context.Context, dateID int) (entity.ProtectedDate, error) {
+    var date entity.ProtectedDate
 	err := r.pool.QueryRow(ctx, `
         UPDATE protected_dates 
         SET 
@@ -277,10 +278,10 @@ func (r *Repository) hasSchedule(ctx context.Context, userID int) (bool, error) 
     return exists, nil
 }
 
-func (r *Repository) scanProtectedDates(rows pgx.Rows) ([]model.ProtectedDate, error) {
-	var dates []model.ProtectedDate
+func (r *Repository) scanProtectedDates(rows pgx.Rows) ([]entity.ProtectedDate, error) {
+	var dates []entity.ProtectedDate
 	for rows.Next() {
-		var date model.ProtectedDate
+		var date entity.ProtectedDate
 		err := rows.Scan(
 			&date.ID,
 			&date.CreatedAt,

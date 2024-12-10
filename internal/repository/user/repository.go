@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DukeRupert/haven/internal/model"
+	"github.com/DukeRupert/haven/internal/model/dto"
+	"github.com/DukeRupert/haven/internal/model/params"
+	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/repository/facility"
 	"github.com/DukeRupert/haven/internal/repository/schedule"
 	"github.com/jackc/pgx/v5"
@@ -37,8 +39,8 @@ var (
     ErrEmailExists  = fmt.Errorf("email already exists")
 )
 
-func (r *Repository) GetByID(ctx context.Context, id int) (*model.User, error) {
-    var user model.User
+func (r *Repository) GetByID(ctx context.Context, id int) (*entity.User, error) {
+    var user entity.User
     err := r.pool.QueryRow(ctx, `
         SELECT 
             id, created_at, updated_at, first_name, last_name, 
@@ -59,7 +61,7 @@ func (r *Repository) GetByID(ctx context.Context, id int) (*model.User, error) {
     return &user, nil
 }
 
-func (r *Repository) GetByFacilityCode(ctx context.Context, facilityCode string) ([]model.User, error) {
+func (r *Repository) GetByFacilityCode(ctx context.Context, facilityCode string) ([]entity.User, error) {
     rows, err := r.pool.Query(ctx, `
         SELECT 
             u.id, u.created_at, u.updated_at, u.first_name, u.last_name,
@@ -74,9 +76,9 @@ func (r *Repository) GetByFacilityCode(ctx context.Context, facilityCode string)
     }
     defer rows.Close()
 
-    var users []model.User
+    var users []entity.User
     for rows.Next() {
-        var user model.User
+        var user entity.User
         err := rows.Scan(
             &user.ID, &user.CreatedAt, &user.UpdatedAt,
             &user.FirstName, &user.LastName, &user.Initials,
@@ -95,7 +97,7 @@ func (r *Repository) GetByFacilityCode(ctx context.Context, facilityCode string)
     return users, nil
 }
 
-func (r *Repository) Create(ctx context.Context, params model.CreateUserParams) (*model.User, error) {
+func (r *Repository) Create(ctx context.Context, params params.CreateUserParams) (*entity.User, error) {
     log.Debug().
         Str("first_name", params.FirstName).
         Str("last_name", params.LastName).
@@ -114,7 +116,7 @@ func (r *Repository) Create(ctx context.Context, params model.CreateUserParams) 
         return nil, ErrEmailExists
     }
 
-    var user model.User
+    var user entity.User
     now := time.Now()
     err = r.pool.QueryRow(ctx, `
         INSERT INTO users (
@@ -141,7 +143,7 @@ func (r *Repository) Create(ctx context.Context, params model.CreateUserParams) 
     return &user, nil
 }
 
-func (r *Repository) Update(ctx context.Context, userID int, params model.UpdateUserParams) (*model.User, error) {
+func (r *Repository) Update(ctx context.Context, userID int, params params.UpdateUserParams) (*entity.User, error) {
 	var count int
 	err := r.pool.QueryRow(ctx, `
         SELECT COUNT(*) 
@@ -155,7 +157,7 @@ func (r *Repository) Update(ctx context.Context, userID int, params model.Update
 		return nil, fmt.Errorf("email already exists: %s", params.Email)
 	}
 
-	var user model.User
+	var user entity.User
 	now := time.Now()
 
 	err = r.pool.QueryRow(ctx, `
@@ -223,8 +225,8 @@ func (r *Repository) Delete(ctx context.Context, userID int) error {
 }
 
 // VerifyUserCredentials checks if a user exists with matching facility_id, initials, and email
-func (r *Repository) VerifyCredentials(ctx context.Context, facilityID int, initials, email string) (*model.User, error) {
-	var user model.User
+func (r *Repository) VerifyCredentials(ctx context.Context, facilityID int, initials, email string) (*entity.User, error) {
+	var user entity.User
 	err := r.pool.QueryRow(ctx, `
         SELECT 
             id, 
@@ -291,7 +293,7 @@ func (r *Repository) UpdatePassword(ctx context.Context, userID int, hashedPassw
 }
 
 // GetDetails retrieves full user details including facility and schedule
-func (r *Repository) GetDetails(ctx context.Context, initials string, facilityID int) (*model.UserDetails, error) {
+func (r *Repository) GetDetails(ctx context.Context, initials string, facilityID int) (*dto.UserDetails, error) {
     // Get user first
     user, err := r.GetByInitialsAndFacility(ctx, initials, facilityID)
     if err != nil {
@@ -300,11 +302,11 @@ func (r *Repository) GetDetails(ctx context.Context, initials string, facilityID
 
     // Create result channels
     type facilityResult struct {
-        facility *model.Facility
+        facility *entity.Facility
         err      error
     }
     type scheduleResult struct {
-        schedule *model.Schedule
+        schedule *entity.Schedule
         err      error
     }
     
@@ -320,7 +322,7 @@ func (r *Repository) GetDetails(ctx context.Context, initials string, facilityID
     go func() {
         schedule, err := r.schedule.GetByUserID(ctx, user.ID)
         if errors.Is(err, pgx.ErrNoRows) {
-            schedule = &model.Schedule{UserID: user.ID}
+            schedule = &entity.Schedule{UserID: user.ID}
             err = nil
         }
         scheduleChan <- scheduleResult{schedule, err}
@@ -337,7 +339,7 @@ func (r *Repository) GetDetails(ctx context.Context, initials string, facilityID
         return nil, fmt.Errorf("getting schedule: %w", sResult.err)
     }
 
-    return &model.UserDetails{
+    return &dto.UserDetails{
         User:     *user,
         Facility: *fResult.facility,
         Schedule: *sResult.schedule,
@@ -345,8 +347,8 @@ func (r *Repository) GetDetails(ctx context.Context, initials string, facilityID
 }
 
 // GetByInitialsAndFacility finds a user by their initials and facility ID
-func (r *Repository) GetByInitialsAndFacility(ctx context.Context, initials string, facilityID int) (*model.User, error) {
-    var user model.User
+func (r *Repository) GetByInitialsAndFacility(ctx context.Context, initials string, facilityID int) (*entity.User, error) {
+    var user entity.User
     err := r.pool.QueryRow(ctx, `
         SELECT 
             id, created_at, updated_at, first_name, last_name, 

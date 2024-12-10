@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DukeRupert/haven/internal/model"
+	"github.com/DukeRupert/haven/internal/model/entity"
+	"github.com/DukeRupert/haven/internal/model/params"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -29,7 +30,7 @@ var (
 	ErrNotFound      = fmt.Errorf("facility not found")
 )
 
-func (r *Repository) List(ctx context.Context) ([]model.Facility, error) {
+func (r *Repository) List(ctx context.Context) ([]entity.Facility, error) {
 	rows, err := r.pool.Query(ctx, `
         SELECT id, created_at, name, code
         FROM facilities
@@ -40,9 +41,9 @@ func (r *Repository) List(ctx context.Context) ([]model.Facility, error) {
 	}
 	defer rows.Close()
 
-	var facilities []model.Facility
+	var facilities []entity.Facility
 	for rows.Next() {
-		var f model.Facility
+		var f entity.Facility
 		err := rows.Scan(
 			&f.ID,
 			&f.CreatedAt,
@@ -62,8 +63,8 @@ func (r *Repository) List(ctx context.Context) ([]model.Facility, error) {
 	return facilities, nil
 }
 
-func (r *Repository) GetByID(ctx context.Context, id int) (*model.Facility, error) {
-	var f model.Facility
+func (r *Repository) GetByID(ctx context.Context, id int) (*entity.Facility, error) {
+	var f entity.Facility
 	err := r.pool.QueryRow(ctx, `
         SELECT id, created_at, updated_at, name, code
         FROM facilities
@@ -84,8 +85,8 @@ func (r *Repository) GetByID(ctx context.Context, id int) (*model.Facility, erro
 	return &f, nil
 }
 
-func (r *Repository) GetByCode(ctx context.Context, code string) (*model.Facility, error) {
-	var f model.Facility
+func (r *Repository) GetByCode(ctx context.Context, code string) (*entity.Facility, error) {
+	var f entity.Facility
 	err := r.pool.QueryRow(ctx, `
         SELECT id, created_at, updated_at, name, code
         FROM facilities
@@ -103,7 +104,7 @@ func (r *Repository) GetByCode(ctx context.Context, code string) (*model.Facilit
 	return &f, nil
 }
 
-func (r *Repository) Create(ctx context.Context, params model.CreateFacilityParams) (*model.Facility, error) {
+func (r *Repository) Create(ctx context.Context, params params.CreateFacilityParams) (*entity.Facility, error) {
 	// Check for unique code first
 	isUnique, err := r.IsCodeUnique(ctx, params.Code, nil)
 	if err != nil {
@@ -113,7 +114,7 @@ func (r *Repository) Create(ctx context.Context, params model.CreateFacilityPara
 		return nil, ErrDuplicateCode
 	}
 
-	var f model.Facility
+	var f entity.Facility
 	now := time.Now()
 	err = r.pool.QueryRow(ctx, `
 		INSERT INTO facilities (created_at, updated_at, name, code)  -- Added updated_at
@@ -132,7 +133,7 @@ func (r *Repository) Create(ctx context.Context, params model.CreateFacilityPara
 	return &f, nil
 }
 
-func (r *Repository) UpdateFacility(ctx context.Context, id int, params model.UpdateFacilityParams) (*model.Facility, error) {
+func (r *Repository) UpdateFacility(ctx context.Context, id int, params params.UpdateFacilityParams) (*entity.Facility, error) {
 	// Check for unique code first, excluding the current facility ID
 	isUnique, err := r.IsCodeUnique(ctx, params.Code, &id)
 	if err != nil {
@@ -142,7 +143,7 @@ func (r *Repository) UpdateFacility(ctx context.Context, id int, params model.Up
 		return nil, ErrDuplicateCode
 	}
 
-	var f model.Facility
+	var f entity.Facility
 	now := time.Now()
 
 	err = r.pool.QueryRow(ctx, `
