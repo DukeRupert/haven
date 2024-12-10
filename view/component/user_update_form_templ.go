@@ -35,7 +35,7 @@ func UpdateUserForm(user types.User, auth types.AuthContext) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 1)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -48,7 +48,7 @@ func UpdateUserForm(user types.User, auth types.AuthContext) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 2)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-target=\"this\" hx-swap=\"outerHTML\" hx-target-error=\"#global-alert\" hx-indicator=\"#loading-overlay\" class=\"w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0\"><input type=\"hidden\" name=\"facility_id\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -61,7 +61,7 @@ func UpdateUserForm(user types.User, auth types.AuthContext) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 3)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"><div class=\"w-full\"><label for=\"first_name\" class=\"block text-sm/6 font-medium text-gray-900\">First Name</label> <input id=\"first_name\" name=\"first_name\" type=\"text\" required value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -74,7 +74,7 @@ func UpdateUserForm(user types.User, auth types.AuthContext) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 4)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" placeholder=\"John\" class=\"block w-full ring-1 ring-inset ring-gray-300 py-1.5 pl-1 rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm\"></div><div class=\"w-full\"><label for=\"last_name\" class=\"block text-sm/6 font-medium text-gray-900\">Last Name</label> <input id=\"last_name\" name=\"last_name\" type=\"text\" required value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -87,7 +87,7 @@ func UpdateUserForm(user types.User, auth types.AuthContext) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 5)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" placeholder=\"Doe\" class=\"block w-full ring-1 ring-inset ring-gray-300 py-1.5 pl-1 rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm\"></div><div class=\"w-full\"><label for=\"initials\" class=\"block text-sm/6 font-medium text-gray-900\">Initials</label> <input id=\"initials\" name=\"initials\" type=\"text\" required value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -100,7 +100,7 @@ func UpdateUserForm(user types.User, auth types.AuthContext) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 6)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" maxlength=\"2\" placeholder=\"JD\" class=\"block w-full ring-1 ring-inset ring-gray-300 py-1.5 pl-1 rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm\"></div><div class=\"w-full\"><label for=\"email\" class=\"block text-sm/6 font-medium text-gray-900\">Email</label> <input id=\"email\" name=\"email\" type=\"email\" required value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -113,57 +113,57 @@ func UpdateUserForm(user types.User, auth types.AuthContext) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 7)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" placeholder=\"john.doe@example.com\" class=\"block w-full ring-1 ring-inset ring-gray-300 py-1.5 pl-1 rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm\"></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if auth.Role != "user" {
-			templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 8)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"w-full\"><label for=\"role\" class=\"block text-sm/6 font-medium text-gray-900\">Role</label> <select id=\"role\" name=\"role\" required class=\"block w-full ring-1 ring-inset ring-gray-300 py-1.5 pl-1 rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm\"><option value=\"\">Select a role</option> <option value=\"user\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if user.Role == "user" {
-				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 9)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 10)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(">User</option> <option value=\"admin\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if user.Role == "admin" {
-				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 11)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 12)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(">Admin</option> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if auth.Role == "super" {
-				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 13)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<option value=\"super\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if user.Role == "super" {
-					templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 14)
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" selected")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 15)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(">Super Admin</option>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 16)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</select></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 17)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"sm:col-span-2 flex justify-end gap-x-6 mt-4\"><button type=\"submit\" class=\"text-picton-blue-600 hover:text-picton-blue-900\">Save</button></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
