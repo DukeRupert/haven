@@ -24,3 +24,8 @@ type UpdateUserParams struct {
 	FacilityID int            `form:"facility_id"`
 	Role       types.UserRole `form:"role"`
 }
+
+type UpdatePasswordParams struct {
+	Password string `form:"password" validate:"required,min=8"`
+	Confirm  string `form:"confirm" validate:"required,eqfield=Password"`
+}

@@ -2,10 +2,8 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/DukeRupert/haven/internal/auth"
 	"github.com/DukeRupert/haven/internal/context"
@@ -113,13 +111,11 @@ func setupAPIRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware) {
 	// User management endpoints - require admin role
 	users := api.Group("/users")
 	users.Use(auth.RequireRole(types.UserRoleAdmin))
-	{
-		users.POST("/:user_id", h.HandleUpdateUser)
-		users.DELETE("/:user_id", h.DeleteUser)
-		users.GET("/:user_id/update", h.GetUpdateUserForm)
-		users.GET("/:user_id/password", h.GetUpdatePasswordForm)
-		users.POST("/:user_id/password", h.HandleUpdatePassword)
-	}
+	users.POST("/:user_id", h.HandleUpdateUser)
+	users.DELETE("/:user_id", h.WithNav(h.HandleDeleteUser))
+	users.GET("/:user_id/update", h.GetUpdateUserForm)
+	users.GET("/:user_id/password", h.GetUpdatePasswordForm)
+	users.POST("/:user_id/password", h.HandleUpdatePassword)
 
 	// Facility specific endpoints
 	facilities := api.Group("/facilities")
@@ -139,72 +135,8 @@ func setupFacilityRoutes(g *echo.Group, h *Handler) {
 	g.POST("/:facility/users", h.HandleCreateUser)
 }
 
-
-
 func (h *Handler) GetLogin(c echo.Context) error {
 	return render(c, page.Login())
-}
-
-// handleCalendar handles GET requests for the calendar view
-func (h *Handler) handleCalendar(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error {
-	// Get facility code from path parameter
-	facilityCode := c.Param("facility")
-	if facilityCode == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "facility code is required")
-	}
-
-	// Parse the month query parameter
-	monthStr := c.QueryParam("month")
-	var viewDate time.Time
-	var err error
-
-	if monthStr != "" {
-		// Parse YYYY-MM format
-		viewDate, err = time.Parse("2006-01", monthStr)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "invalid month format")
-		}
-	} else {
-		// Default to current month
-		now := time.Now()
-		viewDate = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
-	}
-
-	// Get protected dates for the month
-	protectedDates, err := h.repos.Schedule.GetProtectedDatesByFacilityCode(c.Request().Context(), facilityCode)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "error fetching protected dates")
-	}
-
-	auth, err := GetAuthContext(c)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
-	}
-
-	props := dto.CalendarProps{
-		CurrentMonth:   viewDate,
-		FacilityCode:   facilityCode,
-		ProtectedDates: protectedDates,
-		UserRole:       auth.Role,
-		CurrentUserID:  auth.UserID,
-	}
-
-	pageProps := dto.CalendarPageProps{
-		Route:       *routeCtx,
-		NavItems:    navItems,
-		Auth:        *auth,
-		Title:       "Calendar",
-		Description: "View the facility calendar",
-		Calendar:    props,
-	}
-
-	// Render only the calendar component for HTMX requests
-	if c.Request().Header.Get("HX-Request") == "true" {
-		return component.Calendar(props).Render(c.Request().Context(), c.Response().Writer)
-	}
-
-	// For regular requests, render the full page (assuming you have a layout)
-	return page.CalendarPage(pageProps).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // Updated handler function
@@ -245,41 +177,6 @@ func (h *Handler) handleAvailabilityToggle(c echo.Context) error {
 	)
 
 	return component.Render(c.Request().Context(), c.Response().Writer)
-}
-
-func GetAuthContext(c echo.Context) (*dto.AuthContext, error) {
-	sess, err := session.Get("session", c)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get session: %w", err)
-	}
-
-	userID, ok := sess.Values["user_id"].(int)
-	if !ok {
-		return nil, fmt.Errorf("invalid user_id in session")
-	}
-
-	role, ok := sess.Values["role"].(types.UserRole)
-	if !ok {
-		return nil, fmt.Errorf("invalid role in session")
-	}
-
-	auth := &dto.AuthContext{
-		UserID: userID,
-		Role:   role,
-	}
-
-	// Optional values
-	if initials, ok := sess.Values["initials"].(string); ok {
-		auth.Initials = initials
-	}
-	if facilityID, ok := sess.Values["facility_id"].(int); ok {
-		auth.FacilityID = facilityID
-	}
-	if facilityCode, ok := sess.Values["facility_code"].(string); ok {
-		auth.FacilityCode = facilityCode
-	}
-
-	return auth, nil
 }
 
 func LogAuthContext(logger zerolog.Logger, auth *dto.AuthContext) {

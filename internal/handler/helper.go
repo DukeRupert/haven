@@ -6,15 +6,138 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"net/http"
+	"strconv"
 	"strings"
 
-	"github.com/DukeRupert/haven/types"
+	"github.com/DukeRupert/haven/internal/model/dto"
+	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/a-h/templ"
+	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
+
+func GetAuthContext(c echo.Context) (*dto.AuthContext, error) {
+	sess, err := session.Get("session", c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session: %w", err)
+	}
+
+	userID, ok := sess.Values["user_id"].(int)
+	if !ok {
+		return nil, fmt.Errorf("invalid user_id in session")
+	}
+
+	role, ok := sess.Values["role"].(types.UserRole)
+	if !ok {
+		return nil, fmt.Errorf("invalid role in session")
+	}
+
+	auth := &dto.AuthContext{
+		UserID: userID,
+		Role:   role,
+	}
+
+	// Optional values
+	if initials, ok := sess.Values["initials"].(string); ok {
+		auth.Initials = initials
+	}
+	if facilityID, ok := sess.Values["facility_id"].(int); ok {
+		auth.FacilityID = facilityID
+	}
+	if facilityCode, ok := sess.Values["facility_code"].(string); ok {
+		auth.FacilityCode = facilityCode
+	}
+
+	return auth, nil
+}
+
+func canUpdateUser(auth *dto.AuthContext, targetUserID int) bool {
+	if auth.Role == types.UserRoleSuper {
+		return true
+	}
+	if auth.Role == types.UserRoleAdmin {
+		return true
+	}
+	return auth.UserID == targetUserID
+}
+
+func (h *Handler) validateRoleChange(ctx context.Context, auth *dto.AuthContext,
+	userID int, newRole types.UserRole,
+) error {
+	// Get existing user
+	existingUser, err := h.repos.User.GetByID(ctx, userID)
+	if err != nil {
+		return SystemError(echo.New().AcquireContext())
+	}
+
+	// No role change, no validation needed
+	if existingUser.Role == newRole {
+		return nil
+	}
+
+	// Validate role change permissions
+	if auth.Role != types.UserRoleSuper && newRole == types.UserRoleSuper {
+		return ErrorResponse(echo.New().AcquireContext(),
+			http.StatusForbidden,
+			"Invalid Role",
+			[]string{"Only super admins can assign super admin role"})
+	}
+
+	if auth.Role == types.UserRoleUser {
+		return ErrorResponse(echo.New().AcquireContext(),
+			http.StatusForbidden,
+			"Invalid Role",
+			[]string{"Users cannot change roles"})
+	}
+
+	return nil
+}
+
+func getUserID(c echo.Context) (int, error) {
+	return strconv.Atoi(c.Param("user_id"))
+}
+
+func canAccessUserForm(auth *dto.AuthContext, targetUserID int) bool {
+	// Super admins can edit anyone
+	if auth.Role == types.UserRoleSuper {
+		return true
+	}
+
+	// Admins can edit non-super users
+	if auth.Role == types.UserRoleAdmin {
+		return true
+	}
+
+	// Users can only edit themselves
+	return auth.UserID == targetUserID
+}
+
+func canDeleteUser(auth *dto.AuthContext, targetUserID int) bool {
+	switch auth.Role {
+	case types.UserRoleSuper:
+		return true
+	case types.UserRoleAdmin:
+		return auth.UserID != targetUserID // Admins can't delete themselves
+	default:
+		return false
+	}
+}
+
+// Helper functions
+func canUpdatePassword(auth *dto.AuthContext, targetUserID int) bool {
+	switch auth.Role {
+	case types.UserRoleSuper:
+		return true
+	case types.UserRoleAdmin:
+		return true
+	default:
+		return auth.UserID == targetUserID
+	}
+}
 
 // Reduce boilerplate for simple templ component renders
 func render(c echo.Context, component templ.Component) error {
