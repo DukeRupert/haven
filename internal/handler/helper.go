@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/DukeRupert/haven/internal/model/dto"
+	"github.com/DukeRupert/haven/internal/model/entity"
+	"github.com/DukeRupert/haven/internal/model/params"
 	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/a-h/templ"
 	"github.com/labstack/echo-contrib/session"
@@ -139,6 +142,191 @@ func canUpdatePassword(auth *dto.AuthContext, targetUserID int) bool {
 	}
 }
 
+// Types and validation
+type passwordUpdateData struct {
+	UserID   int
+	Password string
+}
+
+func (h *Handler) validatePasswordUpdate(c echo.Context) (*passwordUpdateData, *dto.AuthContext, error) {
+	// Parse user ID
+	userID, err := getUserID(c)
+	if err != nil {
+		return nil, nil, ErrorResponse(c,
+			http.StatusBadRequest,
+			"Invalid Request",
+			[]string{"Invalid user ID provided"},
+		)
+	}
+
+	// Get auth context
+	auth, err := GetAuthContext(c)
+	if err != nil {
+		return nil, nil, ErrorResponse(c,
+			http.StatusInternalServerError,
+			"System Error",
+			[]string{"Authentication error occurred"},
+		)
+	}
+
+	// Check authorization
+	if !canUpdatePassword(auth, userID) {
+		return nil, nil, ErrorResponse(c,
+			http.StatusForbidden,
+			"Unauthorized",
+			[]string{"You don't have permission to update this password"},
+		)
+	}
+
+	// Parse and validate form data
+	var formData params.UpdatePasswordParams
+	if err := c.Bind(&formData); err != nil {
+		return nil, nil, ErrorResponse(c,
+			http.StatusBadRequest,
+			"Invalid Request",
+			[]string{"Please check your input and try again"},
+		)
+	}
+
+	// Validate password
+	if err := validatePassword(formData); err != nil {
+		return nil, nil, ErrorResponse(c,
+			http.StatusBadRequest,
+			"Validation Error",
+			[]string{err.Error()},
+		)
+	}
+
+	return &passwordUpdateData{
+		UserID:   userID,
+		Password: formData.Password,
+	}, auth, nil
+}
+
+func validatePassword(data params.UpdatePasswordParams) error {
+	if data.Password != data.Confirm {
+		return errors.New("passwords do not match")
+	}
+
+	if len(data.Password) < 8 {
+		return errors.New("password must be at least 8 characters long")
+	}
+
+	// Add additional password requirements here
+	return nil
+}
+
+func hashPassword(password string) ([]byte, error) {
+	return bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+}
+
+type createUserData struct {
+	FirstName  string
+	LastName   string
+	Email      string
+	Password   string
+	Initials   string
+	Role       types.UserRole
+	FacilityID int
+}
+
+func (h *Handler) validateCreateUser(c echo.Context) (*createUserData, error) {
+	logger := h.logger.With().
+		Str("method", "validateCreateUser").
+		Logger()
+
+	// Bind form data
+	var formParams params.CreateUserParams
+	if err := c.Bind(&formParams); err != nil {
+		return nil, ErrorResponse(c,
+			http.StatusBadRequest,
+			"Invalid Request",
+			[]string{"Please check your input and try again"},
+		)
+	}
+
+	// Collect validation errors
+	var errors []string
+
+	// Validate facility
+	var facilityID int
+	if formParams.FacilityCode == "" {
+		errors = append(errors, "Facility code is required")
+	} else {
+		facility, err := h.repos.Facility.GetByCode(
+			c.Request().Context(),
+			formParams.FacilityCode,
+		)
+		if err != nil {
+			logger.Error().
+				Err(err).
+				Str("facility_code", formParams.FacilityCode).
+				Msg("failed to find facility")
+			errors = append(errors, "Invalid facility code")
+		} else {
+			facilityID = facility.ID
+		}
+	}
+
+	// Validate email
+	if err := validateEmail(formParams.Email); err != nil {
+		errors = append(errors, err.Error())
+	}
+
+	// Validate password
+	if err := validatePassword(params.UpdatePasswordParams{
+		Password: formParams.Password,
+		Confirm:  formParams.Password, // Assuming single password field for creation
+	}); err != nil {
+		errors = append(errors, err.Error())
+	}
+
+	// Return all validation errors
+	if len(errors) > 0 {
+		return nil, ValidationError(c, errors)
+	}
+
+	return &createUserData{
+		FirstName:  formParams.FirstName,
+		LastName:   formParams.LastName,
+		Email:      formParams.Email,
+		Password:   formParams.Password,
+		Initials:   formParams.Initials,
+		Role:       formParams.Role,
+		FacilityID: facilityID,
+	}, nil
+}
+
+func validateEmail(email string) error {
+	// Add email validation logic
+	if email == "" {
+		return errors.New("email is required")
+	}
+	// Add more email validation as needed
+	return nil
+}
+
+func canCreateUsers(auth *dto.AuthContext, facilityID int) bool {
+	switch auth.Role {
+	case types.UserRoleSuper:
+		return true
+	case types.UserRoleAdmin:
+		return auth.FacilityID == facilityID
+	default:
+		return false
+	}
+}
+
+func isValidRole(role types.UserRole) bool {
+	validRoles := []types.UserRole{"super", "admin", "user"}
+	for _, r := range validRoles {
+		if role == r {
+			return true
+		}
+	}
+	return false
+}
+
 // Reduce boilerplate for simple templ component renders
 func render(c echo.Context, component templ.Component) error {
 	c.Response().Header().Set("Content-Type", "text/html")
@@ -158,10 +346,10 @@ func ComponentGroup(components ...templ.Component) templ.Component {
 }
 
 // Helper function to build correct paths
-func BuildNav(routeCtx *types.RouteContext, currentPath string) []types.NavItem {
+func BuildNav(routeCtx *dto.RouteContext, currentPath string) []dto.NavItem {
 	strippedPath := strings.TrimPrefix(currentPath, "/"+routeCtx.FacilityCode)
 
-	navItems := []types.NavItem{}
+	navItems := []dto.NavItem{}
 
 	// Add nav items based on role access
 	for path, config := range RouteConfigs {
@@ -173,7 +361,7 @@ func BuildNav(routeCtx *types.RouteContext, currentPath string) []types.NavItem 
 
 			title := cases.Title(language.English)
 
-			navItems = append(navItems, types.NavItem{
+			navItems = append(navItems, dto.NavItem{
 				Path:    navPath,
 				Name:    title.String(strings.TrimPrefix(path, "/")),
 				Active:  strippedPath == path,
@@ -186,7 +374,7 @@ func BuildNav(routeCtx *types.RouteContext, currentPath string) []types.NavItem 
 }
 
 // isAuthorizedToToggle checks if a user is authorized to toggle a protected date's availability
-func isAuthorizedToToggle(userID int, role types.UserRole, protectedDate types.ProtectedDate) bool {
+func isAuthorizedToToggle(userID int, role types.UserRole, protectedDate entity.ProtectedDate) bool {
 	// Allow access if user is admin or super
 	if role == "admin" || role == "super" {
 		return true
@@ -198,15 +386,6 @@ func isAuthorizedToToggle(userID int, role types.UserRole, protectedDate types.P
 	}
 
 	return false
-}
-
-// hashPassword creates a bcrypt hash of a password
-func hashPassword(password string) (string, error) {
-	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", fmt.Errorf("error hashing password: %w", err)
-	}
-	return string(hashedBytes), nil
 }
 
 // generateSecureToken creates a cryptographically secure token for registration

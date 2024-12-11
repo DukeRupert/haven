@@ -9,13 +9,11 @@ import (
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
-	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/DukeRupert/haven/view/alert"
 	"github.com/DukeRupert/haven/view/component"
 	"github.com/DukeRupert/haven/web/view/page"
 
 	"github.com/labstack/echo/v4"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // HandleUsers renders the users list page for a specific facility
@@ -92,16 +90,67 @@ func (h *Handler) HandleUsers(c echo.Context, routeCtx *dto.RouteContext, navIte
 	).Render(c.Request().Context(), c.Response().Writer)
 }
 
-// Helper function to validate role
-func isValidRole(role types.UserRole) bool {
-	validRoles := []types.UserRole{"super", "admin", "user"}
-	for _, r := range validRoles {
-		if role == r {
-			return true
-		}
+// HandleCreateUser processes new user creation requests
+func (h *Handler) HandleCreateUser(c echo.Context) error {
+	logger := h.logger.With().
+		Str("handler", "HandleCreateUser").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
+ 
+	// Validate and parse create request
+	createData, err := h.validateCreateUser(c)
+	if err != nil {
+		return err // validateCreateUser handles error responses
 	}
-	return false
-}
+ 
+	// Hash password
+	hashedPassword, err := hashPassword(createData.Password)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to hash password")
+		return SystemError(c)
+	}
+ 
+	// Prepare create params
+	params := params.CreateUserParams{
+		FirstName:   createData.FirstName,
+		LastName:    createData.LastName,
+		Email:       createData.Email,
+		Password:    string(hashedPassword),
+		Initials:    createData.Initials,
+		Role:        createData.Role,
+		FacilityID:  createData.FacilityID,
+	}
+ 
+	// Create user
+	user, err := h.repos.User.Create(c.Request().Context(), params)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Str("email", params.Email).
+			Msg("failed to create user")
+		return SystemError(c)
+	}
+ 
+	logger.Info().
+		Int("user_id", user.ID).
+		Str("email", user.Email).
+		Int("facility_id", user.FacilityID).
+		Str("role", string(user.Role)).
+		Msg("user created successfully")
+ 
+	// Handle HTMX request
+	if isHtmxRequest(c) {
+		return render(c, ComponentGroup(
+			alert.Success(
+				"User Created", 
+				fmt.Sprintf("Successfully created user %s %s", user.FirstName, user.LastName),
+			),
+			page.UserListItem(h.RouteCtx, *user),
+		))
+	}
+ 
+	return render(c, page.UserListItem(h.RouteCtx, *user))
+ }
 
 func (h *Handler) HandleUpdateUser(c echo.Context) error {
 	logger := h.logger.With().
@@ -137,7 +186,7 @@ func (h *Handler) HandleUpdateUser(c echo.Context) error {
 	}
 
 	// Bind and validate update params
-	var params types.UpdateUserParams
+	var params params.UpdateUserParams
 	if err := c.Bind(&params); err != nil {
 		logger.Debug().Err(err).Msg("invalid form data")
 		return ErrorResponse(c, http.StatusBadRequest,
@@ -174,97 +223,6 @@ func (h *Handler) HandleUpdateUser(c echo.Context) error {
 				updatedUser.FirstName, updatedUser.LastName)),
 		page.ProfileUserCard(*updatedUser, *auth),
 	))
-}
-
-// Create handles POST /api/user
-func (h *Handler) handleCreateUser(c echo.Context) error {
-	logger := h.logger
-
-	// Create a struct specifically for form binding
-	var params types.CreateUserParams
-
-	// Bind the form data directly to params
-	if err := c.Bind(&params); err != nil {
-		return ErrorResponse(c, http.StatusBadRequest, "Invalid Request",
-			[]string{"The submitted form data was invalid"})
-	}
-
-	// Validate and collect all validation errors
-	var errors []string
-
-	// Validate facility code and get facility
-	if params.FacilityCode == "" {
-		errors = append(errors, "Facility code is required")
-	} else {
-		facility, err := h.db.GetFacilityByCode(c.Request().Context(), params.FacilityCode)
-		if err != nil {
-			logger.Error().
-				Err(err).
-				Str("facility_code", params.FacilityCode).
-				Msg("failed to find facility by code")
-			errors = append(errors, "The specified facility code was not found")
-		} else {
-			params.FacilityID = facility.ID
-		}
-	}
-
-	// Return all validation errors if any exist
-	if len(errors) > 0 {
-		return ValidationError(c, errors)
-	}
-
-	// Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.DefaultCost)
-	if err != nil {
-		logger.Error().Msg("Failed to hash password")
-		return SystemError(c)
-	}
-	params.Password = string(hashedPassword)
-
-	// Create the user
-	user, err := h.db.CreateUser(c.Request().Context(), params)
-	if err != nil {
-		logger.Error().Msg("Failed to create user in database")
-		return SystemError(c)
-	}
-
-	// Log success
-	logger.Info().
-		Int("user_id", user.ID).
-		Str("email", user.Email).
-		Int("facility_id", user.FacilityID).
-		Str("role", string(user.Role)).
-		Msg("user created successfully")
-
-	// For successful creation, you might want to show a success message
-	if c.Request().Header.Get("HX-Request") == "true" {
-		// Return both the success alert and the new user list item
-		return render(c, ComponentGroup(
-			alert.Success("User Created", fmt.Sprintf("Successfully created user %s %s", user.FirstName, user.LastName)),
-			page.UserListItem(h.RouteCtx, *user),
-		))
-	}
-
-	return render(c, page.UserListItem(h.RouteCtx, *user))
-}
-
-func (h *Handler) createUserForm(c echo.Context) error {
-	// Get facility code from route parameter
-	code := c.Param("facility")
-
-	if code == "" {
-		h.logger.Error().Msg("facility code is missing from request")
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "facility code is required",
-		})
-	}
-
-	auth, err := GetAuthContext(c)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
-	}
-
-	return render(c, component.CreateUserForm(code, string(auth.Role)))
 }
 
 func (h *Handler) HandleDeleteUser(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error {
@@ -387,103 +345,118 @@ func (h *Handler) GetUpdatePasswordForm(c echo.Context) error {
 	return render(c, component.UpdatePasswordForm(userID))
 }
 
-func (h *Handler) handleUpdatePassword(c echo.Context) error {
+// HandleUpdatePassword processes password update requests
+func (h *Handler) HandleUpdatePassword(c echo.Context) error {
+    logger := h.logger.With().
+        Str("handler", "HandleUpdatePassword").
+        Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+        Logger()
+
+    // Get and validate form data
+    formData, auth, err := h.validatePasswordUpdate(c)
+    if err != nil {
+        return err // validatePasswordUpdate handles error responses
+    }
+
+    // Hash password
+    hashedPassword, err := hashPassword(formData.Password)
+    if err != nil {
+        logger.Error().Err(err).Msg("failed to hash password")
+        return ErrorResponse(c,
+            http.StatusInternalServerError,
+            "System Error",
+            []string{"Unable to process password update"},
+        )
+    }
+
+    // Update password
+    if err := h.repos.User.UpdatePassword(
+        c.Request().Context(),
+        formData.UserID,
+        string(hashedPassword),
+    ); err != nil {
+        logger.Error().
+            Err(err).
+            Int("user_id", formData.UserID).
+            Msg("failed to update password")
+        return ErrorResponse(c,
+            http.StatusInternalServerError,
+            "System Error",
+            []string{"Failed to save new password"},
+        )
+    }
+
+    logger.Info().
+        Int("user_id", formData.UserID).
+        Str("updater_role", string(auth.Role)).
+        Msg("password updated successfully")
+
+    return SuccessResponse(c, "Success", "Password has been updated")
+}
+
+// GetCreateUserForm renders the user creation form
+func (h *Handler) GetCreateUserForm(c echo.Context) error {
 	logger := h.logger.With().
-		Str("handler", "handleUpdatePassword").
+		Str("handler", "GetCreateUserForm").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
-
-	// Parse the user ID from the URL
-	userID, err := strconv.Atoi(c.Param("user_id"))
-	if err != nil {
-		logger.Error().Err(err).Msg("Invalid user ID")
-		return ErrorResponse(c,
+ 
+	// Get and validate facility code
+	facilityCode := c.Param("facility")
+	if facilityCode == "" {
+		logger.Error().Msg("missing facility code")
+		return ErrorResponse(c, 
 			http.StatusBadRequest,
 			"Invalid Request",
-			[]string{"Invalid user ID provided"},
+			[]string{"Facility code is required"},
 		)
 	}
-
-	// Get authenticated user from context
+ 
+	// Verify facility exists
+	facility, err := h.repos.Facility.GetByCode(c.Request().Context(), facilityCode)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Str("facility_code", facilityCode).
+			Msg("failed to find facility")
+		return ErrorResponse(c,
+			http.StatusNotFound,
+			"Facility Not Found",
+			[]string{"The specified facility does not exist"},
+		)
+	}
+ 
+	// Get auth context
 	auth, err := GetAuthContext(c)
 	if err != nil {
-		logger.Error().Err(err).Msg("Auth context error")
+		logger.Error().Err(err).Msg("failed to get auth context")
 		return ErrorResponse(c,
 			http.StatusInternalServerError,
-			"System Error",
-			[]string{"Authentication error occurred"},
+			"Authentication Error",
+			[]string{"Unable to verify permissions"},
 		)
 	}
-
-	// Parse form data
-	var formData params.UpdatePasswordParams
-	if err := c.Bind(&formData); err != nil {
-		logger.Error().Err(err).Msg("Failed to bind form data")
-		return ErrorResponse(c,
-			http.StatusBadRequest,
-			"Invalid Request",
-			[]string{"Please check your input and try again"},
-		)
-	}
-
-	// Validate passwords match
-	if formData.Password != formData.Confirm {
-		return ErrorResponse(c,
-			http.StatusBadRequest,
-			"Validation Error",
-			[]string{"Passwords do not match"},
-		)
-	}
-
-	// Validate password length
-	if len(formData.Password) < 8 {
-		return ErrorResponse(c,
-			http.StatusBadRequest,
-			"Validation Error",
-			[]string{"Password must be at least 8 characters long"},
-		)
-	}
-
-	// Check authorization
-	if !isAuthorized(auth.UserID, auth.Role, userID) {
+ 
+	// Check if user can create users for this facility
+	if !canCreateUsers(auth, facility.ID) {
 		logger.Warn().
-			Int("requesting_user", auth.UserID).
-			Int("target_user", userID).
-			Msg("Unauthorized password update attempt")
+			Int("facility_id", facility.ID).
+			Str("user_role", string(auth.Role)).
+			Msg("unauthorized attempt to access user creation form")
 		return ErrorResponse(c,
 			http.StatusForbidden,
-			"Unauthorized",
-			[]string{"You are not authorized to modify this user's password"},
+			"Access Denied",
+			[]string{"You don't have permission to create users"},
 		)
 	}
-
-	// Hash the new password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(formData.Password), bcrypt.DefaultCost)
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to hash password")
-		return ErrorResponse(c,
-			http.StatusInternalServerError,
-			"System Error",
-			[]string{"Failed to process password update"},
-		)
-	}
-
-	// Update password in database
-	err = h.repos.User.UpdatePassword(c.Request().Context(), userID, string(hashedPassword))
-	if err != nil {
-		logger.Error().Err(err).
-			Int("user_id", userID).
-			Msg("Failed to update password")
-		return ErrorResponse(c,
-			http.StatusInternalServerError,
-			"System Error",
-			[]string{"Failed to update password"},
-		)
-	}
-
-	// Return success component
-	return SuccessResponse(c, "Success", "Password updated")
-}
+ 
+	logger.Debug().
+		Str("facility_code", facilityCode).
+		Str("creator_role", string(auth.Role)).
+		Msg("rendering user creation form")
+ 
+	return render(c, component.CreateUserForm(facilityCode, string(auth.Role)))
+ }
 
 // GetUpdateUserForm renders the form for updating a user
 func (h *Handler) GetUpdateUserForm(c echo.Context) error {
