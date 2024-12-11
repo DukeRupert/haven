@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/DukeRupert/haven/internal/response"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
@@ -181,7 +182,7 @@ func (h *Handler) validatePasswordUpdate(c echo.Context) (*passwordUpdateData, *
 	// Parse and validate form data
 	var formData params.UpdatePasswordParams
 	if err := c.Bind(&formData); err != nil {
-		return nil, nil, ErrorResponse(c,
+		return nil, nil, response.Error(c,
 			http.StatusBadRequest,
 			"Invalid Request",
 			[]string{"Please check your input and try again"},
@@ -190,7 +191,7 @@ func (h *Handler) validatePasswordUpdate(c echo.Context) (*passwordUpdateData, *
 
 	// Validate password
 	if err := validatePassword(formData); err != nil {
-		return nil, nil, ErrorResponse(c,
+		return nil, nil, response.Error(c,
 			http.StatusBadRequest,
 			"Validation Error",
 			[]string{err.Error()},
@@ -238,7 +239,7 @@ func (h *Handler) validateCreateUser(c echo.Context) (*createUserData, error) {
 	// Bind form data
 	var formParams params.CreateUserParams
 	if err := c.Bind(&formParams); err != nil {
-		return nil, ErrorResponse(c,
+		return nil, response.Error(c,
 			http.StatusBadRequest,
 			"Invalid Request",
 			[]string{"Please check your input and try again"},

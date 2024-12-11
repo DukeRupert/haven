@@ -8,12 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DukeRupert/haven/internal/response"
+	"github.com/DukeRupert/haven/internal/store"
+	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/DukeRupert/haven/internal/repository/facility"
-	"github.com/DukeRupert/haven/internal/store"
+	
 	"github.com/gorilla/sessions"
-
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
@@ -148,15 +150,15 @@ func (m *Middleware) RequireRole(minimumRole types.UserRole) echo.MiddlewareFunc
 
 			// Check role
 			role, ok := sess.Values["role"].(types.UserRole)
-            if !ok {
-                return redirectToLogin(c)
-            }
+			if !ok {
+				return redirectToLogin(c)
+			}
 
-            if !HasMinimumRole(role, minimumRole) {
-                return echo.NewHTTPError(http.StatusForbidden, "Insufficient permissions")
-            }
+			if !HasMinimumRole(role, minimumRole) {
+				return echo.NewHTTPError(http.StatusForbidden, "Insufficient permissions")
+			}
 
-            return next(c)
+			return next(c)
 		}
 	}
 }
@@ -221,7 +223,73 @@ func (m *Middleware) EnsurePublic() echo.MiddlewareFunc {
 	}
 }
 
+// ValidateFacility ensures users have appropriate facility access
+func (m *Middleware) ValidateFacility() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			logger := m.logger.With().
+                Str("middleware", "ValidateFacility").
+                Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+                Logger()
+
+            // Get auth context
+            auth, err := m.GetAuthContext(c)
+            if err != nil {
+                logger.Error().Err(err).Msg("failed to get auth context")
+                return response.Error(c,
+                    http.StatusInternalServerError,
+                    "Authentication Error",
+                    []string{"Unable to verify permissions"},
+                )
+            }
+
+			// Get and validate facility code
+			facilityCode := c.Param("facility")
+			if facilityCode == "" {
+				logger.Error().Msg("missing facility code parameter")
+				return response.Error(c,
+					http.StatusBadRequest,
+					"Invalid Request",
+					[]string{"Facility code is required"},
+				)
+			}
+
+			// Check facility access
+			if canAccessFacility(auth, facilityCode) {
+				logger.Debug().
+					Str("facility_code", facilityCode).
+					Str("user_role", string(auth.Role)).
+					Msg("facility access granted")
+				return next(c)
+			}
+
+			logger.Warn().
+				Str("facility_code", facilityCode).
+				Str("user_role", string(auth.Role)).
+				Str("user_facility", auth.FacilityCode).
+				Msg("unauthorized facility access attempt")
+
+			return response.Error(c,
+				http.StatusForbidden,
+				"Access Denied",
+				[]string{"You don't have permission to access this facility"},
+			)
+		}
+	}
+}
+
 // Helper methods
+
+func canAccessFacility(auth *dto.AuthContext, facilityCode string) bool {
+	switch auth.Role {
+	case types.UserRoleSuper:
+		return true
+	case types.UserRoleAdmin:
+		return auth.FacilityCode == facilityCode
+	default:
+		return false
+	}
+}
 
 // validatePublicAccess handles any validation needed for public routes
 func (m *Middleware) validatePublicAccess(c echo.Context) error {

@@ -5,70 +5,294 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/DukeRupert/haven/types"
-	"github.com/DukeRupert/haven/view/alert"
-	"github.com/DukeRupert/haven/view/component"
-	"github.com/DukeRupert/haven/view/page"
+	"github.com/DukeRupert/haven/internal/model/dto"
+	"github.com/DukeRupert/haven/internal/model/entity"
+	"github.com/DukeRupert/haven/internal/model/types"
+	"github.com/DukeRupert/haven/internal/response"
+	"github.com/DukeRupert/haven/web/view/alert"
+	"github.com/DukeRupert/haven/web/view/component"
+	"github.com/DukeRupert/haven/web/view/page"
 	"github.com/labstack/echo/v4"
 )
 
-func (h *Handler) createScheduleForm(c echo.Context) error {
-	// Get facility code and user initials from params
-	facility := c.Param("facility")
-	if facility == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "Missing facility parameter")
+// HandleAvailabilityToggle processes requests to toggle protected date availability
+func (h *Handler) HandleAvailabilityToggle(c echo.Context) error {
+	logger := h.logger.With().
+		Str("handler", "HandleAvailabilityToggle").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
+
+	// Get and validate protected date ID
+	dateID, err := getProtectedDateID(c)
+	if err != nil {
+		logger.Debug().
+			Err(err).
+			Str("date_id_param", c.Param("id")).
+			Msg("invalid protected date ID")
+		return response.Error(c,
+			http.StatusBadRequest,
+			"Invalid Request",
+			[]string{"Invalid protected date ID provided"},
+		)
+	}
+
+	// Get auth context
+	auth, err := h.auth.GetAuthContext(c)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get auth context")
+		return response.System(c)
+	}
+
+	// Get protected date
+	protectedDate, err := h.repos.Schedule.GetProtectedDateByID(c.Request().Context(), dateID)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Int("date_id", dateID).
+			Msg("failed to fetch protected date")
+		return response.System(c)
+	}
+
+	// Verify authorization
+	if !canToggleAvailability(auth, protectedDate) {
+		logger.Warn().
+			Int("date_id", dateID).
+			Int("user_id", auth.UserID).
+			Str("role", string(auth.Role)).
+			Msg("unauthorized toggle attempt")
+		return response.Error(c,
+			http.StatusForbidden,
+			"Access Denied",
+			[]string{"You don't have permission to modify this date"},
+		)
+	}
+
+	// Toggle availability
+	updatedDate, err := h.repos.Schedule.ToggleProtectedDateAvailability(
+		c.Request().Context(),
+		dateID,
+	)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Int("date_id", dateID).
+			Msg("failed to toggle availability")
+		return response.System(c)
+	}
+
+	logger.Debug().
+		Int("date_id", dateID).
+		Bool("is_available", updatedDate.Available).
+		Msg("availability toggled successfully")
+
+	return render(c, component.ProtectedDay(
+		auth.UserID,
+		auth.FacilityCode,
+		updatedDate,
+	))
+}
+
+// Helper functions
+func getProtectedDateID(c echo.Context) (int, error) {
+	return strconv.Atoi(c.Param("id"))
+}
+
+func canToggleAvailability(auth *dto.AuthContext, date *entity.ProtectedDate) bool {
+	// Super users can modify any date
+	if auth.Role == types.RoleSuper {
+		return true
+	}
+
+	// Admin users can modify dates in their facility
+	if auth.Role == types.RoleAdmin && auth.FacilityID == date.FacilityID {
+		return true
+	}
+
+	// Users can only modify their own dates
+	return auth.UserID == date.UserID
+}
+
+// GetCreateScheduleForm renders the schedule creation form
+func (h *Handler) GetCreateScheduleForm(c echo.Context) error {
+	logger := h.logger.With().
+		Str("handler", "GetCreateScheduleForm").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
+
+	// Get and validate params
+	params, err := validateScheduleFormParams(c)
+	if err != nil {
+		return err // validateScheduleFormParams handles error responses
+	}
+
+	// Get auth context
+	auth, err := h.auth.GetAuthContext(c)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get auth context")
+		return response.System(c)
+	}
+
+	// Verify facility exists
+	_, err = h.repos.Facility.GetByCode(c.Request().Context(), params.FacilityCode)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Str("facility_code", params.FacilityCode).
+			Msg("facility not found")
+		return response.Error(c,
+			http.StatusNotFound,
+			"Invalid Facility",
+			[]string{"The specified facility does not exist"},
+		)
+	}
+
+	// Verify user exists
+	_, err = h.repos.User.GetByInitialsAndFacility(
+		c.Request().Context(),
+		params.Initials,
+		auth.FacilityID,
+	)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Str("initials", params.Initials).
+			Int("facility_id", auth.FacilityID).
+			Msg("user not found")
+		return response.Error(c,
+			http.StatusNotFound,
+			"Invalid User",
+			[]string{"The specified user does not exist in this facility"},
+		)
+	}
+
+	logger.Debug().
+		Str("facility_code", params.FacilityCode).
+		Str("user_initials", params.Initials).
+		Msg("rendering schedule creation form")
+
+	return render(c, component.CreateScheduleForm(
+		params.FacilityCode,
+		params.Initials,
+	))
+}
+
+// Types and validation
+type scheduleFormParams struct {
+	FacilityCode string
+	Initials     string
+}
+
+func validateScheduleFormParams(c echo.Context) (*scheduleFormParams, error) {
+	facilityCode := c.Param("facility")
+	if facilityCode == "" {
+		return nil, response.Error(c,
+			http.StatusBadRequest,
+			"Missing Parameter",
+			[]string{"Facility code is required"},
+		)
 	}
 
 	initials := c.Param("initials")
 	if initials == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "Missing initials parameter")
+		return nil, response.Error(c,
+			http.StatusBadRequest,
+			"Missing Parameter",
+			[]string{"User initials are required"},
+		)
 	}
 
-	return render(c, component.CreateScheduleForm(facility, initials))
+	return &scheduleFormParams{
+		FacilityCode: facilityCode,
+		Initials:     initials,
+	}, nil
 }
 
-func (h *Handler) updateScheduleForm(c echo.Context) error {
-	h.logger.Info().
-		Str("Schedule ID", c.Param("id")).
-		Msg("updateScheduleForm() executing")
-
-	// Parse the schedule ID from the URL
-	scheduleID, err := strconv.Atoi(c.Param("id"))
+// GetUpdateScheduleForm renders the schedule update form
+func (h *Handler) GetUpdateScheduleForm(c echo.Context) error {
+	logger := h.logger.With().
+		Str("handler", "GetUpdateScheduleForm").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
+ 
+	// Get and validate schedule ID
+	scheduleID, err := getScheduleID(c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid protected date ID")
+		logger.Debug().
+			Err(err).
+			Str("schedule_id_param", c.Param("id")).
+			Msg("invalid schedule ID")
+		return response.Error(c,
+			http.StatusBadRequest,
+			"Invalid Request",
+			[]string{"Please provide a valid schedule ID"},
+		)
 	}
-
-	// Get user from context
-	auth, err := GetAuthContext(c)
+ 
+	// Get auth context
+	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
+		logger.Error().Err(err).Msg("failed to get auth context")
+		return response.System(c)
 	}
-
-	// Query database for record
-	schedule, err := h.db.GetScheduleByID(
-		c.Request().Context(),
-		scheduleID,
-	)
+ 
+	// Get schedule
+	schedule, err := h.repos.Schedule.GetByID(c.Request().Context(), scheduleID)
 	if err != nil {
-		h.logger.Error().Err(err).
-			Msg("Failed to retrieve schedule")
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve schedule")
+		logger.Error().
+			Err(err).
+			Int("schedule_id", scheduleID).
+			Msg("failed to retrieve schedule")
+		return response.System(c)
 	}
-
-	// If no schedule found, return 404
+ 
 	if schedule == nil {
-		return echo.NewHTTPError(http.StatusNotFound, "No schedule found for this user")
+		logger.Debug().
+			Int("schedule_id", scheduleID).
+			Msg("schedule not found")
+		return response.Error(c,
+			http.StatusNotFound,
+			"Not Found",
+			[]string{"The requested schedule does not exist"},
+		)
 	}
-
+ 
 	// Check authorization
-	if !isAuthorized(auth.UserID, auth.Role, schedule.UserID) {
-		return echo.NewHTTPError(http.StatusForbidden, "unauthorized to modify this protected date")
+	if !canModifySchedule(auth, schedule) {
+		logger.Warn().
+			Int("schedule_id", scheduleID).
+			Int("user_id", auth.UserID).
+			Str("role", string(auth.Role)).
+			Msg("unauthorized schedule modification attempt")
+		return response.Error(c,
+			http.StatusForbidden,
+			"Access Denied",
+			[]string{"You don't have permission to modify this schedule"},
+		)
 	}
-
-	// Build and return component
-	component := component.UpdateScheduleForm(*schedule)
-	return component.Render(c.Request().Context(), c.Response().Writer)
-}
+ 
+	logger.Debug().
+		Int("schedule_id", scheduleID).
+		Int("user_id", schedule.UserID).
+		Msg("rendering schedule update form")
+ 
+	return render(c, component.UpdateScheduleForm(*schedule))
+ }
+ 
+ // Helper functions
+ func getScheduleID(c echo.Context) (int, error) {
+	return strconv.Atoi(c.Param("id"))
+ }
+ 
+ func canModifySchedule(auth *dto.AuthContext, schedule *entity.Schedule) bool {
+	switch auth.Role {
+	case types.UserRoleSuper:
+		return true
+	case types.UserRoleAdmin:
+		return auth.FacilityID == schedule.FacilityID
+	default:
+		return auth.UserID == schedule.UserID
+	}
+ }
 
 func (h *Handler) handleGetSchedule(c echo.Context) error {
 	logger := h.logger
@@ -99,7 +323,7 @@ func (h *Handler) handleGetSchedule(c echo.Context) error {
 	}
 
 	// Get session data for rendering
-	auth, err := GetAuthContext(c)
+	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
 	}
@@ -153,7 +377,7 @@ func (h *Handler) handleCreateSchedule(c echo.Context) error {
 	}
 
 	// Get session data
-	auth, err := GetAuthContext(c)
+	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
 	}
@@ -180,7 +404,7 @@ func (h *Handler) handleUpdateSchedule(c echo.Context) error {
 	}
 
 	// Get user from context
-	auth, err := GetAuthContext(c)
+	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
 	}

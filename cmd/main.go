@@ -118,23 +118,24 @@ func main() {
 		Logger: logger,
 	})
 
-	authHandler := auth.NewHandler(auth.HandlerConfig{
-		Service: authService,
-		Store:   sessionStore,
-		Logger:  logger,
-	})
-
 	authMiddleware := auth.NewMiddleware(authService, logger)
+
+    authHandler := auth.NewHandler(auth.HandlerConfig{
+        Service: authService,
+        Store:   sessionStore,
+        Logger:  logger,
+    })
 
 	// Initialize other middleware
 	routeCtxMiddleware := context.NewRouteContextMiddleware(logger)
 
 	// Initialize main application handler
 	appHandler := handler.New(handler.Config{
-		Repos:    repos,
-		Sessions: sessionStore,
-		Logger:   logger,
-	})
+        Repos:    repos,
+        Auth:     authMiddleware,
+        Sessions: sessionStore,
+        Logger:   logger,
+    })
 
 	// Create and start token cleaner
 	tokenCleaner := worker.NewTokenCleaner(

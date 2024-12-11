@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/DukeRupert/haven/internal/response"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
@@ -53,7 +54,7 @@ func (h *Handler) HandleUsers(c echo.Context, routeCtx *dto.RouteContext, navIte
 	}
 
 	// Get auth context for role information
-	auth, err := GetAuthContext(c)
+	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		logger.Error().
 			Err(err).
@@ -107,7 +108,7 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 	hashedPassword, err := hashPassword(createData.Password)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to hash password")
-		return SystemError(c)
+		return response.System(c)
 	}
  
 	// Prepare create params
@@ -128,7 +129,7 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 			Err(err).
 			Str("email", params.Email).
 			Msg("failed to create user")
-		return SystemError(c)
+		return response.System(c)
 	}
  
 	logger.Info().
@@ -152,7 +153,8 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 	return render(c, page.UserListItem(h.RouteCtx, *user))
  }
 
-func (h *Handler) HandleUpdateUser(c echo.Context) error {
+
+ func (h *Handler) HandleUpdateUser(c echo.Context) error {
 	logger := h.logger.With().
 		Str("handler", "HandleUpdateUser").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
@@ -168,7 +170,7 @@ func (h *Handler) HandleUpdateUser(c echo.Context) error {
 	}
 
 	// Get auth context
-	auth, err := GetAuthContext(c)
+	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return SystemError(c)
@@ -244,7 +246,7 @@ func (h *Handler) HandleDeleteUser(c echo.Context, routeCtx *dto.RouteContext, n
 	}
 
 	// Check permissions
-	auth, err := GetAuthContext(c)
+	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return SystemError(c)
@@ -314,7 +316,7 @@ func (h *Handler) GetUpdatePasswordForm(c echo.Context) error {
 	}
 
 	// Get auth context for permission check
-	auth, err := GetAuthContext(c)
+	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return ErrorResponse(c,
@@ -427,7 +429,7 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 	}
  
 	// Get auth context
-	auth, err := GetAuthContext(c)
+	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return ErrorResponse(c,
@@ -509,7 +511,7 @@ func (h *Handler) validateFormAccess(c echo.Context) (*UpdateUserFormData, error
 	}
 
 	// Get auth context
-	auth, err := GetAuthContext(c)
+	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return nil, ErrorResponse(c,

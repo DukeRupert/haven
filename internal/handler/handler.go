@@ -25,12 +25,14 @@ type HandlerFunc func(c echo.Context, routeCtx *dto.RouteContext, navItems []dto
 
 type Config struct {
 	Repos    *repository.Repositories
+	Auth     *auth.Middleware
 	Sessions sessions.Store
 	Logger   zerolog.Logger
 }
 
 type Handler struct {
 	repos    *repository.Repositories
+	auth     *auth.Middleware
 	sessions sessions.Store
 	logger   zerolog.Logger
 	RouteCtx dto.RouteContext
@@ -39,6 +41,7 @@ type Handler struct {
 func New(cfg Config) *Handler {
 	return &Handler{
 		repos:    cfg.Repos,
+		auth:     cfg.Auth,
 		sessions: cfg.Sessions,
 		logger:   cfg.Logger.With().Str("component", "handler").Logger(),
 	}
@@ -140,44 +143,6 @@ func (h *Handler) GetLogin(c echo.Context) error {
 }
 
 // Updated handler function
-func (h *Handler) handleAvailabilityToggle(c echo.Context) error {
-	// Parse the protected date ID from the URL
-	dateID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid protected date ID")
-	}
-
-	// Get user from context
-	auth, err := GetAuthContext(c)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
-	}
-
-	// Fetch the protected date to check ownership
-	protectedDate, err := h.repos.Schedule.GetProtectedDateByID(c.Request().Context(), dateID)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "error fetching protected date")
-	}
-
-	// Check authorization
-	if !isAuthorizedToToggle(auth.UserID, auth.Role, protectedDate) {
-		return echo.NewHTTPError(http.StatusForbidden, "unauthorized to modify this protected date")
-	}
-
-	// Toggle the availability
-	protectedDate, err = h.repos.Schedule.ToggleProtectedDateAvailability(c.Request().Context(), dateID)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "error toggling availability")
-	}
-
-	component := component.ProtectedDay(
-		auth.UserID,
-		auth.FacilityCode,
-		protectedDate,
-	)
-
-	return component.Render(c.Request().Context(), c.Response().Writer)
-}
 
 func LogAuthContext(logger zerolog.Logger, auth *dto.AuthContext) {
 	logEvent := logger.Debug().

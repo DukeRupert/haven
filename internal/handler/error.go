@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/DukeRupert/haven/view/alert"
+	"github.com/DukeRupert/haven/web/view/alert"
 
 	"github.com/labstack/echo/v4"
 )
