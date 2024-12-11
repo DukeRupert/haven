@@ -15,6 +15,7 @@ import (
 	"github.com/DukeRupert/haven/config"
 	"github.com/DukeRupert/haven/db"
 	"github.com/DukeRupert/haven/handler"
+	"github.com/DukeRupert/haven/internal/repository"
 	"github.com/DukeRupert/haven/store"
 	"github.com/DukeRupert/haven/types"
 	"github.com/DukeRupert/haven/worker"
@@ -106,6 +107,18 @@ func main() {
 	}
 	defer db.Close()
 
+	// Initialize repositories
+    repos := repository.NewRepositories(db)
+
+    // Create and start token cleaner
+    tokenCleaner := worker.NewTokenCleaner(
+        repos.Token,
+        l,
+        15*time.Minute,
+    )
+    tokenCleaner.Start()
+    defer tokenCleaner.Stop()
+
 	// Initialize session store
 	s, err := store.NewPgxStore(db, []byte(config.SessionKey))
 	if err != nil {
@@ -118,10 +131,6 @@ func main() {
 
 	// Setup all routes
 	handler.SetupRoutes(e, h, authHandler, s)
-
-	// Initialize and start token cleaner
-	cleaner := workers.NewTokenCleaner(db, l, 15*time.Minute)
-	cleaner.Start()
 
 	// Setup graceful shutdown
 	quit := make(chan os.Signal, 1)
