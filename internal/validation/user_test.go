@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/DukeRupert/haven/types"
+	"github.com/DukeRupert/haven/internal/model/types"
 )
 
 func TestValidateUserName(t *testing.T) {

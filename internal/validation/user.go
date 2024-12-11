@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/DukeRupert/haven/types"
+	"github.com/DukeRupert/haven/internal/model/types"
 )
 
 const (
