@@ -6,16 +6,57 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DukeRupert/haven/types"
-	"github.com/DukeRupert/haven/validation"
-	"github.com/DukeRupert/haven/view/alert"
-	"github.com/DukeRupert/haven/view/page"
-	"github.com/DukeRupert/haven/view/super"
+	"github.com/DukeRupert/haven/internal/model/params"
+	"github.com/DukeRupert/haven/internal/model/dto"
+	"github.com/DukeRupert/haven/internal/validation"
+	"github.com/DukeRupert/haven/web/view/alert"
+	"github.com/DukeRupert/haven/web/view/page"
+	"github.com/DukeRupert/haven/web/view/super"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 )
+
+// HandleFacilities renders the facilities list page
+func (h *Handler) HandleFacilities(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error {
+    logger := h.logger.With().
+        Str("handler", "HandleFacilities").
+        Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+        Logger()
+
+    // Get facilities from repository
+    facilities, err := h.repos.Facility.List(c.Request().Context())
+    if err != nil {
+        logger.Error().Err(err).Msg("failed to retrieve facilities")
+        return echo.NewHTTPError(
+            http.StatusInternalServerError,
+            "Unable to load facilities. Please try again later.",
+        )
+    }
+
+    // Page metadata
+    pageData := struct {
+        Title       string
+        Description string
+    }{
+        Title:       "Facilities",
+        Description: "A list of all facilities including their name and code.",
+    }
+
+    logger.Debug().
+        Int("facility_count", len(facilities)).
+        Msg("rendering facilities page")
+
+    // Render the page
+    return page.Facilities(
+        *routeCtx,
+        navItems,
+        pageData.Title,
+        pageData.Description,
+        facilities,
+    ).Render(c.Request().Context(), c.Response().Writer)
+}
 
 // GET /app/facilities/create
 func (h *Handler) CreateFacilityForm(c echo.Context) error {
@@ -37,7 +78,7 @@ func (h *Handler) UpdateFacilityForm(c echo.Context) error {
 		))
 	}
 
-	facility, err := h.db.GetFacilityByID(c.Request().Context(), id)
+	facility, err := h.repos.Facility.GetByID(c.Request().Context(), id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			logger.Error().
@@ -73,7 +114,7 @@ func (h *Handler) UpdateFacility(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid facility ID")
 	}
 
-	var params types.UpdateFacilityParams
+	var params params.UpdateFacilityParams
 	if err := c.Bind(&params); err != nil {
 		logger.Error().
 			Err(err).
@@ -110,7 +151,7 @@ func (h *Handler) UpdateFacility(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, strings.Join(errors, "; "))
 	}
 
-	facility, err := h.db.UpdateFacility(c.Request().Context(), id, params)
+	facility, err := h.repos.Facility.Update(c.Request().Context(), id, params)
 	if err != nil {
 		logger.Error().
 			Err(err).

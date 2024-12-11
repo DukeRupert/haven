@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/DukeRupert/haven/internal/auth"
-	"github.com/DukeRupert/haven/internal/context"
 	"github.com/DukeRupert/haven/internal/config"
+	"github.com/DukeRupert/haven/internal/context"
 	"github.com/DukeRupert/haven/internal/handler"
+	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/DukeRupert/haven/internal/repository"
 	"github.com/DukeRupert/haven/internal/store"
-	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/DukeRupert/haven/internal/worker"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -96,55 +96,57 @@ func main() {
 	e.Pre(middleware.RemoveTrailingSlash())
 	e.Static("/static", "assets")
 
-	// Initialize database
-    database, err := repository.New(config.DatabaseURL, repository.DefaultConfig())
-    if err != nil {
-        log.Fatalf("Failed to initialize database: %v", err)
-    }
-    defer database.Close()
+	// Initialize database and repositories
+	database, err := repository.New(config.DatabaseURL, repository.DefaultConfig())
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Failed to initialize database")
+	}
+	defer database.Close()
 
-	// Initialize repositories
-    repos := repository.NewRepositories(database)
+	repos := repository.NewRepositories(database)
 
 	// Initialize session store
-    sessionStore, err := store.NewPgxStore(repos.Session, []byte("your-secret-key"))
-    if err != nil {
+	sessionStore, err := store.NewPgxStore(repos.Session, []byte(config.SessionKey))
+	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to create session store")
-    }
+	}
 
-	// Create auth service
-    authService := auth.NewService(auth.Config{
-        Repos:  repos,
-        Store:  sessionStore,
-        Logger: logger,
-    })
+	// Initialize auth components
+	authService := auth.NewService(auth.Config{
+		Repos:  repos,
+		Store:  sessionStore,
+		Logger: logger,
+	})
 
-    // Create auth handler with service
-    authHandler := auth.NewHandler(auth.HandlerConfig{
-        Service: authService,
-        Store:   sessionStore,
-        Logger:  logger,
-    })
+	authHandler := auth.NewHandler(auth.HandlerConfig{
+		Service: authService,
+		Store:   sessionStore,
+		Logger:  logger,
+	})
 
-	// Initialize middlewares
-	routeCtxMiddleware := context.NewRouteContextMiddleware(logger)
 	authMiddleware := auth.NewMiddleware(authService, logger)
 
-    // Create and start token cleaner
-    tokenCleaner := worker.NewTokenCleaner(
-        repos.Token,
-        logger,
-        15*time.Minute,
-    )
-    tokenCleaner.Start()
-    defer tokenCleaner.Stop()
+	// Initialize other middleware
+	routeCtxMiddleware := context.NewRouteContextMiddleware(logger)
 
-	// Initialize handlers
-	// h := handler.NewHandler(database, logger)
-	// authHandler := auth.NewAuthHandler(database, sessionStore, logger)
+	// Initialize main application handler
+	appHandler := handler.New(handler.Config{
+		Repos:    repos,
+		Sessions: sessionStore,
+		Logger:   logger,
+	})
+
+	// Create and start token cleaner
+	tokenCleaner := worker.NewTokenCleaner(
+		repos.Token,
+		logger,
+		15*time.Minute,
+	)
+	tokenCleaner.Start()
+	defer tokenCleaner.Stop()
 
 	// Setup all routes
-	handler.SetupRoutes(e, h, authHandler, sessionStore)
+	handler.SetupRoutes(e, appHandler, authMiddleware, authHandler, routeCtxMiddleware)
 
 	// Start server
 	logger.Info().Msg("Starting server on :8080")

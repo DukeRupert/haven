@@ -133,7 +133,7 @@ func (r *Repository) Create(ctx context.Context, params params.CreateFacilityPar
 	return &f, nil
 }
 
-func (r *Repository) UpdateFacility(ctx context.Context, id int, params params.UpdateFacilityParams) (*entity.Facility, error) {
+func (r *Repository) Update(ctx context.Context, id int, params params.UpdateFacilityParams) (*entity.Facility, error) {
 	// Check for unique code first, excluding the current facility ID
 	isUnique, err := r.IsCodeUnique(ctx, params.Code, &id)
 	if err != nil {
