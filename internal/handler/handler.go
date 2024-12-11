@@ -1,3 +1,4 @@
+// internal/handler/handler.go
 package handler
 
 import (
@@ -6,12 +7,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/DukeRupert/haven/auth"
-	"github.com/DukeRupert/haven/db"
-	"github.com/DukeRupert/haven/store"
-	"github.com/DukeRupert/haven/types"
-	"github.com/DukeRupert/haven/view/component"
-	"github.com/DukeRupert/haven/view/page"
+	"github.com/DukeRupert/haven/internal/auth"
+	"github.com/DukeRupert/haven/internal/model/dto"
+	"github.com/DukeRupert/haven/internal/model/types"
+	"github.com/DukeRupert/haven/internal/repository"
+	"github.com/DukeRupert/haven/internal/store"
+	"github.com/DukeRupert/haven/web/view/component"
+	"github.com/DukeRupert/haven/web/view/page"
 
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
@@ -19,93 +21,116 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// Handler encapsulates dependencies for all handlers
 type Handler struct {
-	db       *db.DB
-	logger   zerolog.Logger
-	RouteCtx types.RouteContext
+    repos    *repository.Repositories
+    sessions *store.PgxStore
+    logger   zerolog.Logger
+    RouteCtx dto.RouteContext
 }
 
 // HandlerFunc is the type for your page handlers
-type HandlerFunc func(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error
+type HandlerFunc func(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error
 
-// NewHandler creates a new handler with both pool and store
-func NewHandler(db *db.DB, logger zerolog.Logger) *Handler {
-	return &Handler{
-		db:     db,
-		logger: logger.With().Str("component", "Handler").Logger(),
-	}
+// Config holds handler configuration
+type Config struct {
+    Repos    *repository.Repositories
+    Sessions *store.PgxStore
+    Logger   zerolog.Logger
 }
 
-func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler, store *store.PgxStore) {
-	// Define static assets
-	e.Static("/static", "assets")
+// New creates a new handler with all dependencies
+func New(cfg Config) *Handler {
+    return &Handler{
+        repos:    cfg.Repos,
+        sessions: cfg.Sessions,
+        logger:   cfg.Logger.With().Str("component", "handler").Logger(),
+    }
+}
 
-	// Apply global middleware
-	// Add CORS middleware
+// SetupRoutes configures all application routes
+func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler) {
+    // Middleware setup
     e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
         AllowOrigins: []string{"https://sturdy-train-vq455j4p4rwf666v-8080.app.github.dev"},
         AllowMethods: []string{echo.GET, echo.PUT, echo.POST, echo.DELETE},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+        AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
     }))
-	e.Use(middleware.Recover())
-	e.Use(middleware.RequestID())
-	e.Use(middleware.Logger())
-	e.Use(session.Middleware(store))
-	e.Use(auth.AuthMiddleware())
-	e.Use(auth.WithRouteContext())
+    e.Use(middleware.Recover())
+    e.Use(middleware.RequestID())
+    e.Use(middleware.Logger())
+    e.Use(session.Middleware(h.sessions))
+    e.Use(auth.AuthMiddleware())
+    e.Use(auth.WithRouteContext())
 
-	// Public routes
-	e.GET("/", h.ShowHome)
-	e.GET("/login", h.GetLogin, auth.RedirectIfAuthenticated())
-	e.POST("/login", auth.LoginHandler())
-	e.POST("/logout", auth.LogoutHandler())
-	e.GET("/register", h.GetRegister)
-	e.POST("/register", h.HandleRegistration)
-	e.GET("/set-password", h.GetSetPassword)
-	e.POST("/set-password", h.HandleSetPassword)
-
-	// Protected routes
-	// Super-only routes
-	e.GET("/facilities", h.WithNav(h.handleFacilities), RouteMiddleware("/facilities"))
-
-	// Admin and above routes
-	e.GET("/controllers", h.WithNav(h.handleUsers), RouteMiddleware("/controllers"))
-	e.GET("/:facility/controllers", h.WithNav(h.handleUsers), RouteMiddleware("/controllers"))
-
-	// User and above routes
-	e.GET("/calendar", h.WithNav(h.handleCalendar), RouteMiddleware("/calendar"))
-	e.GET("/:facility/calendar", h.WithNav(h.handleCalendar), RouteMiddleware("/calendar"))
-	e.GET("/profile", h.WithNav(h.handleProfile), RouteMiddleware("/profile"))
-	e.GET("/:facility/profile", h.WithNav(h.handleProfile), RouteMiddleware("/profile"))
-	e.GET("/:facility/:initials", h.WithNav(h.handleProfile), RouteMiddleware("/profile"))
-
-	// API routes
-	api := e.Group("/api", API_Role_Middleware())
-	// Todo: Super only facility endpoints
-	// api.POST("/facility", h.handleCreateFacility)
-	// api.PUT("/facility/:id", h.handleUpdateFacility)
-	api.GET("/facility/create", h.CreateFacilityForm)
-	// api.GET("/facility/update", h.updateFacilityForm)
-	api.POST("/user/:user_id", h.handleUpdateUser)
-	api.DELETE("/user/:user_id", h.WithNav(h.DeleteUser))
-	api.GET("/user/:user_id/update", h.updateUserForm)
-	api.GET("/user/:user_id/password", h.updatePasswordForm)
-	api.POST("/user/:user_id/password", h.handleUpdatePassword)
-
-	// Facility specific endpoints go here
-	facility := api.Group("/:facility", FacilityAPIMiddleware())
-	facility.POST("/available/:id", h.handleAvailabilityToggle)
-	facility.GET("/schedule/:facility/:initials", h.createScheduleForm)
-	facility.POST("/schedule/:facility/:initials", h.handleCreateSchedule)
-	facility.GET("/schedule/:id", h.handleGetSchedule)
-	facility.POST("/schedule/:id", h.handleUpdateSchedule)
-	facility.GET("/schedule/update/:id", h.updateScheduleForm)
-	facility.GET("/user/:facility", h.createUserForm)
-	facility.POST("/user", h.handleCreateUser)
+    // Group routes by function
+    setupPublicRoutes(e, h, auth)
+    setupProtectedRoutes(e, h)
+    setupAPIRoutes(e, h)
 }
 
-func (h *Handler) handleFacilities(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
-	facs, err := h.db.ListFacilities(c.Request().Context())
+// setupPublicRoutes configures public access routes
+func setupPublicRoutes(e *echo.Echo, h *Handler, auth *auth.AuthHandler) {
+    e.GET("/", h.ShowHome)
+    e.GET("/login", h.GetLogin, auth.RedirectIfAuthenticated())
+    e.POST("/login", auth.LoginHandler())
+    e.POST("/logout", auth.LogoutHandler())
+    e.GET("/register", h.GetRegister)
+    e.POST("/register", h.HandleRegistration)
+    e.GET("/set-password", h.GetSetPassword)
+    e.POST("/set-password", h.HandleSetPassword)
+}
+
+// setupProtectedRoutes configures authenticated routes
+func setupProtectedRoutes(e *echo.Echo, h *Handler) {
+    // Super admin routes
+    super := e.Group("/", RoleMiddleware(types.RoleSuper))
+    super.GET("/facilities", h.WithNav(h.handleFacilities))
+
+    // Admin routes
+    admin := e.Group("/", RoleMiddleware(types.RoleAdmin))
+    admin.GET("/controllers", h.WithNav(h.handleUsers))
+    admin.GET("/:facility/controllers", h.WithNav(h.handleUsers))
+
+    // User routes
+    user := e.Group("/", RoleMiddleware(types.RoleUser))
+    user.GET("/calendar", h.WithNav(h.handleCalendar))
+    user.GET("/:facility/calendar", h.WithNav(h.handleCalendar))
+    user.GET("/profile", h.WithNav(h.handleProfile))
+    user.GET("/:facility/profile", h.WithNav(h.handleProfile))
+    user.GET("/:facility/:initials", h.WithNav(h.handleProfile))
+}
+
+// setupAPIRoutes configures API endpoints
+func setupAPIRoutes(e *echo.Echo, h *Handler) {
+    api := e.Group("/api", API_Role_Middleware())
+    
+    // User management
+    api.POST("/user/:user_id", h.handleUpdateUser)
+    api.DELETE("/user/:user_id", h.WithNav(h.DeleteUser))
+    api.GET("/user/:user_id/update", h.updateUserForm)
+    api.GET("/user/:user_id/password", h.updatePasswordForm)
+    api.POST("/user/:user_id/password", h.handleUpdatePassword)
+
+    // Facility specific endpoints
+    facility := api.Group("/:facility", FacilityAPIMiddleware())
+    setupFacilityRoutes(facility, h)
+}
+
+// setupFacilityRoutes configures facility-specific endpoints
+func setupFacilityRoutes(g *echo.Group, h *Handler) {
+    g.POST("/available/:id", h.handleAvailabilityToggle)
+    g.GET("/schedule/:facility/:initials", h.createScheduleForm)
+    g.POST("/schedule/:facility/:initials", h.handleCreateSchedule)
+    g.GET("/schedule/:id", h.handleGetSchedule)
+    g.POST("/schedule/:id", h.handleUpdateSchedule)
+    g.GET("/schedule/update/:id", h.updateScheduleForm)
+    g.GET("/user/:facility", h.createUserForm)
+    g.POST("/user", h.handleCreateUser)
+}
+
+func (h *Handler) handleFacilities(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error {
+	facs, err := h.repos.Facility.List(c.Request().Context())
 	if err != nil {
 		// You might want to implement a custom error handler
 		return echo.NewHTTPError(http.StatusInternalServerError,
@@ -130,7 +155,7 @@ func (h *Handler) GetLogin(c echo.Context) error {
 }
 
 // handleCalendar handles GET requests for the calendar view
-func (h *Handler) handleCalendar(c echo.Context, routeCtx *types.RouteContext, navItems []types.NavItem) error {
+func (h *Handler) handleCalendar(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error {
 	// Get facility code from path parameter
 	facilityCode := c.Param("facility")
 	if facilityCode == "" {
@@ -155,7 +180,7 @@ func (h *Handler) handleCalendar(c echo.Context, routeCtx *types.RouteContext, n
 	}
 
 	// Get protected dates for the month
-	protectedDates, err := h.db.GetProtectedDatesByFacilityCode(c.Request().Context(), facilityCode)
+	protectedDates, err := h.repos.Schedule.GetProtectedDatesByFacilityCode(c.Request().Context(), facilityCode)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "error fetching protected dates")
 	}
@@ -165,7 +190,7 @@ func (h *Handler) handleCalendar(c echo.Context, routeCtx *types.RouteContext, n
 		return echo.NewHTTPError(http.StatusInternalServerError, "auth context error")
 	}
 
-	props := types.CalendarProps{
+	props := dto.CalendarProps{
 		CurrentMonth:   viewDate,
 		FacilityCode:   facilityCode,
 		ProtectedDates: protectedDates,
@@ -173,7 +198,7 @@ func (h *Handler) handleCalendar(c echo.Context, routeCtx *types.RouteContext, n
 		CurrentUserID:  auth.UserID,
 	}
 
-	pageProps := types.CalendarPageProps{
+	pageProps := dto.CalendarPageProps{
 		Route:       *routeCtx,
 		NavItems:    navItems,
 		Auth:        *auth,
@@ -206,7 +231,7 @@ func (h *Handler) handleAvailabilityToggle(c echo.Context) error {
 	}
 
 	// Fetch the protected date to check ownership
-	protectedDate, err := h.db.GetProtectedDate(c.Request().Context(), dateID)
+	protectedDate, err := h.repos.Schedule.GetProtectedDateByID(c.Request().Context(), dateID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "error fetching protected date")
 	}
@@ -217,7 +242,7 @@ func (h *Handler) handleAvailabilityToggle(c echo.Context) error {
 	}
 
 	// Toggle the availability
-	protectedDate, err = h.db.ToggleProtectedDateAvailability(c.Request().Context(), dateID)
+	protectedDate, err = h.repos.Schedule.ToggleProtectedDateAvailability(c.Request().Context(), dateID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "error toggling availability")
 	}
@@ -231,7 +256,7 @@ func (h *Handler) handleAvailabilityToggle(c echo.Context) error {
 	return component.Render(c.Request().Context(), c.Response().Writer)
 }
 
-func GetAuthContext(c echo.Context) (*types.AuthContext, error) {
+func GetAuthContext(c echo.Context) (*dto.AuthContext, error) {
 	sess, err := session.Get("session", c)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get session: %w", err)
@@ -247,7 +272,7 @@ func GetAuthContext(c echo.Context) (*types.AuthContext, error) {
 		return nil, fmt.Errorf("invalid role in session")
 	}
 
-	auth := &types.AuthContext{
+	auth := &dto.AuthContext{
 		UserID: userID,
 		Role:   role,
 	}
@@ -266,7 +291,7 @@ func GetAuthContext(c echo.Context) (*types.AuthContext, error) {
 	return auth, nil
 }
 
-func LogAuthContext(logger zerolog.Logger, auth *types.AuthContext) {
+func LogAuthContext(logger zerolog.Logger, auth *dto.AuthContext) {
 	logEvent := logger.Debug().
 		Int("user_id", auth.UserID).
 		Str("role", string(auth.Role))

@@ -14,20 +14,20 @@ import (
 )
 
 type CreateParams struct {
-    Key       string
-    Data      []byte
-    ExpiresOn time.Time
-    IsNew     bool
+	Key       string
+	Data      []byte
+	ExpiresOn time.Time
+	IsNew     bool
 }
 
 type Repository struct {
-    pool   *pgxpool.Pool
-    logger zerolog.Logger
+	pool   *pgxpool.Pool
+	logger zerolog.Logger
 }
 
 // Common errors
 var (
-    ErrNotFound         = fmt.Errorf("session not found")
+	ErrNotFound = fmt.Errorf("session not found")
 )
 
 func New(pool *pgxpool.Pool) *Repository {
@@ -78,72 +78,72 @@ func (r *Repository) Get(ctx context.Context, key string) (*entity.HTTPSession, 
 }
 
 func (r *Repository) Save(ctx context.Context, params CreateParams) error {
-    log := r.logger.With().
-        Str("method", "session.Save").
-        Str("session_key", params.Key).
-        Logger()
+	log := r.logger.With().
+		Str("method", "session.Save").
+		Str("session_key", params.Key).
+		Logger()
 
-    now := time.Now()
-    var query string
-    var args []interface{}
+	now := time.Now()
+	var query string
+	var args []interface{}
 
-    if params.IsNew {
-        query = `
+	if params.IsNew {
+		query = `
             INSERT INTO http_sessions (key, data, created_on, modified_on, expires_on)
             VALUES ($1, $2, $3, $4, $5)
         `
-        args = []interface{}{params.Key, params.Data, now, now, params.ExpiresOn}
-        log.Debug().Msg("inserting new session")
-    } else {
-        query = `
+		args = []interface{}{params.Key, params.Data, now, now, params.ExpiresOn}
+		log.Debug().Msg("inserting new session")
+	} else {
+		query = `
             UPDATE http_sessions 
             SET data = $1, modified_on = $2, expires_on = $3 
             WHERE key = $4
         `
-        args = []interface{}{params.Data, now, params.ExpiresOn, params.Key}
-        log.Debug().Msg("updating existing session")
-    }
+		args = []interface{}{params.Data, now, params.ExpiresOn, params.Key}
+		log.Debug().Msg("updating existing session")
+	}
 
-    _, err := r.pool.Exec(ctx, query, args...)
-    if err != nil {
-        log.Error().Err(err).Msg("database operation failed")
-        return fmt.Errorf("saving session to database: %w", err)
-    }
+	_, err := r.pool.Exec(ctx, query, args...)
+	if err != nil {
+		log.Error().Err(err).Msg("database operation failed")
+		return fmt.Errorf("saving session to database: %w", err)
+	}
 
-    return nil
+	return nil
 }
 
 func (r *Repository) Load(ctx context.Context, key string) (*entity.HTTPSession, error) {
-    log := r.logger.With().
-        Str("method", "session.Load").
-        Str("session_key", key).
-        Logger()
+	log := r.logger.With().
+		Str("method", "session.Load").
+		Str("session_key", key).
+		Logger()
 
-    var sess entity.HTTPSession
-    err := r.pool.QueryRow(ctx, `
+	var sess entity.HTTPSession
+	err := r.pool.QueryRow(ctx, `
         SELECT id, key, data, created_on, modified_on, expires_on 
         FROM http_sessions 
         WHERE key = $1
     `, key).Scan(
-        &sess.ID,
-        &sess.Key,
-        &sess.Data,
-        &sess.CreatedOn,
-        &sess.ModifiedOn,
-        &sess.ExpiresOn,
-    )
-    
-    if err == pgx.ErrNoRows {
-        log.Debug().Msg("session not found")
-        return nil, ErrNotFound
-    }
-    if err != nil {
-        log.Error().Err(err).Msg("failed to load session from database")
-        return nil, fmt.Errorf("loading session from database: %w", err)
-    }
+		&sess.ID,
+		&sess.Key,
+		&sess.Data,
+		&sess.CreatedOn,
+		&sess.ModifiedOn,
+		&sess.ExpiresOn,
+	)
 
-    log.Debug().Msg("session loaded successfully")
-    return &sess, nil
+	if err == pgx.ErrNoRows {
+		log.Debug().Msg("session not found")
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		log.Error().Err(err).Msg("failed to load session from database")
+		return nil, fmt.Errorf("loading session from database: %w", err)
+	}
+
+	log.Debug().Msg("session loaded successfully")
+	return &sess, nil
 }
 
 func (r *Repository) destroy(ctx context.Context, session *sessions.Session) error {

@@ -370,6 +370,29 @@ func (r *Repository) GetByInitialsAndFacility(ctx context.Context, initials stri
     return &user, nil
 }
 
+// GetByEmail retrieves a user by their email address
+func (r *Repository) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
+    var user entity.User
+    err := r.pool.QueryRow(ctx, `
+        SELECT 
+            id, created_at, updated_at, first_name, last_name,
+            initials, email, password, facility_id, role
+        FROM users
+        WHERE email = $1
+    `, email).Scan(
+        &user.ID, &user.CreatedAt, &user.UpdatedAt,
+        &user.FirstName, &user.LastName, &user.Initials,
+        &user.Email, &user.Password, &user.FacilityID, &user.Role,
+    )
+    if err == pgx.ErrNoRows {
+        return nil, ErrNotFound
+    }
+    if err != nil {
+        return nil, fmt.Errorf("getting user by email: %w", err)
+    }
+    return &user, nil
+}
+
 // IsEmailUnique checks if an email is unique, excluding the specified user ID
 func (r *Repository) IsEmailUnique(ctx context.Context, email string, excludeID *int) (bool, error) {
     query := `

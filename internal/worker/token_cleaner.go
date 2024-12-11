@@ -1,5 +1,5 @@
-// internal/workers/token_cleaner.go
-package workers
+// internal/worker/token_cleaner.go
+package worker
 
 import (
 	"context"

@@ -1,24 +1,21 @@
 package main
 
 import (
-	"context"
 	"embed"
 	"encoding/gob"
 	"flag"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	"github.com/DukeRupert/haven/auth"
-	"github.com/DukeRupert/haven/config"
-	"github.com/DukeRupert/haven/db"
-	"github.com/DukeRupert/haven/handler"
+	"github.com/DukeRupert/haven/internal/auth"
+	"github.com/DukeRupert/haven/internal/context"
+	"github.com/DukeRupert/haven/internal/config"
+	"github.com/DukeRupert/haven/internal/handler"
 	"github.com/DukeRupert/haven/internal/repository"
-	"github.com/DukeRupert/haven/store"
-	"github.com/DukeRupert/haven/types"
-	"github.com/DukeRupert/haven/worker"
+	"github.com/DukeRupert/haven/internal/store"
+	"github.com/DukeRupert/haven/internal/model/types"
+	"github.com/DukeRupert/haven/internal/worker"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v4"
@@ -75,7 +72,7 @@ func main() {
 
 	// Initialize logger
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	l := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 	// Load configuration
 	config, err := config.Load()
@@ -85,12 +82,12 @@ func main() {
 
 	// Run up migrations regardless of flag
 	if err := runMigrations(config.DatabaseURL, "up"); err != nil {
-		l.Fatal().Err(err).Msg("Initial migration failed")
+		logger.Fatal().Err(err).Msg("Initial migration failed")
 	}
 
 	// If migration command was explicitly provided, exit after running it
 	if *migrateCmd != "" {
-		l.Info().Msg("Migrations completed successfully")
+		logger.Info().Msg("Migrations completed successfully")
 		return
 	}
 
@@ -100,58 +97,56 @@ func main() {
 	e.Static("/static", "assets")
 
 	// Initialize database
-	dbConfig := db.DefaultConfig()
-	db, err := db.New(config.DatabaseURL, dbConfig)
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
-	defer db.Close()
+    database, err := repository.New(config.DatabaseURL, repository.DefaultConfig())
+    if err != nil {
+        log.Fatalf("Failed to initialize database: %v", err)
+    }
+    defer database.Close()
 
 	// Initialize repositories
-    repos := repository.NewRepositories(db)
+    repos := repository.NewRepositories(database)
+
+	// Initialize session store
+    sessionStore, err := store.NewPgxStore(repos.Session, []byte("your-secret-key"))
+    if err != nil {
+		logger.Fatal().Err(err).Msg("Failed to create session store")
+    }
+
+	// Create auth service
+    authService := auth.NewService(auth.Config{
+        Repos:  repos,
+        Store:  sessionStore,
+        Logger: logger,
+    })
+
+    // Create auth handler with service
+    authHandler := auth.NewHandler(auth.HandlerConfig{
+        Service: authService,
+        Store:   sessionStore,
+        Logger:  logger,
+    })
+
+	// Initialize middlewares
+	routeCtxMiddleware := context.NewRouteContextMiddleware(logger)
+	authMiddleware := auth.NewMiddleware(authService, logger)
 
     // Create and start token cleaner
     tokenCleaner := worker.NewTokenCleaner(
         repos.Token,
-        l,
+        logger,
         15*time.Minute,
     )
     tokenCleaner.Start()
     defer tokenCleaner.Stop()
 
-	// Initialize session store
-	s, err := store.NewPgxStore(db, []byte(config.SessionKey))
-	if err != nil {
-		l.Fatal().Err(err).Msg("Failed to create session store")
-	}
-
 	// Initialize handlers
-	h := handler.NewHandler(db, l)
-	authHandler := auth.NewAuthHandler(db, s, l)
+	// h := handler.NewHandler(database, logger)
+	// authHandler := auth.NewAuthHandler(database, sessionStore, logger)
 
 	// Setup all routes
-	handler.SetupRoutes(e, h, authHandler, s)
-
-	// Setup graceful shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		<-quit
-		l.Info().Msg("Shutting down server")
-
-		// Stop the token cleaner
-		cleaner.Stop()
-
-		// Shutdown Echo server
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err := e.Shutdown(ctx); err != nil {
-			l.Fatal().Err(err).Msg("Failed to shutdown server gracefully")
-		}
-	}()
+	handler.SetupRoutes(e, h, authHandler, sessionStore)
 
 	// Start server
-	l.Info().Msg("Starting server on :8080")
+	logger.Info().Msg("Starting server on :8080")
 	e.Logger.Fatal(e.Start(":8080"))
 }
