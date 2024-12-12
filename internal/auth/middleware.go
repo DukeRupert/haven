@@ -278,6 +278,42 @@ func (m *Middleware) ValidateFacility() echo.MiddlewareFunc {
 	}
 }
 
+// GetContextFromSession retrieves auth context from session
+func (m *Middleware) GetAuthContext(c echo.Context) (*dto.AuthContext, error) {
+    sess, err := session.Get("session", c)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get session: %w", err)
+    }
+
+    userID, ok := sess.Values["user_id"].(int)
+    if !ok {
+        return nil, fmt.Errorf("invalid user_id in session")
+    }
+
+    role, ok := sess.Values["role"].(types.UserRole)
+    if !ok {
+        return nil, fmt.Errorf("invalid role in session")
+    }
+
+    auth := &dto.AuthContext{
+        UserID: userID,
+        Role:   role,
+    }
+
+    // Optional values
+    if initials, ok := sess.Values["initials"].(string); ok {
+        auth.Initials = initials
+    }
+    if facilityID, ok := sess.Values["facility_id"].(int); ok {
+        auth.FacilityID = facilityID
+    }
+    if facilityCode, ok := sess.Values["facility_code"].(string); ok {
+        auth.FacilityCode = facilityCode
+    }
+
+    return auth, nil
+}
+
 // Helper methods
 func canAccessFacility(auth *dto.AuthContext, facilityCode string) bool {
 	switch auth.Role {

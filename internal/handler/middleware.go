@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"fmt"
+
+	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/labstack/echo/v4"
 )
@@ -49,7 +52,7 @@ func (h *Handler) WithNav(fn HandlerFunc) echo.HandlerFunc {
 			Logger()
 
 		// Get route context
-		routeCtx, err := GetRouteContext(c)
+		routeCtx, err := getRouteContext(c)
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to get route context")
 			return err
@@ -80,4 +83,12 @@ func IsAtLeastRole(currentRole string, minimumRole string) bool {
 		return false
 	}
 	return currentLevel >= requiredLevel
+}
+
+func getRouteContext(c echo.Context) (*dto.RouteContext, error) {
+    routeCtx, ok := c.Get("routeCtx").(*dto.RouteContext)
+    if !ok {
+        return nil, fmt.Errorf("route context not found")
+    }
+    return routeCtx, nil
 }
