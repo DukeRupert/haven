@@ -75,7 +75,7 @@ func (h *Handler) validateRoleChange(ctx context.Context, auth *dto.AuthContext,
 	// Get existing user
 	existingUser, err := h.repos.User.GetByID(ctx, userID)
 	if err != nil {
-		return SystemError(echo.New().AcquireContext())
+		return response.System(echo.New().AcquireContext())
 	}
 
 	// No role change, no validation needed
@@ -85,14 +85,14 @@ func (h *Handler) validateRoleChange(ctx context.Context, auth *dto.AuthContext,
 
 	// Validate role change permissions
 	if auth.Role != types.UserRoleSuper && newRole == types.UserRoleSuper {
-		return ErrorResponse(echo.New().AcquireContext(),
+		return response.Error(echo.New().AcquireContext(),
 			http.StatusForbidden,
 			"Invalid Role",
 			[]string{"Only super admins can assign super admin role"})
 	}
 
 	if auth.Role == types.UserRoleUser {
-		return ErrorResponse(echo.New().AcquireContext(),
+		return response.Error(echo.New().AcquireContext(),
 			http.StatusForbidden,
 			"Invalid Role",
 			[]string{"Users cannot change roles"})
@@ -153,7 +153,7 @@ func (h *Handler) validatePasswordUpdate(c echo.Context) (*passwordUpdateData, *
 	// Parse user ID
 	userID, err := getUserID(c)
 	if err != nil {
-		return nil, nil, ErrorResponse(c,
+		return nil, nil, response.Error(c,
 			http.StatusBadRequest,
 			"Invalid Request",
 			[]string{"Invalid user ID provided"},
@@ -163,7 +163,7 @@ func (h *Handler) validatePasswordUpdate(c echo.Context) (*passwordUpdateData, *
 	// Get auth context
 	auth, err := GetAuthContext(c)
 	if err != nil {
-		return nil, nil, ErrorResponse(c,
+		return nil, nil, response.Error(c,
 			http.StatusInternalServerError,
 			"System Error",
 			[]string{"Authentication error occurred"},
@@ -172,7 +172,7 @@ func (h *Handler) validatePasswordUpdate(c echo.Context) (*passwordUpdateData, *
 
 	// Check authorization
 	if !canUpdatePassword(auth, userID) {
-		return nil, nil, ErrorResponse(c,
+		return nil, nil, response.Error(c,
 			http.StatusForbidden,
 			"Unauthorized",
 			[]string{"You don't have permission to update this password"},
@@ -284,7 +284,7 @@ func (h *Handler) validateCreateUser(c echo.Context) (*createUserData, error) {
 
 	// Return all validation errors
 	if len(errors) > 0 {
-		return nil, ValidationError(c, errors)
+		return nil, response.Validation(c, errors)
 	}
 
 	return &createUserData{

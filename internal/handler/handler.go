@@ -2,15 +2,12 @@
 package handler
 
 import (
-	"net/http"
-	"strconv"
 
 	"github.com/DukeRupert/haven/internal/auth"
 	"github.com/DukeRupert/haven/internal/context"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/DukeRupert/haven/internal/repository"
-	"github.com/DukeRupert/haven/web/view/component"
 	"github.com/DukeRupert/haven/web/view/page"
 	"github.com/gorilla/sessions"
 

@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/DukeRupert/haven/types"
+	"github.com/DukeRupert/haven/internal/model/types"
+	"github.com/DukeRupert/haven/internal/response"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
 )
@@ -232,7 +233,7 @@ func API_Role_Middleware() echo.MiddlewareFunc {
 			path := getBasePath(c.Path())
 			config, exists := APIRouteConfigs[path]
 			if !exists {
-				return SystemError(c)
+				return response.System(c)
 			}
 
 			auth, err := GetAuthContext(c)

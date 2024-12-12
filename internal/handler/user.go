@@ -10,8 +10,8 @@ import (
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
-	"github.com/DukeRupert/haven/view/alert"
-	"github.com/DukeRupert/haven/view/component"
+	"github.com/DukeRupert/haven/web/view/alert"
+	"github.com/DukeRupert/haven/web/view/component"
 	"github.com/DukeRupert/haven/web/view/page"
 
 	"github.com/labstack/echo/v4"
@@ -164,7 +164,7 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 	userID, err := strconv.Atoi(c.Param("user_id"))
 	if err != nil {
 		logger.Debug().Err(err).Msg("invalid user ID format")
-		return ErrorResponse(c, http.StatusBadRequest,
+		return response.Error(c, http.StatusBadRequest,
 			"Invalid User ID",
 			[]string{"Please provide a valid user ID"})
 	}
@@ -173,7 +173,7 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
-		return SystemError(c)
+		return response.System(c)
 	}
 
 	// Check basic permissions
@@ -182,7 +182,7 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 			Int("user_id", userID).
 			Str("role", string(auth.Role)).
 			Msg("unauthorized update attempt")
-		return ErrorResponse(c, http.StatusForbidden,
+		return response.Error(c, http.StatusForbidden,
 			"Forbidden",
 			[]string{"You don't have permission to update this user"})
 	}
@@ -191,7 +191,7 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 	var params params.UpdateUserParams
 	if err := c.Bind(&params); err != nil {
 		logger.Debug().Err(err).Msg("invalid form data")
-		return ErrorResponse(c, http.StatusBadRequest,
+		return response.Error(c, http.StatusBadRequest,
 			"Invalid Request",
 			[]string{"Please check the form data and try again"})
 	}
@@ -207,10 +207,10 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 	updatedUser, err := h.repos.User.Update(c.Request().Context(), userID, params)
 	if err != nil {
 		if strings.Contains(err.Error(), "email already exists") {
-			return ValidationError(c, []string{"This email address is already in use"})
+			return response.Validation(c, []string{"This email address is already in use"})
 		}
 		logger.Error().Err(err).Int("user_id", userID).Msg("failed to update user")
-		return SystemError(c)
+		return response.System(c)
 	}
 
 	logger.Info().
@@ -240,7 +240,7 @@ func (h *Handler) HandleDeleteUser(c echo.Context, routeCtx *dto.RouteContext, n
 			Err(err).
 			Str("user_id_param", c.Param("user_id")).
 			Msg("invalid user ID format")
-		return ErrorResponse(c, http.StatusBadRequest,
+		return response.Error(c, http.StatusBadRequest,
 			"Invalid Request",
 			[]string{"Please provide a valid user ID"})
 	}
@@ -249,7 +249,7 @@ func (h *Handler) HandleDeleteUser(c echo.Context, routeCtx *dto.RouteContext, n
 	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
-		return SystemError(c)
+		return response.System(c)
 	}
 
 	if !canDeleteUser(auth, userID) {
@@ -258,7 +258,7 @@ func (h *Handler) HandleDeleteUser(c echo.Context, routeCtx *dto.RouteContext, n
 			Int("requesting_user_id", auth.UserID).
 			Str("role", string(auth.Role)).
 			Msg("unauthorized deletion attempt")
-		return ErrorResponse(c, http.StatusForbidden,
+		return response.Error(c, http.StatusForbidden,
 			"Access Denied",
 			[]string{"You don't have permission to delete this user"})
 	}
@@ -270,7 +270,7 @@ func (h *Handler) HandleDeleteUser(c echo.Context, routeCtx *dto.RouteContext, n
 			Err(err).
 			Int("user_id", userID).
 			Msg("failed to fetch user")
-		return SystemError(c)
+		return response.System(c)
 	}
 
 	// Delete user
@@ -279,7 +279,7 @@ func (h *Handler) HandleDeleteUser(c echo.Context, routeCtx *dto.RouteContext, n
 			Err(err).
 			Int("user_id", userID).
 			Msg("failed to delete user")
-		return SystemError(c)
+		return response.System(c)
 	}
 
 	logger.Info().
@@ -312,14 +312,14 @@ func (h *Handler) GetUpdatePasswordForm(c echo.Context) error {
 			Err(err).
 			Str("user_id_param", c.Param("user_id")).
 			Msg("invalid user ID parameter")
-		return SystemError(c)
+		return response.System(c)
 	}
 
 	// Get auth context for permission check
 	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
-		return ErrorResponse(c,
+		return response.Error(c,
 			http.StatusInternalServerError,
 			"Authentication Error",
 			[]string{"Unable to verify permissions"},
@@ -333,7 +333,7 @@ func (h *Handler) GetUpdatePasswordForm(c echo.Context) error {
 			Int("requesting_user_id", auth.UserID).
 			Str("role", string(auth.Role)).
 			Msg("unauthorized password form access attempt")
-		return ErrorResponse(c,
+		return response.Error(c,
 			http.StatusForbidden,
 			"Access Denied",
 			[]string{"You don't have permission to update this password"},
@@ -344,7 +344,7 @@ func (h *Handler) GetUpdatePasswordForm(c echo.Context) error {
 		Int("user_id", userID).
 		Msg("rendering password update form")
 
-	return render(c, component.UpdatePasswordForm(userID))
+	return render(c, component.Update_Password_Form(userID))
 }
 
 // HandleUpdatePassword processes password update requests
@@ -364,7 +364,7 @@ func (h *Handler) HandleUpdatePassword(c echo.Context) error {
     hashedPassword, err := hashPassword(formData.Password)
     if err != nil {
         logger.Error().Err(err).Msg("failed to hash password")
-        return ErrorResponse(c,
+        return response.Error(c,
             http.StatusInternalServerError,
             "System Error",
             []string{"Unable to process password update"},
@@ -381,7 +381,7 @@ func (h *Handler) HandleUpdatePassword(c echo.Context) error {
             Err(err).
             Int("user_id", formData.UserID).
             Msg("failed to update password")
-        return ErrorResponse(c,
+        return response.Error(c,
             http.StatusInternalServerError,
             "System Error",
             []string{"Failed to save new password"},
@@ -393,7 +393,7 @@ func (h *Handler) HandleUpdatePassword(c echo.Context) error {
         Str("updater_role", string(auth.Role)).
         Msg("password updated successfully")
 
-    return SuccessResponse(c, "Success", "Password has been updated")
+    return response.Success(c, "Success", "Password has been updated")
 }
 
 // GetCreateUserForm renders the user creation form
@@ -407,7 +407,7 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 	facilityCode := c.Param("facility")
 	if facilityCode == "" {
 		logger.Error().Msg("missing facility code")
-		return ErrorResponse(c, 
+		return response.Error(c, 
 			http.StatusBadRequest,
 			"Invalid Request",
 			[]string{"Facility code is required"},
@@ -421,7 +421,7 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 			Err(err).
 			Str("facility_code", facilityCode).
 			Msg("failed to find facility")
-		return ErrorResponse(c,
+		return response.Error(c,
 			http.StatusNotFound,
 			"Facility Not Found",
 			[]string{"The specified facility does not exist"},
@@ -432,7 +432,7 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
-		return ErrorResponse(c,
+		return response.Error(c,
 			http.StatusInternalServerError,
 			"Authentication Error",
 			[]string{"Unable to verify permissions"},
@@ -445,7 +445,7 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 			Int("facility_id", facility.ID).
 			Str("user_role", string(auth.Role)).
 			Msg("unauthorized attempt to access user creation form")
-		return ErrorResponse(c,
+		return response.Error(c,
 			http.StatusForbidden,
 			"Access Denied",
 			[]string{"You don't have permission to create users"},
@@ -480,7 +480,7 @@ func (h *Handler) GetUpdateUserForm(c echo.Context) error {
 			Err(err).
 			Int("user_id", formData.UserID).
 			Msg("failed to retrieve user")
-		return SystemError(c)
+		return response.System(c)
 	}
 
 	logger.Debug().
@@ -507,14 +507,14 @@ func (h *Handler) validateFormAccess(c echo.Context) (*UpdateUserFormData, error
 	userID, err := getUserID(c)
 	if err != nil {
 		logger.Debug().Err(err).Msg("invalid user ID")
-		return nil, SystemError(c)
+		return nil, response.System(c)
 	}
 
 	// Get auth context
 	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
-		return nil, ErrorResponse(c,
+		return nil, response.Error(c,
 			http.StatusInternalServerError,
 			"Authentication Error",
 			[]string{"Unable to verify permissions"},
@@ -528,7 +528,7 @@ func (h *Handler) validateFormAccess(c echo.Context) (*UpdateUserFormData, error
 			Int("requesting_user_id", auth.UserID).
 			Str("role", string(auth.Role)).
 			Msg("unauthorized form access attempt")
-		return nil, ErrorResponse(c,
+		return nil, response.Error(c,
 			http.StatusForbidden,
 			"Access Denied",
 			[]string{"You don't have permission to edit this user"},

@@ -3,11 +3,12 @@ package page
 import (
   "fmt"
 
-  "github.com/DukeRupert/haven/types"
+  "github.com/DukeRupert/haven/internal/model/dto"
   "github.com/DukeRupert/haven/view/layout"
+	"github.com/DukeRupert/haven/internal/model/entity"
 )
 
-templ Facilities(route types.RouteContext, navItems []types.NavItem, title string, description string, facs []types.Facility) {
+templ Facilities(route dto.RouteContext, navItems []dto.NavItem, title string, description string, facs []entity.Facility) {
   @layout.BaseLayout() {
     @layout.AppLayout(route, navItems) {
       @PageHeader(title, description) {
@@ -23,7 +24,7 @@ templ Facilities(route types.RouteContext, navItems []types.NavItem, title strin
   }
 }
 
-templ FacilityListItem(f types.Facility) {
+templ FacilityListItem(f entity.Facility) {
   <li hx-target="this" hx-swap="outerHTML" class="flex flex-col sm:flex-row justify-between gap-x-6 gap-y-4 py-5">
     <div class="flex min-w-0 gap-x-4">
         <div class="min-w-0 flex-auto">
@@ -61,7 +62,7 @@ templ CreateFacilityForm() {
 </li>
 }
 
-templ UpdateFacilityForm(f types.Facility) {
+templ UpdateFacilityForm(f entity.Facility) {
   <li hx-target="this" hx-swap="outerHTML" class="flex flex-col sm:flex-row justify-between gap-x-6 gap-y-4 py-5">
   <form hx-put={fmt.Sprintf("./facilities/%d", f.ID)} class="w-full flex flex-col sm:flex-row justify-between  gap-y-4 gap-x-6 mb-0">   
       <div class="w-full">

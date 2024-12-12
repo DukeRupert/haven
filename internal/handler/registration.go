@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DukeRupert/haven/view/alert"
-	"github.com/DukeRupert/haven/view/page"
+	"github.com/DukeRupert/haven/web/view/alert"
+	"github.com/DukeRupert/haven/web/view/page"
 	"github.com/labstack/echo/v4"
 )
 
@@ -58,7 +58,7 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 	fullFacilityCode := "K" + strings.ToUpper(params.FacilityCode)
 
 	// Check if facility exists
-	facility, err := h.db.GetFacilityByCode(c.Request().Context(), fullFacilityCode)
+	facility, err := h.repos.Facility.GetByCode(c.Request().Context(), fullFacilityCode)
 	if err != nil {
 		logger.Error().
 			Err(err).
@@ -80,7 +80,7 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 	}
 
 	// Verify user credentials
-	user, err := h.db.VerifyUserCredentials(
+	user, err := h.repos.User.VerifyCredentials(
 		c.Request().Context(),
 		facility.ID,
 		strings.ToUpper(params.Initials),
@@ -122,7 +122,7 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 	}
 
 	// Store token with 24-hour expiration
-	err = h.db.StoreRegistrationToken(
+	err = h.repos.Token.Store(
 		c.Request().Context(),
 		user.ID,
 		token,
@@ -214,7 +214,7 @@ func (h *Handler) GetSetPassword(c echo.Context) error {
 	}
 
 	// Verify token is valid in database
-	_, err := h.db.VerifyRegistrationToken(ctx, token)
+	_, err := h.repos.Token.Verify(ctx, token)
 	if err != nil {
 		h.logger.Error().Err(err).Str("token", token).Msg("Invalid or expired registration token")
 		return c.Redirect(302, "/register")
@@ -243,7 +243,7 @@ func (h *Handler) HandleSetPassword(c echo.Context) error {
 	}
 
 	// Verify token and get user ID
-	userID, err := h.db.VerifyRegistrationToken(ctx, req.Token)
+	userID, err := h.repos.Token.Verify(ctx, req.Token)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid or expired token"})
 	}
@@ -255,7 +255,7 @@ func (h *Handler) HandleSetPassword(c echo.Context) error {
 	}
 
 	// Update user password and registration status
-	err = h.db.SetUserPassword(ctx, userID, hashedPassword)
+	err = h.repos.User.SetPassword(ctx, userID, string(hashedPassword))
 	if err != nil {
 		return alert.Error(
 			"System Error",
@@ -264,7 +264,7 @@ func (h *Handler) HandleSetPassword(c echo.Context) error {
 	}
 
 	// Clean up used token
-	err = h.db.DeleteRegistrationToken(ctx, req.Token)
+	err = h.repos.Token.Delete(ctx, req.Token)
 	if err != nil {
 		// Log the error but don't fail the request
 		h.logger.Error().Msg("failed to delete registration token")
