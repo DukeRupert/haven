@@ -94,7 +94,7 @@ func main() {
 	// Initialize Echo instance
 	e := echo.New()
 	e.Pre(middleware.RemoveTrailingSlash())
-	e.Static("/static", "assets")
+	e.Static("/static", "web/assets")
 
 	// Initialize database and repositories
 	database, err := repository.New(config.DatabaseURL, repository.DefaultConfig())
