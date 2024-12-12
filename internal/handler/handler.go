@@ -112,26 +112,6 @@ func (h *Handler) GetLogin(c echo.Context) error {
 	return render(c, page.Login())
 }
 
-// Updated handler function
-
-func LogAuthContext(logger zerolog.Logger, auth *dto.AuthContext) {
-	logEvent := logger.Debug().
-		Int("user_id", auth.UserID).
-		Str("role", string(auth.Role))
-
-	if auth.Initials != "" {
-		logEvent.Str("initials", auth.Initials)
-	}
-	if auth.FacilityID != 0 {
-		logEvent.Int("facility_id", auth.FacilityID)
-	}
-	if auth.FacilityCode != "" {
-		logEvent.Str("facility_code", auth.FacilityCode)
-	}
-
-	logEvent.Msg("auth context retrieved")
-}
-
 func (h *Handler) ShowHome(c echo.Context) error {
 	return render(c, page.Landing())
 }

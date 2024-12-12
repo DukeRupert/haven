@@ -13,7 +13,6 @@ import (
 
 	"github.com/DukeRupert/haven/internal/response"
 	"github.com/DukeRupert/haven/internal/model/dto"
-	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
 	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/a-h/templ"
@@ -131,7 +130,6 @@ func canDeleteUser(auth *dto.AuthContext, targetUserID int) bool {
 	}
 }
 
-// Helper functions
 func canUpdatePassword(auth *dto.AuthContext, targetUserID int) bool {
 	switch auth.Role {
 	case types.UserRoleSuper:
@@ -143,7 +141,6 @@ func canUpdatePassword(auth *dto.AuthContext, targetUserID int) bool {
 	}
 }
 
-// Types and validation
 type passwordUpdateData struct {
 	UserID   int
 	Password string
@@ -318,16 +315,6 @@ func canCreateUsers(auth *dto.AuthContext, facilityID int) bool {
 	}
 }
 
-func isValidRole(role types.UserRole) bool {
-	validRoles := []types.UserRole{"super", "admin", "user"}
-	for _, r := range validRoles {
-		if role == r {
-			return true
-		}
-	}
-	return false
-}
-
 // Reduce boilerplate for simple templ component renders
 func render(c echo.Context, component templ.Component) error {
 	c.Response().Header().Set("Content-Type", "text/html")
@@ -372,21 +359,6 @@ func BuildNav(routeCtx *dto.RouteContext, currentPath string) []dto.NavItem {
 	}
 
 	return navItems
-}
-
-// isAuthorizedToToggle checks if a user is authorized to toggle a protected date's availability
-func isAuthorizedToToggle(userID int, role types.UserRole, protectedDate entity.ProtectedDate) bool {
-	// Allow access if user is admin or super
-	if role == "admin" || role == "super" {
-		return true
-	}
-
-	// Allow access if user owns the protected date
-	if role == "user" && userID == protectedDate.UserID {
-		return true
-	}
-
-	return false
 }
 
 // generateSecureToken creates a cryptographically secure token for registration
