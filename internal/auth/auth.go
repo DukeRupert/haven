@@ -1,43 +1,38 @@
-// internal/auth/auth.go
 package auth
 
 import (
-	"context"
-	"errors"
+    "context"
+    "errors"
 
-	"github.com/DukeRupert/haven/internal/model/types"
-	"github.com/DukeRupert/haven/internal/model/entity"
-	"github.com/DukeRupert/haven/internal/repository"
-	"github.com/gorilla/sessions"
-	"github.com/rs/zerolog"
-	"golang.org/x/crypto/bcrypt"
+    "github.com/DukeRupert/haven/internal/model/types"
+    "github.com/DukeRupert/haven/internal/model/entity"
+    "github.com/DukeRupert/haven/internal/repository"
+    "github.com/rs/zerolog"
+    "golang.org/x/crypto/bcrypt"
 )
 
 // Common errors
 var (
-	ErrInvalidCredentials = errors.New("invalid credentials")
+    ErrInvalidCredentials = errors.New("invalid credentials")
 )
 
 // Service handles authentication-related operations
 type Service struct {
-	repos  *repository.Repositories
-	store  sessions.Store
-	logger zerolog.Logger
+    repos  *repository.Repositories
+    logger zerolog.Logger
 }
 
 // Config holds service configuration
 type Config struct {
-	Repos  *repository.Repositories
-	Store  sessions.Store
-	Logger zerolog.Logger
+    Repos  *repository.Repositories
+    Logger zerolog.Logger
 }
 
 func NewService(cfg Config) *Service {
-	return &Service{
-		repos:  cfg.Repos,
-		store:  cfg.Store,
-		logger: cfg.Logger.With().Str("component", "auth").Logger(),
-	}
+    return &Service{
+        repos:  cfg.Repos,
+        logger: cfg.Logger.With().Str("component", "auth").Logger(),
+    }
 }
 
 // Authenticate verifies user credentials

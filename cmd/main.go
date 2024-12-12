@@ -18,6 +18,7 @@ import (
 	"github.com/DukeRupert/haven/internal/worker"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/pressly/goose/v3"
@@ -95,6 +96,14 @@ func main() {
 	e := echo.New()
 	e.Pre(middleware.RemoveTrailingSlash())
 	e.Static("/static", "web/assets")
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"https://sturdy-train-vq455j4p4rwf666v-8080.app.github.dev"},
+		AllowMethods: []string{echo.GET, echo.PUT, echo.POST, echo.DELETE},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+	}))
+	e.Use(middleware.Recover())
+	e.Use(middleware.RequestID())
+	e.Use(middleware.Logger())
 
 	// Initialize database and repositories
 	database, err := repository.New(config.DatabaseURL, repository.DefaultConfig())
@@ -106,36 +115,40 @@ func main() {
 	repos := repository.NewRepositories(database)
 
 	// Initialize session store
-	sessionStore, err := store.NewPgxStore(repos.Session, []byte(config.SessionKey))
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to create session store")
-	}
+    sessionStore, err := store.NewPgxStore(repos.Session, []byte("your-secret-key"))
+    if err != nil {
+        logger.Fatal().Err(err).Msg("Failed to create session store")
+    }
+	// Add session middleware at application level
+	e.Use(session.Middleware(sessionStore))
 
-	// Initialize auth components
+    // Initialize auth service
 	authService := auth.NewService(auth.Config{
-		Repos:  repos,
-		Store:  sessionStore,
-		Logger: logger,
-	})
+        Repos:  repos,
+        Logger: logger,
+    })
 
-	authMiddleware := auth.NewMiddleware(authService, logger)
+    // Initialize auth middleware
+    authMiddleware := auth.NewMiddleware(authService, logger)
 
+    // Initialize auth handler
     authHandler := auth.NewHandler(auth.HandlerConfig{
         Service: authService,
-        Store:   sessionStore,
         Logger:  logger,
     })
 
 	// Initialize other middleware
 	routeCtxMiddleware := context.NewRouteContextMiddleware(logger)
 
-	// Initialize main application handler
-	appHandler := handler.New(handler.Config{
+    // Initialize main application handler
+    appHandler := handler.New(handler.Config{
         Repos:    repos,
         Auth:     authMiddleware,
-        Sessions: sessionStore,
         Logger:   logger,
     })
+
+    // Setup routes with all components
+    handler.SetupRoutes(e, appHandler, authMiddleware, authHandler, routeCtxMiddleware)
 
 	// Create and start token cleaner
 	tokenCleaner := worker.NewTokenCleaner(
@@ -145,9 +158,6 @@ func main() {
 	)
 	tokenCleaner.Start()
 	defer tokenCleaner.Stop()
-
-	// Setup all routes
-	handler.SetupRoutes(e, appHandler, authMiddleware, authHandler, routeCtxMiddleware)
 
 	// Start server
 	logger.Info().Msg("Starting server on :8080")

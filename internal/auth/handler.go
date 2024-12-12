@@ -1,32 +1,27 @@
-// internal/auth/handler.go
 package auth
 
 import (
-	"fmt"
-	"net/http"
-	"time"
+    "fmt"
+    "net/http"
+    "time"
 
-	"github.com/DukeRupert/haven/internal/store"
-	"github.com/DukeRupert/haven/web/view/alert"
+    "github.com/DukeRupert/haven/internal/store"
+    "github.com/DukeRupert/haven/web/view/alert"
 
-	"github.com/gorilla/sessions"
-	"github.com/labstack/echo-contrib/session"
-	"github.com/labstack/echo/v4"
-	"github.com/rs/zerolog"
-	"golang.org/x/crypto/bcrypt"
+    "github.com/labstack/echo-contrib/session"
+    "github.com/labstack/echo/v4"
+    "github.com/rs/zerolog"
 )
 
 // Handler configuration
 type HandlerConfig struct {
-    Service *Service        // Add service reference
-    Store   sessions.Store
+    Service *Service
     Logger  zerolog.Logger
 }
 
 // Handler struct
 type Handler struct {
-    service *Service        // Add service reference
-    store   sessions.Store
+    service *Service
     logger  zerolog.Logger
 }
 
@@ -34,7 +29,6 @@ type Handler struct {
 func NewHandler(cfg HandlerConfig) *Handler {
     return &Handler{
         service: cfg.Service,
-        store:   cfg.Store,
         logger:  cfg.Logger.With().Str("component", "auth_handler").Logger(),
     }
 }
@@ -59,7 +53,6 @@ func (h *Handler) LoginResponse(c echo.Context, status int, heading string, mess
 	return alert.Error(heading, messages).Render(c.Request().Context(), c.Response().Writer)
 }
 
-// LoginHandler handles the login form submission
 func (h *Handler) LoginHandler() echo.HandlerFunc {
     return func(c echo.Context) error {
         logger := h.logger.With().
@@ -67,48 +60,38 @@ func (h *Handler) LoginHandler() echo.HandlerFunc {
             Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
             Logger()
 
-        // Bind form data
-        params := new(LoginParams)
-        if err := c.Bind(params); err != nil {
-            return h.LoginResponse(c, http.StatusBadRequest, "Invalid Request", 
-                []string{"Please check your input and try again."}, "")
-        }
-
-        // Authenticate using the service
-        user, err := h.service.Authenticate(c.Request().Context(), params.Email, params.Password)
-        if err != nil {
-            logger.Debug().Err(err).Str("email", params.Email).Msg("authentication failed")
-            return h.LoginResponse(c, http.StatusUnauthorized, "Login Failed",
-                []string{"Invalid email or password."}, "")
-        }
-
-        // Get facility using repository
-        facility, err := h.service.repos.Facility.GetByID(c.Request().Context(), user.FacilityID)
-        if err != nil {
-            logger.Error().Err(err).Msg("failed to get facility")
-            return h.LoginResponse(c, http.StatusInternalServerError, "System Error",
-                []string{"Unable to complete login."}, "")
-        }
-
-        // Get session
+        // Get session first to ensure it's working
         sess, err := session.Get(store.DefaultSessionName, c)
         if err != nil {
             logger.Error().Err(err).Msg("failed to get session")
             return h.LoginResponse(c,
                 http.StatusInternalServerError,
                 "System Error",
-                []string{"Unable to process login request. Please try again."},
+                []string{"Unable to process login request"},
                 "")
         }
 
-        // Verify password
-        if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(params.Password)); err != nil {
-            logger.Debug().Err(err).Msg("invalid password")
-            return h.LoginResponse(c,
-                http.StatusUnauthorized,
-                "Login Failed",
-                []string{"Invalid email or password. Please try again."},
-                "")
+        // Bind form data
+        params := new(LoginParams)
+        if err := c.Bind(params); err != nil {
+            return h.LoginResponse(c, http.StatusBadRequest, "Invalid Request", 
+                []string{"Please check your input"}, "")
+        }
+
+        // Authenticate using the service (don't verify password again)
+        user, err := h.service.Authenticate(c.Request().Context(), params.Email, params.Password)
+        if err != nil {
+            logger.Debug().Err(err).Str("email", params.Email).Msg("authentication failed")
+            return h.LoginResponse(c, http.StatusUnauthorized, "Login Failed",
+                []string{"Invalid email or password"}, "")
+        }
+
+        // Get facility
+        facility, err := h.service.repos.Facility.GetByID(c.Request().Context(), user.FacilityID)
+        if err != nil {
+            logger.Error().Err(err).Msg("failed to get facility")
+            return h.LoginResponse(c, http.StatusInternalServerError, "System Error",
+                []string{"Unable to complete login"}, "")
         }
 
         // Set session values
@@ -119,12 +102,16 @@ func (h *Handler) LoginHandler() echo.HandlerFunc {
         sess.Values["facility_id"] = facility.ID
         sess.Values["last_access"] = time.Now()
 
+        h.logger.Debug().
+            Interface("session_values", sess.Values).
+            Msg("session values before save")
+
         if err := sess.Save(c.Request(), c.Response()); err != nil {
             logger.Error().Err(err).Msg("failed to save session")
             return h.LoginResponse(c,
                 http.StatusInternalServerError,
                 "System Error",
-                []string{"Unable to complete login process. Please try again."},
+                []string{"Unable to complete login process"},
                 "")
         }
 

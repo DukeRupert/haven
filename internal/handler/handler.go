@@ -2,18 +2,14 @@
 package handler
 
 import (
-
 	"github.com/DukeRupert/haven/internal/auth"
 	"github.com/DukeRupert/haven/internal/context"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/DukeRupert/haven/internal/repository"
 	"github.com/DukeRupert/haven/web/view/page"
-	"github.com/gorilla/sessions"
 
-	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
 )
 
@@ -21,41 +17,29 @@ import (
 type HandlerFunc func(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error
 
 type Config struct {
-	Repos    *repository.Repositories
-	Auth     *auth.Middleware
-	Sessions sessions.Store
-	Logger   zerolog.Logger
+	Repos  *repository.Repositories
+	Auth   *auth.Middleware
+	Logger zerolog.Logger
 }
 
 type Handler struct {
 	repos    *repository.Repositories
 	auth     *auth.Middleware
-	sessions sessions.Store
 	logger   zerolog.Logger
 	RouteCtx dto.RouteContext
 }
 
 func New(cfg Config) *Handler {
 	return &Handler{
-		repos:    cfg.Repos,
-		auth:     cfg.Auth,
-		sessions: cfg.Sessions,
-		logger:   cfg.Logger.With().Str("component", "handler").Logger(),
+		repos:  cfg.Repos,
+		auth:   cfg.Auth,
+		logger: cfg.Logger.With().Str("component", "handler").Logger(),
 	}
 }
 
 // SetupRoutes configures all application routes
 func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *auth.Handler, ctx *context.RouteContextMiddleware) {
-	// Middleware setup
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"https://sturdy-train-vq455j4p4rwf666v-8080.app.github.dev"},
-		AllowMethods: []string{echo.GET, echo.PUT, echo.POST, echo.DELETE},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
-	}))
-	e.Use(middleware.Recover())
-	e.Use(middleware.RequestID())
-	e.Use(middleware.Logger())
-	e.Use(session.Middleware(h.sessions))
+	// Other middleware
 	e.Use(auth.Authenticate())
 	e.Use(ctx.WithRouteContext())
 
@@ -87,20 +71,26 @@ func setupProtectedRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware) {
 	super.Use(auth.RequireRole(types.UserRoleSuper))
 	super.GET("/facilities", h.WithNav(h.HandleFacilities))
 
-	// Admin routes
-	admin := e.Group("/admin")
-	admin.Use(auth.RequireRole(types.UserRoleAdmin))
-	admin.GET("/controllers", h.WithNav(h.HandleUsers))
-	admin.GET("/:facility/controllers", h.WithNav(h.HandleUsers))
+	// Facility specific endpoints
+	facilities := e.Group("/:facility")
+	facilities.Use(auth.ValidateFacility())
+	setupFacilityRoutes(facilities, h, auth)
+}
 
-	// User routes
-	user := e.Group("/user")
-	user.Use(auth.RequireRole(types.UserRoleUser))
-	user.GET("/calendar", h.WithNav(h.HandleCalendar))
-	user.GET("/:facility/calendar", h.WithNav(h.HandleCalendar))
-	user.GET("/profile", h.WithNav(h.HandleProfile))
-	user.GET("/:facility/profile", h.WithNav(h.HandleProfile))
-	user.GET("/:facility/:initials", h.WithNav(h.HandleProfile))
+// setupFacilityRoutes configures facility-specific endpoints
+func setupFacilityRoutes(g *echo.Group, h *Handler, auth *auth.Middleware) {
+	g.GET("/calendar", h.WithNav(h.HandleCalendar))
+	g.GET("/profile", h.WithNav(h.HandleProfile))
+	g.GET("/:initials", h.WithNav(h.HandleProfile))
+	g.POST("/available/:id", h.HandleAvailabilityToggle)
+	g.GET("/schedule/:initials", h.GetCreateScheduleForm)
+	g.POST("/schedule/:initials", h.HandleCreateSchedule)
+	g.GET("/schedule/:id", h.HandleGetSchedule)
+	g.POST("/schedule/:id", h.HandleUpdateSchedule)
+	g.GET("/schedule/:id/update", h.GetUpdateScheduleForm)
+	g.GET("/controllers", h.WithNav(h.HandleUsers), auth.RequireRole(types.UserRoleAdmin))
+	g.GET("/users/create", h.GetCreateUserForm)
+	g.POST("/users", h.HandleCreateUser)
 }
 
 // setupAPIRoutes configures API endpoints
@@ -116,23 +106,6 @@ func setupAPIRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware) {
 	users.GET("/:user_id/update", h.GetUpdateUserForm)
 	users.GET("/:user_id/password", h.GetUpdatePasswordForm)
 	users.POST("/:user_id/password", h.HandleUpdatePassword)
-
-	// Facility specific endpoints
-	facilities := api.Group("/facilities")
-	facilities.Use(auth.ValidateFacility())
-	setupFacilityRoutes(facilities, h)
-}
-
-// setupFacilityRoutes configures facility-specific endpoints
-func setupFacilityRoutes(g *echo.Group, h *Handler) {
-	g.POST("/:facility/available/:id", h.HandleAvailabilityToggle)
-	g.GET("/:facility/schedule/:initials", h.GetCreateScheduleForm)
-	g.POST("/:facility/schedule/:initials", h.HandleCreateSchedule)
-	g.GET("/schedule/:id", h.HandleGetSchedule)
-	g.POST("/schedule/:id", h.HandleUpdateSchedule)
-	g.GET("/schedule/:id/update", h.GetUpdateScheduleForm)
-	g.GET("/:facility/users/create", h.GetCreateUserForm)
-	g.POST("/:facility/users", h.HandleCreateUser)
 }
 
 func (h *Handler) GetLogin(c echo.Context) error {

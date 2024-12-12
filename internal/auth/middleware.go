@@ -279,7 +279,6 @@ func (m *Middleware) ValidateFacility() echo.MiddlewareFunc {
 }
 
 // Helper methods
-
 func canAccessFacility(auth *dto.AuthContext, facilityCode string) bool {
 	switch auth.Role {
 	case types.UserRoleSuper:

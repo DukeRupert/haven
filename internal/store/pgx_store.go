@@ -46,17 +46,54 @@ func NewPgxStore(repo *session.Repository, keyPairs ...[]byte) (*PgxStore, error
 	return store, nil
 }
 
-// Get retrieves a session for a given name
-func (s *PgxStore) Get(r *http.Request, name string) (*sessions.Session, error) {
-	return sessions.GetRegistry(r).Get(s, name)
-}
-
-// New creates a new session
 func (s *PgxStore) New(r *http.Request, name string) (*sessions.Session, error) {
 	session := sessions.NewSession(s, name)
 	opts := *s.Options
 	session.Options = &opts
 	session.IsNew = true
+
+	// Generate a unique session ID
+	session.ID = generateSessionID() // Add this line
+
+	return session, nil
+}
+
+// Add this helper function
+func generateSessionID() string {
+	// Generate a random 32 byte (256 bit) value
+	b := securecookie.GenerateRandomKey(32)
+	return fmt.Sprintf("%x", b)
+}
+
+func (s *PgxStore) Get(r *http.Request, name string) (*sessions.Session, error) {
+	session := sessions.NewSession(s, name)
+	opts := *s.Options
+	session.Options = &opts
+	session.IsNew = true
+
+	// Get cookie
+	cookie, err := r.Cookie(name)
+	if err != nil {
+		// No cookie found, return new session
+		return session, nil
+	}
+
+	// Decode session ID from cookie
+	var id string
+	if err := securecookie.DecodeMulti(name, cookie.Value, &id, s.Codecs...); err != nil {
+		// Invalid cookie, return new session
+		return session, nil
+	}
+
+	// Set session ID
+	session.ID = id
+	session.IsNew = false
+
+	// Load session data
+	if err := s.Load(r.Context(), session); err != nil {
+		// Failed to load session, return new one
+		return sessions.NewSession(s, name), nil
+	}
 
 	return session, nil
 }
@@ -74,9 +111,27 @@ func (s *PgxStore) encodeSession(session *sessions.Session) ([]byte, error) {
 	return []byte(encoded), nil
 }
 
-// Save satisfies the sessions.Store interface
 func (s *PgxStore) Save(r *http.Request, w http.ResponseWriter, session *sessions.Session) error {
-	// Convert to your internal save method
+	// Skip saving if session values are empty
+	if len(session.Values) == 0 {
+		return nil
+	}
+
+	// Set cookie before saving to database
+	if session.ID == "" {
+		session.ID = generateSessionID()
+	}
+
+	// Set cookie
+	encoded, err := securecookie.EncodeMulti(session.Name(), session.ID, s.Codecs...)
+	if err != nil {
+		return err
+	}
+
+	cookie := sessions.NewCookie(session.Name(), encoded, session.Options)
+	http.SetCookie(w, cookie)
+
+	// Save to database
 	return s.save(r.Context(), session)
 }
 
