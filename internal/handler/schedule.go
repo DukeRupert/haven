@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/DukeRupert/haven/web/view/component"
 	"github.com/DukeRupert/haven/web/view/page"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog"
 )
 
 func (h *Handler) HandleCreateSchedule(c echo.Context) error {
@@ -220,6 +222,15 @@ func (h *Handler) HandleAvailabilityToggle(c echo.Context) error {
 	))
 }
 
+// Types for validation
+type scheduleRequestContext struct {
+	FacilityCode string
+	UserInitials string
+	Facility     *entity.Facility
+	User         *entity.User
+	Auth         *dto.AuthContext
+}
+
 // GetCreateScheduleForm renders the schedule creation form
 func (h *Handler) GetCreateScheduleForm(c echo.Context) error {
 	logger := h.logger.With().
@@ -227,25 +238,63 @@ func (h *Handler) GetCreateScheduleForm(c echo.Context) error {
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
-	// Get and validate params
+	// Validate request and get context
+	reqCtx, err := h.validateScheduleRequest(c)
+	if err != nil {
+		return err
+	}
+
+	logger.Debug().
+		Str("facility_code", reqCtx.FacilityCode).
+		Str("user_initials", reqCtx.UserInitials).
+		Int("facility_id", reqCtx.Facility.ID).
+		Msg("rendering schedule creation form")
+
+	return render(c, component.CreateScheduleForm(
+		reqCtx.FacilityCode,
+		reqCtx.UserInitials,
+	))
+}
+
+// validateScheduleRequest handles all validation steps
+func (h *Handler) validateScheduleRequest(c echo.Context) (*scheduleRequestContext, error) {
+	// Get and validate basic params
 	params, err := validateScheduleFormParams(c)
 	if err != nil {
-		return err // validateScheduleFormParams handles error responses
+		return nil, err
 	}
 
 	// Get auth context
 	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to get auth context")
-		return response.System(c)
+		return nil, response.System(c)
 	}
 
-	// Verify facility exists
-	_, err = h.repos.Facility.GetByCode(c.Request().Context(), params.FacilityCode)
+	reqCtx := &scheduleRequestContext{
+		FacilityCode: params.FacilityCode,
+		UserInitials: params.Initials,
+		Auth:         auth,
+	}
+
+	// Verify facility and permissions
+	if err := h.validateFacilityAccess(c, reqCtx); err != nil {
+		return nil, err
+	}
+
+	// Verify user exists in facility
+	if err := h.validateUserInFacility(c, reqCtx); err != nil {
+		return nil, err
+	}
+
+	return reqCtx, nil
+}
+
+func (h *Handler) validateFacilityAccess(c echo.Context, ctx *scheduleRequestContext) error {
+	facility, err := h.repos.Facility.GetByCode(c.Request().Context(), ctx.FacilityCode)
 	if err != nil {
-		logger.Error().
+		h.logger.Error().
 			Err(err).
-			Str("facility_code", params.FacilityCode).
+			Str("facility_code", ctx.FacilityCode).
 			Msg("facility not found")
 		return response.Error(c,
 			http.StatusNotFound,
@@ -254,17 +303,34 @@ func (h *Handler) GetCreateScheduleForm(c echo.Context) error {
 		)
 	}
 
-	// Verify user exists
-	_, err = h.repos.User.GetByInitialsAndFacility(
+	// Verify admin has access to this facility
+	if ctx.Auth.Role == types.UserRoleAdmin && ctx.Auth.FacilityID != facility.ID {
+		h.logger.Warn().
+			Int("auth_facility_id", ctx.Auth.FacilityID).
+			Int("target_facility_id", facility.ID).
+			Msg("admin attempted to access different facility")
+		return response.Error(c,
+			http.StatusForbidden,
+			"Access Denied",
+			[]string{"You don't have permission to access this facility"},
+		)
+	}
+
+	ctx.Facility = facility
+	return nil
+}
+
+func (h *Handler) validateUserInFacility(c echo.Context, ctx *scheduleRequestContext) error {
+	user, err := h.repos.User.GetByInitialsAndFacility(
 		c.Request().Context(),
-		params.Initials,
-		auth.FacilityID,
+		ctx.UserInitials,
+		ctx.Facility.ID,
 	)
 	if err != nil {
-		logger.Error().
+		h.logger.Error().
 			Err(err).
-			Str("initials", params.Initials).
-			Int("facility_id", auth.FacilityID).
+			Str("initials", ctx.UserInitials).
+			Int("facility_id", ctx.Facility.ID).
 			Msg("user not found")
 		return response.Error(c,
 			http.StatusNotFound,
@@ -273,15 +339,16 @@ func (h *Handler) GetCreateScheduleForm(c echo.Context) error {
 		)
 	}
 
-	logger.Debug().
-		Str("facility_code", params.FacilityCode).
-		Str("user_initials", params.Initials).
-		Msg("rendering schedule creation form")
+	ctx.User = user
+	return nil
+}
 
-	return render(c, component.CreateScheduleForm(
-		params.FacilityCode,
-		params.Initials,
-	))
+type scheduleUpdateContext struct {
+	ScheduleID int
+	Schedule   *entity.Schedule
+	User       *entity.User
+	Facility   *entity.Facility
+	Auth       *dto.AuthContext
 }
 
 // GetUpdateScheduleForm renders the schedule update form
@@ -291,14 +358,30 @@ func (h *Handler) GetUpdateScheduleForm(c echo.Context) error {
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
-	// Get and validate schedule ID
+	// Validate request and get context
+	reqCtx, err := h.validateScheduleUpdateRequest(c)
+	if err != nil {
+		return err
+	}
+
+	logger.Debug().
+		Int("schedule_id", reqCtx.ScheduleID).
+		Int("user_id", reqCtx.Schedule.UserID).
+		Int("facility_id", reqCtx.Facility.ID).
+		Msg("rendering schedule update form")
+
+	return render(c, component.UpdateScheduleForm(*reqCtx.Schedule))
+}
+
+func (h *Handler) validateScheduleUpdateRequest(c echo.Context) (*scheduleUpdateContext, error) {
+	// Get schedule ID
 	scheduleID, err := getScheduleID(c)
 	if err != nil {
-		logger.Debug().
+		h.logger.Debug().
 			Err(err).
 			Str("schedule_id_param", c.Param("id")).
 			Msg("invalid schedule ID")
-		return response.Error(c,
+		return nil, response.Error(c,
 			http.StatusBadRequest,
 			"Invalid Request",
 			[]string{"Please provide a valid schedule ID"},
@@ -308,23 +391,40 @@ func (h *Handler) GetUpdateScheduleForm(c echo.Context) error {
 	// Get auth context
 	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to get auth context")
-		return response.System(c)
+		return nil, response.System(c)
 	}
 
-	// Get schedule
-	schedule, err := h.repos.Schedule.GetByID(c.Request().Context(), scheduleID)
+	reqCtx := &scheduleUpdateContext{
+		ScheduleID: scheduleID,
+		Auth:       auth,
+	}
+
+	// Get and validate schedule
+	if err := h.validateScheduleAccess(c, reqCtx); err != nil {
+		return nil, err
+	}
+
+	// Get and validate user and facility
+	if err := h.validateScheduleUserAndFacility(c, reqCtx); err != nil {
+		return nil, err
+	}
+
+	return reqCtx, nil
+}
+
+func (h *Handler) validateScheduleAccess(c echo.Context, ctx *scheduleUpdateContext) error {
+	schedule, err := h.repos.Schedule.GetByID(c.Request().Context(), ctx.ScheduleID)
 	if err != nil {
-		logger.Error().
+		h.logger.Error().
 			Err(err).
-			Int("schedule_id", scheduleID).
+			Int("schedule_id", ctx.ScheduleID).
 			Msg("failed to retrieve schedule")
 		return response.System(c)
 	}
 
 	if schedule == nil {
-		logger.Debug().
-			Int("schedule_id", scheduleID).
+		h.logger.Debug().
+			Int("schedule_id", ctx.ScheduleID).
 			Msg("schedule not found")
 		return response.Error(c,
 			http.StatusNotFound,
@@ -333,12 +433,40 @@ func (h *Handler) GetUpdateScheduleForm(c echo.Context) error {
 		)
 	}
 
-	// Check authorization
-	if !canModifySchedule(auth, schedule) {
-		logger.Warn().
-			Int("schedule_id", scheduleID).
-			Int("user_id", auth.UserID).
-			Str("role", string(auth.Role)).
+	ctx.Schedule = schedule
+	return nil
+}
+
+func (h *Handler) validateScheduleUserAndFacility(c echo.Context, ctx *scheduleUpdateContext) error {
+	// Get user associated with schedule
+	user, err := h.repos.User.GetByID(c.Request().Context(), ctx.Schedule.UserID)
+	if err != nil {
+		h.logger.Error().
+			Err(err).
+			Int("user_id", ctx.Schedule.UserID).
+			Msg("failed to retrieve user")
+		return response.System(c)
+	}
+	ctx.User = user
+
+	// Get facility
+	facility, err := h.repos.Facility.GetByID(c.Request().Context(), user.FacilityID)
+	if err != nil {
+		h.logger.Error().
+			Err(err).
+			Int("facility_id", user.FacilityID).
+			Msg("failed to retrieve facility")
+		return response.System(c)
+	}
+	ctx.Facility = facility
+
+	// Check permissions
+	if !canModifySchedule(ctx.Auth, ctx.Schedule) {
+		h.logger.Warn().
+			Int("schedule_id", ctx.ScheduleID).
+			Int("user_id", ctx.Auth.UserID).
+			Int("facility_id", facility.ID).
+			Str("role", string(ctx.Auth.Role)).
 			Msg("unauthorized schedule modification attempt")
 		return response.Error(c,
 			http.StatusForbidden,
@@ -347,12 +475,7 @@ func (h *Handler) GetUpdateScheduleForm(c echo.Context) error {
 		)
 	}
 
-	logger.Debug().
-		Int("schedule_id", scheduleID).
-		Int("user_id", schedule.UserID).
-		Msg("rendering schedule update form")
-
-	return render(c, component.UpdateScheduleForm(*schedule))
+	return nil
 }
 
 // HandleUpdateSchedule processes schedule update requests
@@ -641,23 +764,58 @@ func validateWeekdays(first, second int) error {
 }
 
 func canViewSchedule(auth *dto.AuthContext, schedule *entity.Schedule) bool {
-    switch auth.Role {
-    case types.UserRoleSuper:
-        return true
-    case types.UserRoleAdmin:
-        return auth.FacilityID == schedule.FacilityID
-    default:
-        return auth.UserID == schedule.UserID
-    }
+	switch auth.Role {
+	case types.UserRoleSuper:
+		return true
+	case types.UserRoleAdmin:
+		return auth.FacilityID == schedule.FacilityID
+	default:
+		return auth.UserID == schedule.UserID
+	}
 }
 
+// func canModifySchedule(auth *dto.AuthContext, schedule *entity.Schedule) bool {
+// 	switch auth.Role {
+// 	case types.UserRoleSuper:
+// 		return true
+// 	case types.UserRoleAdmin:
+// 		return auth.FacilityID == schedule.FacilityID
+// 	default:
+// 		return auth.UserID == schedule.UserID
+// 	}
+// }
+
 func canModifySchedule(auth *dto.AuthContext, schedule *entity.Schedule) bool {
+	logger := zerolog.New(os.Stdout).With().
+		Str("method", "canModifySchedule").
+		Int("auth_user_id", auth.UserID).
+		Int("auth_facility_id", auth.FacilityID).
+		Str("auth_role", string(auth.Role)).
+		Int("schedule_user_id", schedule.UserID).
+		Int("schedule_facility_id", schedule.FacilityID).
+		Logger()
+ 
 	switch auth.Role {
-    case types.UserRoleSuper:
-        return true
-    case types.UserRoleAdmin:
-        return auth.FacilityID == schedule.FacilityID
-    default:
-        return auth.UserID == schedule.UserID
-    }
-}
+	case types.UserRoleSuper:
+		logger.Debug().Msg("super user access granted")
+		return true
+		
+	case types.UserRoleAdmin:
+		canModify := auth.FacilityID == schedule.FacilityID
+		if canModify {
+			logger.Debug().Msg("admin access granted - same facility")
+		} else {
+			logger.Debug().Msg("admin access denied - different facility")
+		}
+		return canModify
+		
+	default:
+		canModify := auth.UserID == schedule.UserID
+		if canModify {
+			logger.Debug().Msg("user access granted - own schedule")
+		} else {
+			logger.Debug().Msg("user access denied - not own schedule")
+		}
+		return canModify
+	}
+ }

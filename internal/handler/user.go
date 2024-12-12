@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DukeRupert/haven/internal/response"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
+	"github.com/DukeRupert/haven/internal/response"
 	"github.com/DukeRupert/haven/web/view/alert"
 	"github.com/DukeRupert/haven/web/view/component"
 	"github.com/DukeRupert/haven/web/view/page"
@@ -97,31 +97,31 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 		Str("handler", "HandleCreateUser").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
- 
+
 	// Validate and parse create request
 	createData, err := h.validateCreateUser(c)
 	if err != nil {
 		return err // validateCreateUser handles error responses
 	}
- 
+
 	// Hash password
 	hashedPassword, err := hashPassword(createData.Password)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to hash password")
 		return response.System(c)
 	}
- 
+
 	// Prepare create params
 	params := params.CreateUserParams{
-		FirstName:   createData.FirstName,
-		LastName:    createData.LastName,
-		Email:       createData.Email,
-		Password:    string(hashedPassword),
-		Initials:    createData.Initials,
-		Role:        createData.Role,
-		FacilityID:  createData.FacilityID,
+		FirstName:  createData.FirstName,
+		LastName:   createData.LastName,
+		Email:      createData.Email,
+		Password:   string(hashedPassword),
+		Initials:   createData.Initials,
+		Role:       createData.Role,
+		FacilityID: createData.FacilityID,
 	}
- 
+
 	// Create user
 	user, err := h.repos.User.Create(c.Request().Context(), params)
 	if err != nil {
@@ -131,30 +131,29 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 			Msg("failed to create user")
 		return response.System(c)
 	}
- 
+
 	logger.Info().
 		Int("user_id", user.ID).
 		Str("email", user.Email).
 		Int("facility_id", user.FacilityID).
 		Str("role", string(user.Role)).
 		Msg("user created successfully")
- 
+
 	// Handle HTMX request
 	if isHtmxRequest(c) {
 		return render(c, ComponentGroup(
 			alert.Success(
-				"User Created", 
+				"User Created",
 				fmt.Sprintf("Successfully created user %s %s", user.FirstName, user.LastName),
 			),
 			page.UserListItem(h.RouteCtx, *user),
 		))
 	}
- 
+
 	return render(c, page.UserListItem(h.RouteCtx, *user))
- }
+}
 
-
- func (h *Handler) HandleUpdateUser(c echo.Context) error {
+func (h *Handler) HandleUpdateUser(c echo.Context) error {
 	logger := h.logger.With().
 		Str("handler", "HandleUpdateUser").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
@@ -252,17 +251,6 @@ func (h *Handler) HandleDeleteUser(c echo.Context, routeCtx *dto.RouteContext, n
 		return response.System(c)
 	}
 
-	if !canDeleteUser(auth, userID) {
-		logger.Warn().
-			Int("target_user_id", userID).
-			Int("requesting_user_id", auth.UserID).
-			Str("role", string(auth.Role)).
-			Msg("unauthorized deletion attempt")
-		return response.Error(c, http.StatusForbidden,
-			"Access Denied",
-			[]string{"You don't have permission to delete this user"})
-	}
-
 	// Verify user exists and get details for logging
 	user, err := h.repos.User.GetByID(c.Request().Context(), userID)
 	if err != nil {
@@ -271,6 +259,17 @@ func (h *Handler) HandleDeleteUser(c echo.Context, routeCtx *dto.RouteContext, n
 			Int("user_id", userID).
 			Msg("failed to fetch user")
 		return response.System(c)
+	}
+
+	if !canDeleteUser(auth, user) {
+		logger.Warn().
+			Int("target_user_id", userID).
+			Int("requesting_user_id", auth.UserID).
+			Str("role", string(auth.Role)).
+			Msg("unauthorized deletion attempt")
+		return response.Error(c, http.StatusForbidden,
+			"Access Denied",
+			[]string{"You don't have permission to delete this user"})
 	}
 
 	// Delete user
@@ -349,51 +348,51 @@ func (h *Handler) GetUpdatePasswordForm(c echo.Context) error {
 
 // HandleUpdatePassword processes password update requests
 func (h *Handler) HandleUpdatePassword(c echo.Context) error {
-    logger := h.logger.With().
-        Str("handler", "HandleUpdatePassword").
-        Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
-        Logger()
+	logger := h.logger.With().
+		Str("handler", "HandleUpdatePassword").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
 
-    // Get and validate form data
-    formData, auth, err := h.validatePasswordUpdate(c)
-    if err != nil {
-        return err // validatePasswordUpdate handles error responses
-    }
+	// Get and validate form data
+	formData, auth, err := h.validatePasswordUpdate(c)
+	if err != nil {
+		return err // validatePasswordUpdate handles error responses
+	}
 
-    // Hash password
-    hashedPassword, err := hashPassword(formData.Password)
-    if err != nil {
-        logger.Error().Err(err).Msg("failed to hash password")
-        return response.Error(c,
-            http.StatusInternalServerError,
-            "System Error",
-            []string{"Unable to process password update"},
-        )
-    }
+	// Hash password
+	hashedPassword, err := hashPassword(formData.Password)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to hash password")
+		return response.Error(c,
+			http.StatusInternalServerError,
+			"System Error",
+			[]string{"Unable to process password update"},
+		)
+	}
 
-    // Update password
-    if err := h.repos.User.UpdatePassword(
-        c.Request().Context(),
-        formData.UserID,
-        string(hashedPassword),
-    ); err != nil {
-        logger.Error().
-            Err(err).
-            Int("user_id", formData.UserID).
-            Msg("failed to update password")
-        return response.Error(c,
-            http.StatusInternalServerError,
-            "System Error",
-            []string{"Failed to save new password"},
-        )
-    }
+	// Update password
+	if err := h.repos.User.UpdatePassword(
+		c.Request().Context(),
+		formData.UserID,
+		string(hashedPassword),
+	); err != nil {
+		logger.Error().
+			Err(err).
+			Int("user_id", formData.UserID).
+			Msg("failed to update password")
+		return response.Error(c,
+			http.StatusInternalServerError,
+			"System Error",
+			[]string{"Failed to save new password"},
+		)
+	}
 
-    logger.Info().
-        Int("user_id", formData.UserID).
-        Str("updater_role", string(auth.Role)).
-        Msg("password updated successfully")
+	logger.Info().
+		Int("user_id", formData.UserID).
+		Str("updater_role", string(auth.Role)).
+		Msg("password updated successfully")
 
-    return response.Success(c, "Success", "Password has been updated")
+	return response.Success(c, "Success", "Password has been updated")
 }
 
 // GetCreateUserForm renders the user creation form
@@ -402,18 +401,18 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 		Str("handler", "GetCreateUserForm").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
- 
+
 	// Get and validate facility code
 	facilityCode := c.Param("facility")
 	if facilityCode == "" {
 		logger.Error().Msg("missing facility code")
-		return response.Error(c, 
+		return response.Error(c,
 			http.StatusBadRequest,
 			"Invalid Request",
 			[]string{"Facility code is required"},
 		)
 	}
- 
+
 	// Verify facility exists
 	facility, err := h.repos.Facility.GetByCode(c.Request().Context(), facilityCode)
 	if err != nil {
@@ -427,7 +426,7 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 			[]string{"The specified facility does not exist"},
 		)
 	}
- 
+
 	// Get auth context
 	auth, err := h.auth.GetAuthContext(c)
 	if err != nil {
@@ -438,7 +437,7 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 			[]string{"Unable to verify permissions"},
 		)
 	}
- 
+
 	// Check if user can create users for this facility
 	if !canCreateUsers(auth, facility.ID) {
 		logger.Warn().
@@ -451,14 +450,14 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 			[]string{"You don't have permission to create users"},
 		)
 	}
- 
+
 	logger.Debug().
 		Str("facility_code", facilityCode).
 		Str("creator_role", string(auth.Role)).
 		Msg("rendering user creation form")
- 
+
 	return render(c, component.CreateUserForm(facilityCode, string(auth.Role)))
- }
+}
 
 // GetUpdateUserForm renders the form for updating a user
 func (h *Handler) GetUpdateUserForm(c echo.Context) error {

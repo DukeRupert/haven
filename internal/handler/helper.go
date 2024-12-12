@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/DukeRupert/haven/internal/response"
+	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/params"
 	"github.com/DukeRupert/haven/internal/model/types"
@@ -119,15 +120,17 @@ func canAccessUserForm(auth *dto.AuthContext, targetUserID int) bool {
 	return auth.UserID == targetUserID
 }
 
-func canDeleteUser(auth *dto.AuthContext, targetUserID int) bool {
-	switch auth.Role {
-	case types.UserRoleSuper:
-		return true
-	case types.UserRoleAdmin:
-		return auth.UserID != targetUserID // Admins can't delete themselves
-	default:
-		return false
-	}
+func canDeleteUser(auth *dto.AuthContext, targetUser *entity.User) bool {
+    switch auth.Role {
+    case types.UserRoleSuper:
+        return true
+    case types.UserRoleAdmin:
+        // Admin can delete users in their facility except themselves
+        return auth.UserID != targetUser.ID && 
+               auth.FacilityID == targetUser.FacilityID
+    default:
+        return false
+    }
 }
 
 func canUpdatePassword(auth *dto.AuthContext, targetUserID int) bool {

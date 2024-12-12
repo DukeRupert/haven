@@ -55,27 +55,27 @@ func setupFacilityRoutes(g *echo.Group, h *Handler, auth *auth.Middleware) {
 	g.GET("/profile", h.WithNav(h.HandleProfile))
 	g.GET("/:initials", h.WithNav(h.HandleProfile))
 	g.POST("/available/:id", h.HandleAvailabilityToggle)
-	g.GET("/schedule/:initials", h.GetCreateScheduleForm)
 	g.POST("/schedule/:initials", h.HandleCreateSchedule)
 	g.GET("/schedule/:id", h.HandleGetSchedule)
 	g.POST("/schedule/:id", h.HandleUpdateSchedule)
-	g.GET("/schedule/:id/update", h.GetUpdateScheduleForm)
 	g.GET("/controllers", h.WithNav(h.HandleUsers), auth.RequireRole(types.UserRoleAdmin))
-	g.GET("/users/create", h.GetCreateUserForm)
-	g.POST("/users", h.HandleCreateUser)
 }
 
 // setupAPIRoutes configures API endpoints
 func setupAPIRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware) {
 	api := e.Group("/api")
-	api.Use(auth.RequireRole(types.UserRoleUser)) // Base API authentication
 
-	// User management endpoints - require admin role
-	users := api.Group("/users")
-	users.Use(auth.RequireRole(types.UserRoleAdmin))
-	users.POST("/:user_id", h.HandleUpdateUser)
-	users.DELETE("/:user_id", h.WithNav(h.HandleDeleteUser))
-	users.GET("/:user_id/update", h.GetUpdateUserForm)
-	users.GET("/:user_id/password", h.GetUpdatePasswordForm)
-	users.POST("/:user_id/password", h.HandleUpdatePassword)
+	u := e.Group("/user")
+	u.DELETE(":user_id", h.WithNav(h.HandleDeleteUser))
+	u.POST("/:user_id", h.HandleUpdateUser)
+	u.GET("/:user_id/update", h.GetUpdateUserForm)
+	u.GET("/:user_id/password", h.GetUpdatePasswordForm)
+	u.POST("/:user_id/password", h.HandleUpdatePassword)
+
+	// Facility specific routes
+	f := api.Group("/:facility", auth.ValidateFacility(), auth.RequireRole(types.UserRoleAdmin))
+	f.GET("/user", h.GetCreateUserForm)
+	f.POST("/user", h.HandleCreateUser)
+	f.GET("/schedule/:initials", h.GetCreateScheduleForm)
+	f.GET("/schedule/update/:id", h.GetUpdateScheduleForm)
 }
