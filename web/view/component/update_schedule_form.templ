@@ -2,10 +2,10 @@ package component
 
 import (
 	"fmt"
-  "github.com/DukeRupert/haven/types"
+  "github.com/DukeRupert/haven/internal/model/entity"
 )
 
-templ UpdateScheduleForm(schedule types.Schedule) {
+templ UpdateScheduleForm(schedule entity.Schedule) {
 	<div id="update-schedule-form" hx-target="this" hx-target-error="#global-alert" hx-indicator="#loading-overlay" hx-swap="outerHTML" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">

@@ -2,10 +2,13 @@ package page
 
 import (
 	"fmt"
-	"github.com/DukeRupert/haven/types"
+
+	"github.com/DukeRupert/haven/internal/model/dto"
+	"github.com/DukeRupert/haven/internal/model/entity"
+	"github.com/DukeRupert/haven/internal/model/types"
 )
 
-templ ScheduleCard(role types.UserRole, schedule types.Schedule) {
+templ ScheduleCard(role types.UserRole, schedule entity.Schedule) {
 	<div id="schedule-card" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
@@ -67,7 +70,7 @@ templ WeekDayBox(day string, isSelected bool) {
 	</div>
 }
 
-templ EmptyScheduleCard(route types.RouteContext, schedule types.Schedule) {
+templ EmptyScheduleCard(route dto.RouteContext, schedule entity.Schedule) {
 	<div id="schedule-card" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">

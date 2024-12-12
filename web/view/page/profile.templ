@@ -2,13 +2,15 @@ package page
 
 import (
 	"fmt"
-	"github.com/DukeRupert/haven/types"
-	"github.com/DukeRupert/haven/view/component"
-	"github.com/DukeRupert/haven/view/layout"
+	"github.com/DukeRupert/haven/internal/model/entity"
+	"github.com/DukeRupert/haven/internal/model/types"
+	"github.com/DukeRupert/haven/internal/model/dto"
+	"github.com/DukeRupert/haven/web/view/component"
+	"github.com/DukeRupert/haven/web/view/layout"
 )
 
 // "github.com/DukeRupert/haven/utils"
-templ Profile(route types.RouteContext, navItems []types.NavItem, Title string, Description string, auth *types.AuthContext, userDetails *types.UserDetails) {
+templ Profile(route dto.RouteContext, navItems []dto.NavItem, Title string, Description string, auth *dto.AuthContext, userDetails *dto.UserDetails) {
 	@layout.BaseLayout() {
 		@layout.AppLayout(route, navItems) {
 			<!-- Bento Grid -->
@@ -50,7 +52,7 @@ templ Profile(route types.RouteContext, navItems []types.NavItem, Title string, 
 	}
 }
 
-templ ProfileUserCard(user types.User, auth types.AuthContext) {
+templ ProfileUserCard(user entity.User, auth dto.AuthContext) {
 	<div id="user-card" class="px-6 py-8">
 		<div class="flex items-center justify-between">
 			<h3 class="text-lg font-medium text-gray-900">User Information</h3>

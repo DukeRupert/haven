@@ -1,12 +1,12 @@
 package page
 
 import (
-	"github.com/DukeRupert/haven/types"
-	"github.com/DukeRupert/haven/view/layout"
-  "github.com/DukeRupert/haven/view/component"
+	"github.com/DukeRupert/haven/internal/model/dto"
+	"github.com/DukeRupert/haven/web/view/layout"
+  "github.com/DukeRupert/haven/web/view/component"
 )
 
-templ CalendarPage(props types.CalendarPageProps) {
+templ CalendarPage(props dto.CalendarPageProps) {
 @layout.BaseLayout() {
     @layout.AppLayout(props.Route, props.NavItems) {
       @PageHeader(props.Title, props.Description) {}

@@ -1,8 +1,8 @@
 package layout
 
-import "github.com/DukeRupert/haven/types"
+import "github.com/DukeRupert/haven/internal/model/dto"
 
-templ Navigation(route types.RouteContext, navItems []types.NavItem) {
+templ Navigation(route dto.RouteContext, navItems []dto.NavItem) {
 	<nav class="border-b border-gray-200 bg-white" x-data="{ mobileMenuOpen: false, userMenuOpen: false }">
 		<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 			<div class="flex h-16 justify-between">

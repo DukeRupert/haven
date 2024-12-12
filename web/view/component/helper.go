@@ -4,7 +4,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DukeRupert/haven/types"
+    "github.com/DukeRupert/haven/internal/model/entity"
+	"github.com/DukeRupert/haven/internal/model/types"
+    "github.com/DukeRupert/haven/internal/model/dto"
 )
 
 // Helper functions (in a separate .go file)
@@ -42,7 +44,7 @@ func getDaysInMonth(date time.Time) []time.Time {
 	return days
 }
 
-func canToggleDate(protectedDate *types.ProtectedDate, userRole types.UserRole, currentUserID int) bool {
+func canToggleDate(protectedDate *entity.ProtectedDate, userRole types.UserRole, currentUserID int) bool {
 	if protectedDate == nil {
 		return false
 	}
@@ -51,7 +53,7 @@ func canToggleDate(protectedDate *types.ProtectedDate, userRole types.UserRole, 
 		protectedDate.ScheduleID == currentUserID
 }
 
-func findProtectedDate(date time.Time, protectedDates []types.ProtectedDate) *types.ProtectedDate {
+func findProtectedDate(date time.Time, protectedDates []entity.ProtectedDate) *entity.ProtectedDate {
 	for _, pd := range protectedDates {
 		if pd.Date.Year() == date.Year() &&
 			pd.Date.Month() == date.Month() &&
@@ -63,8 +65,8 @@ func findProtectedDate(date time.Time, protectedDates []types.ProtectedDate) *ty
 }
 
 // Helper function to group protected dates by date
-func groupProtectedDates(dates []types.ProtectedDate) map[string][]types.ProtectedDate {
-    groups := make(map[string][]types.ProtectedDate)
+func groupProtectedDates(dates []entity.ProtectedDate) map[string][]entity.ProtectedDate {
+    groups := make(map[string][]entity.ProtectedDate)
     for _, date := range dates {
         key := date.Date.Format("2006-01-02")
         groups[key] = append(groups[key], date)
@@ -73,8 +75,8 @@ func groupProtectedDates(dates []types.ProtectedDate) map[string][]types.Protect
 }
 
 // Update helper function to return all protected dates for a given day
-func findProtectedDates(date time.Time, dates []types.ProtectedDate) []types.ProtectedDate {
-    var dayDates []types.ProtectedDate
+func findProtectedDates(date time.Time, dates []entity.ProtectedDate) []entity.ProtectedDate {
+    var dayDates []entity.ProtectedDate
     for _, pd := range dates {
         if pd.Date.Year() == date.Year() && 
            pd.Date.Month() == date.Month() && 
@@ -86,7 +88,7 @@ func findProtectedDates(date time.Time, dates []types.ProtectedDate) []types.Pro
 }
 
 // Update the day classes to account for multiple protected dates
-func getDayClasses(props types.CalendarDayProps) string {
+func getDayClasses(props dto.CalendarDayProps) string {
     classes := []string{}
     
     // Add position-based classes

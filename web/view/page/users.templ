@@ -2,12 +2,14 @@ package page
 
 import (
 
-	"github.com/DukeRupert/haven/types"
-	"github.com/DukeRupert/haven/view/layout"
+	"github.com/DukeRupert/haven/internal/model/types"
+	"github.com/DukeRupert/haven/internal/model/dto"
+	"github.com/DukeRupert/haven/internal/model/entity"
+	"github.com/DukeRupert/haven/web/view/layout"
 	"fmt"
 )
 
-templ ShowUsers(route types.RouteContext, navItems []types.NavItem, title string, description string, role types.UserRole, users []types.User) {
+templ ShowUsers(route dto.RouteContext, navItems []dto.NavItem, title string, description string, role types.UserRole, users []entity.User) {
 	@layout.BaseLayout() {
 		@layout.AppLayout(route, navItems) {
 			<header class="md:flex md:items-center md:justify-between">
@@ -33,7 +35,7 @@ templ ShowUsers(route types.RouteContext, navItems []types.NavItem, title string
 	}
 }
 
-templ UserListItem(route types.RouteContext, u types.User) {
+templ UserListItem(route dto.RouteContext, u entity.User) {
     <a href={ templ.URL(fmt.Sprintf("./%s", u.Initials)) } class="block hover:bg-gray-50">
         <li class="relative flex justify-between gap-x-6 py-5 px-4">
             <div class="flex min-w-0 gap-x-4">

@@ -1,8 +1,8 @@
 package layout
 
-import "github.com/DukeRupert/haven/types"
+import "github.com/DukeRupert/haven/internal/model/dto"
 
-templ AppLayout(route types.RouteContext, navItems []types.NavItem) {
+templ AppLayout(route dto.RouteContext, navItems []dto.NavItem) {
 	<div class="min-h-full">
 		@Navigation(route, navItems)
 		<div class="py-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

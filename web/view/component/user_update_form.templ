@@ -3,10 +3,12 @@ package component
 import (
 	"fmt"
 	"strconv"
-	"github.com/DukeRupert/haven/types"
+
+	"github.com/DukeRupert/haven/internal/model/entity"
+	"github.com/DukeRupert/haven/internal/model/dto"
 )
 
-templ UpdateUserForm(user types.User, auth types.AuthContext) {
+templ UpdateUserForm(user entity.User, auth dto.AuthContext) {
 	<form hx-post={ fmt.Sprintf("/api/user/%d", user.ID) } hx-target="this" hx-swap="outerHTML" hx-target-error="#global-alert" hx-indicator="#loading-overlay" class="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0">
 		<input type="hidden" name="facility_id" value={ strconv.Itoa(user.FacilityID) } />
 		<div class="w-full">

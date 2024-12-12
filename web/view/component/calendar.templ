@@ -3,10 +3,12 @@ package component
 import (
 	"fmt"
 
-	"github.com/DukeRupert/haven/types"
+
+	"github.com/DukeRupert/haven/internal/model/dto"
+	"github.com/DukeRupert/haven/internal/model/entity"
 )
 
-templ Calendar(props types.CalendarProps) {
+templ Calendar(props dto.CalendarProps) {
 	<div class="max-w-lg mx-auto mt-10 text-center lg:col-start-8 lg:col-end-13 lg:row-start-1 lg:mt-9 xl:col-start-9">
 		<div class="flex items-center text-gray-900">
 			<button
@@ -50,7 +52,7 @@ templ Calendar(props types.CalendarProps) {
 		</div>
 		<div class="isolate mt-2 grid grid-cols-7 gap-px rounded-lg bg-gray-200 text-sm shadow ring-1 ring-gray-200">
 			for _, day := range getDaysInMonth(props.CurrentMonth) {
-				@CalendarDay(types.CalendarDayProps{
+				@CalendarDay(dto.CalendarDayProps{
 					Date:           day,
 					CurrentMonth:   props.CurrentMonth,
 					ProtectedDates: findProtectedDates(day, props.ProtectedDates),
@@ -85,7 +87,7 @@ templ Calendar(props types.CalendarProps) {
 	</div>
 }
 
-templ CalendarDay(props types.CalendarDayProps) {
+templ CalendarDay(props dto.CalendarDayProps) {
 	<div
 		class={ getDayClasses(props) }
 		if len(props.ProtectedDates) > 0 {
@@ -108,7 +110,7 @@ templ CalendarDay(props types.CalendarDayProps) {
 	</div>
 }
 
-templ ProtectedDay(currentUserID int, facilityCode string, pd types.ProtectedDate) {
+templ ProtectedDay(currentUserID int, facilityCode string, pd entity.ProtectedDate) {
 	<div id={ fmt.Sprintf("pd-%d", pd.ID)} class="flex items-center justify-center">
 		if pd.UserID == currentUserID {
 			<button hx-post={ fmt.Sprintf("/api/%s/available/%d", facilityCode, pd.ID) } hx-target={fmt.Sprintf("#pd-%d", pd.ID)} hx-swap="outerHTML" hx-confirm="Are you sure you want to change you availability status?" hx-target-error="#global-alert" hx-indicator="#loading-overlay" type="button">
