@@ -146,11 +146,19 @@ func (h *Handler) HandleGetSchedule(c echo.Context) error {
 }
 
 // HandleAvailabilityToggle processes requests to toggle protected date availability
+// HandleAvailabilityToggle processes requests to toggle protected date availability
 func (h *Handler) HandleAvailabilityToggle(c echo.Context) error {
 	logger := h.logger.With().
 		Str("handler", "HandleAvailabilityToggle").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
+
+	// Get auth context
+	auth, err := h.auth.GetAuthContext(c)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get auth context")
+		return response.System(c)
+	}
 
 	// Get and validate protected date ID
 	dateID, err := getProtectedDateID(c)
@@ -166,14 +174,7 @@ func (h *Handler) HandleAvailabilityToggle(c echo.Context) error {
 		)
 	}
 
-	// Get auth context
-	auth, err := h.auth.GetAuthContext(c)
-	if err != nil {
-		logger.Error().Err(err).Msg("failed to get auth context")
-		return response.System(c)
-	}
-
-	// Get protected date
+	// Get protected date with its associated schedule
 	protectedDate, err := h.repos.Schedule.GetProtectedDateByID(c.Request().Context(), dateID)
 	if err != nil {
 		logger.Error().
@@ -183,11 +184,24 @@ func (h *Handler) HandleAvailabilityToggle(c echo.Context) error {
 		return response.System(c)
 	}
 
+	// Log attempt details
+	logger.Debug().
+		Int("date_id", dateID).
+		Int("user_id", auth.UserID).
+		Int("date_user_id", protectedDate.UserID).
+		Int("facility_id", auth.FacilityID).
+		Int("date_facility_id", protectedDate.FacilityID).
+		Str("role", string(auth.Role)).
+		Msg("attempting to toggle availability")
+
 	// Verify authorization
 	if !canToggleAvailability(auth, &protectedDate) {
 		logger.Warn().
 			Int("date_id", dateID).
-			Int("user_id", auth.UserID).
+			Int("requesting_user_id", auth.UserID).
+			Int("date_user_id", protectedDate.UserID).
+			Int("requesting_facility_id", auth.FacilityID).
+			Int("date_facility_id", protectedDate.FacilityID).
 			Str("role", string(auth.Role)).
 			Msg("unauthorized toggle attempt")
 		return response.Error(c,
@@ -212,6 +226,8 @@ func (h *Handler) HandleAvailabilityToggle(c echo.Context) error {
 
 	logger.Debug().
 		Int("date_id", dateID).
+		Int("user_id", auth.UserID).
+		Int("date_user_id", updatedDate.UserID).
 		Bool("is_available", updatedDate.Available).
 		Msg("availability toggled successfully")
 
@@ -681,19 +697,24 @@ func getProtectedDateID(c echo.Context) (int, error) {
 	return strconv.Atoi(c.Param("id"))
 }
 
-func canToggleAvailability(auth *dto.AuthContext, date *entity.ProtectedDate) bool {
-	// Super users can modify any date
+// Authorization helper function
+func canToggleAvailability(auth *dto.AuthContext, protectedDate *entity.ProtectedDate) bool {
+	// Super admins can toggle any date
 	if auth.Role == types.UserRoleSuper {
 		return true
 	}
 
-	// Admin users can modify dates in their facility
-	if auth.Role == types.UserRoleAdmin && auth.FacilityID == date.FacilityID {
+	// Facility admins can toggle dates within their facility
+	if auth.Role == types.UserRoleAdmin && auth.FacilityID == protectedDate.FacilityID {
 		return true
 	}
 
-	// Users can only modify their own dates
-	return auth.UserID == date.UserID
+	// Regular users can only toggle their own dates
+	if auth.Role == types.UserRoleUser {
+		return auth.UserID == protectedDate.UserID && auth.FacilityID == protectedDate.FacilityID
+	}
+
+	return false
 }
 
 // GetUpdateScheduleForm helpers
@@ -870,12 +891,12 @@ func canModifySchedule(auth *dto.AuthContext, schedule *entity.Schedule) bool {
 		Int("schedule_user_id", schedule.UserID).
 		Int("schedule_facility_id", schedule.FacilityID).
 		Logger()
- 
+
 	switch auth.Role {
 	case types.UserRoleSuper:
 		logger.Debug().Msg("super user access granted")
 		return true
-		
+
 	case types.UserRoleAdmin:
 		canModify := auth.FacilityID == schedule.FacilityID
 		if canModify {
@@ -884,7 +905,7 @@ func canModifySchedule(auth *dto.AuthContext, schedule *entity.Schedule) bool {
 			logger.Debug().Msg("admin access denied - different facility")
 		}
 		return canModify
-		
+
 	default:
 		canModify := auth.UserID == schedule.UserID
 		if canModify {
@@ -894,4 +915,4 @@ func canModifySchedule(auth *dto.AuthContext, schedule *entity.Schedule) bool {
 		}
 		return canModify
 	}
- }
+}

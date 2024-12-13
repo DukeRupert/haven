@@ -56,7 +56,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 			self.GET("/edit", h.GetUpdateUserForm)
 			self.PUT("/password", h.HandleUpdatePassword)
 			self.GET("/password", h.GetUpdatePasswordForm)
-			self.POST("/availability", h.HandleAvailabilityToggle)
+			self.POST("/availability/:id", h.HandleAvailabilityToggle)
 		}
 
 		// Facility management (super admin only)
