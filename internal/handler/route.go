@@ -28,7 +28,8 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
 	e.Use(auth.Auth())
-	e.Use(ctx.WithRouteContext())
+	routeCtxMiddleware := NewRouteContextMiddleware(h.logger)
+    e.Use(routeCtxMiddleware.WithRouteContext())
 
 	// Public routes - no group or additional middleware needed
 	e.GET("/", h.GetHome)
@@ -83,7 +84,6 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 				users.DELETE("/:user_id", h.WithNav(h.HandleDeleteUser))
 				users.GET("/:user_id/edit", h.GetAdminUpdateUserForm)
 				users.GET("/:user_id/password", h.GetUpdatePasswordForm)
-				users.PUT("/:user_id/availability", h.HandleAdminAvailabilityToggle)
 			}
 
 			// Schedule management

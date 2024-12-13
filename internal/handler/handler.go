@@ -12,7 +12,7 @@ import (
 )
 
 // HandlerFunc is the type for your page handlers
-type HandlerFunc func(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error
+type HandlerFunc func(c echo.Context, pageCtx *dto.PageContext) error
 
 type Config struct {
 	Repos  *repository.Repositories

@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/DukeRupert/haven/internal/response"
 	"github.com/DukeRupert/haven/internal/model/entity"
@@ -20,8 +19,6 @@ import (
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 func GetAuthContext(c echo.Context) (*dto.AuthContext, error) {
@@ -334,34 +331,6 @@ func ComponentGroup(components ...templ.Component) templ.Component {
 		}
 		return nil
 	})
-}
-
-// Helper function to build correct paths
-func BuildNav(routeCtx *dto.RouteContext, currentPath string) []dto.NavItem {
-	strippedPath := strings.TrimPrefix(currentPath, "/"+routeCtx.FacilityCode)
-
-	navItems := []dto.NavItem{}
-
-	// Add nav items based on role access
-	for path, config := range RouteConfigs {
-		if IsAtLeastRole(string(routeCtx.UserRole), string(config.MinRole)) {
-			navPath := path
-			if config.RequiresFacility && routeCtx.FacilityCode != "" {
-				navPath = fmt.Sprintf("/%s%s", routeCtx.FacilityCode, path)
-			}
-
-			title := cases.Title(language.English)
-
-			navItems = append(navItems, dto.NavItem{
-				Path:    navPath,
-				Name:    title.String(strings.TrimPrefix(path, "/")),
-				Active:  strippedPath == path,
-				Visible: true,
-			})
-		}
-	}
-
-	return navItems
 }
 
 // generateSecureToken creates a cryptographically secure token for registration

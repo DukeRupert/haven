@@ -2,35 +2,36 @@
 package dto
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/types"
-
-	"github.com/rs/zerolog"
 )
 
+// PageContext combines both for templates that need both
+type PageContext struct {
+	Route *RouteContext
+	Auth  *AuthContext
+	Nav   []NavItem
+}
+
+// AuthContext handles all user and authorization data
 type AuthContext struct {
-	UserID       int
-	Role         types.UserRole
-	Initials     string
-	FacilityID   int
-	FacilityCode string
+	UserID       int            `json:"user_id"`
+	Role         types.UserRole `json:"role"`
+	Initials     string         `json:"initials"`
+	FacilityID   int            `json:"facility_id"`
+	FacilityCode string         `json:"facility_code"`
 }
 
+// RouteContext focuses only on routing/path information
 type RouteContext struct {
-	BasePath     string
-	UserRole     types.UserRole
-	UserInitials string
-	FacilityID   int
-	FacilityCode string
-	User         entity.User     // Optional: full user object if needed
-	Facility     entity.Facility // Optional: full facility object if needed
-	PathFacility string
-	PathInitials string
+	BasePath    string // Base path including facility prefix (e.g., "/facility/KHLN")
+	CurrentPath string // Current route pattern with parameters (e.g., "/controllers/:id")
+	FullPath    string // Actual full URL path (e.g., "/facility/KHLN/controllers/123")
 }
 
+// NavItem remains focused on navigation structure
 type NavItem struct {
 	Path    string // Full path including facility code if applicable
 	Name    string // Display name for the navigation item
@@ -47,28 +48,9 @@ type Route struct {
 	NeedsFacility bool           // Whether route requires facility context
 }
 
-// MarshalZerologObject implements zerolog.LogObjectMarshaler
-func (rc RouteContext) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("facility_code", rc.FacilityCode).
-		Str("user_initials", rc.UserInitials).
-		Str("base_path", rc.BasePath)
-}
-
-func (r *RouteContext) BuildURL(path string) string {
-	if r.FacilityCode == "" {
-		return path
-	}
-	return fmt.Sprintf("/%s/%s", r.FacilityCode, path)
-}
-
-type Breadcrumb struct {
-	Label string
-	URL   string
-}
-
 type CalendarPageProps struct {
 	Route       RouteContext
-	NavItems    []NavItem
+	Nav    		[]NavItem
 	Auth        AuthContext
 	Title       string
 	Description string

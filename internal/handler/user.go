@@ -299,69 +299,63 @@ func (h *Handler) HandleAdminUpdateUser(c echo.Context) error {
 	))
 }
 
-func (h *Handler) HandleDeleteUser(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error {
-	logger := h.logger.With().
-		Str("handler", "HandleDeleteUser").
-		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
-		Logger()
+func (h *Handler) HandleDeleteUser(c echo.Context, ctx *dto.PageContext) error {
+    logger := h.logger.With().
+        Str("handler", "HandleDeleteUser").
+        Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+        Logger()
 
-	// Validate user ID
-	userID, err := getUserID(c)
-	if err != nil {
-		logger.Debug().
-			Err(err).
-			Str("user_id_param", c.Param("user_id")).
-			Msg("invalid user ID format")
-		return response.Error(c, http.StatusBadRequest,
-			"Invalid Request",
-			[]string{"Please provide a valid user ID"})
-	}
+    // Validate user ID
+    userID, err := getUserID(c)
+    if err != nil {
+        logger.Debug().
+            Err(err).
+            Str("user_id_param", c.Param("user_id")).
+            Msg("invalid user ID format")
+        return response.Error(c, http.StatusBadRequest,
+            "Invalid Request",
+            []string{"Please provide a valid user ID"})
+    }
 
-	// Check permissions
-	auth, err := h.auth.GetAuthContext(c)
-	if err != nil {
-		logger.Error().Err(err).Msg("failed to get auth context")
-		return response.System(c)
-	}
+    // Verify user exists and get details for logging
+    user, err := h.repos.User.GetByID(c.Request().Context(), userID)
+    if err != nil {
+        logger.Error().
+            Err(err).
+            Int("user_id", userID).
+            Msg("failed to fetch user")
+        return response.System(c)
+    }
 
-	// Verify user exists and get details for logging
-	user, err := h.repos.User.GetByID(c.Request().Context(), userID)
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Int("user_id", userID).
-			Msg("failed to fetch user")
-		return response.System(c)
-	}
+    // Check permissions using auth context from PageContext
+    if !canDeleteUser(ctx.Auth, user) {
+        logger.Warn().
+            Int("target_user_id", userID).
+            Int("requesting_user_id", ctx.Auth.UserID).
+            Str("role", string(ctx.Auth.Role)).
+            Msg("unauthorized deletion attempt")
+        return response.Error(c, http.StatusForbidden,
+            "Access Denied",
+            []string{"You don't have permission to delete this user"})
+    }
 
-	if !canDeleteUser(auth, user) {
-		logger.Warn().
-			Int("target_user_id", userID).
-			Int("requesting_user_id", auth.UserID).
-			Str("role", string(auth.Role)).
-			Msg("unauthorized deletion attempt")
-		return response.Error(c, http.StatusForbidden,
-			"Access Denied",
-			[]string{"You don't have permission to delete this user"})
-	}
+    // Delete user
+    if err := h.repos.User.Delete(c.Request().Context(), userID); err != nil {
+        logger.Error().
+            Err(err).
+            Int("user_id", userID).
+            Msg("failed to delete user")
+        return response.System(c)
+    }
 
-	// Delete user
-	if err := h.repos.User.Delete(c.Request().Context(), userID); err != nil {
-		logger.Error().
-			Err(err).
-			Int("user_id", userID).
-			Msg("failed to delete user")
-		return response.System(c)
-	}
+    logger.Info().
+        Int("user_id", user.ID).
+        Str("email", user.Email).
+        Int("facility_id", user.FacilityID).
+        Msg("user deleted successfully")
 
-	logger.Info().
-		Int("user_id", user.ID).
-		Str("email", user.Email).
-		Int("facility_id", user.FacilityID).
-		Msg("user deleted successfully")
-
-	// Handle HTMX response
-	return handleDeleteResponse(c, routeCtx.FacilityCode)
+    // Handle HTMX response using facility code from auth context
+    return handleDeleteResponse(c, ctx.Auth.FacilityCode)
 }
 
 func handleDeleteResponse(c echo.Context, facilityCode string) error {
