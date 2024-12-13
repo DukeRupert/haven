@@ -48,10 +48,15 @@ type Route struct {
 	NeedsFacility bool           // Whether route requires facility context
 }
 
+type UserPageProps struct {
+	PageCtx		PageContext
+    Title       string
+    Description string
+    Details     *UserDetails
+}
+
 type CalendarPageProps struct {
-	Route       RouteContext
-	Nav    		[]NavItem
-	Auth        AuthContext
+	PageCtx		PageContext
 	Title       string
 	Description string
 	Calendar    CalendarProps

@@ -10,22 +10,22 @@ import (
 )
 
 // "github.com/DukeRupert/haven/utils"
-templ Profile(route dto.RouteContext, navItems []dto.NavItem, Title string, Description string, auth *dto.AuthContext, userDetails *dto.UserDetails) {
+templ UserPage(props dto.UserPageProps) {
 	@layout.BaseLayout() {
-		@layout.AppLayout(route, navItems) {
+		@layout.AppLayout(props.PageCtx) {
 			<!-- Bento Grid -->
 			<div class="grid gap-4 lg:grid-cols-3 lg:grid-rows-2">
 				<!-- User Profile Card - Spans 2 rows -->
 				<div class="relative lg:row-span-2">
 					<div class="h-full overflow-hidden rounded-lg bg-white shadow">
-						@ProfileUserCard(userDetails.User, *auth)
+						@UserDetails(props.Details.User, *props.PageCtx.Auth)
 					</div>
 				</div>
 				<!-- Schedule Card -->
-				if userDetails.Schedule.ID == 0 {
-					@EmptyScheduleCard(route, userDetails.Schedule)
+				if props.Details.Schedule.ID == 0 {
+					@EmptyScheduleCard(props.PageCtx, props.Details.Schedule)
 				} else {
-					@ScheduleCard(route.UserRole, userDetails.Schedule)
+					@ScheduleCard(props.PageCtx.Auth.Role, props.Details.Schedule)
 				}
 				<!-- Facility Card -->
 				<div class="relative lg:col-span-2">
@@ -36,11 +36,11 @@ templ Profile(route dto.RouteContext, navItems []dto.NavItem, Title string, Desc
 								<dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
 									<div>
 										<dt class="text-sm font-medium text-gray-500">Facility Name</dt>
-										<dd class="mt-1 text-sm text-gray-900">{ userDetails.Facility.Name }</dd>
+										<dd class="mt-1 text-sm text-gray-900">{props.Details.Facility.Name }</dd>
 									</div>
 									<div>
 										<dt class="text-sm font-medium text-gray-500">Facility Code</dt>
-										<dd class="mt-1 text-sm text-gray-900">{ userDetails.Facility.Code }</dd>
+										<dd class="mt-1 text-sm text-gray-900">{ props.Details.Facility.Code }</dd>
 									</div>
 								</dl>
 							</div>
@@ -52,7 +52,7 @@ templ Profile(route dto.RouteContext, navItems []dto.NavItem, Title string, Desc
 	}
 }
 
-templ ProfileUserCard(user entity.User, auth dto.AuthContext) {
+templ UserDetails(user entity.User, auth dto.AuthContext) {
 	<div id="user-card" class="px-6 py-8">
 		<div class="flex items-center justify-between">
 			<h3 class="text-lg font-medium text-gray-900">User Information</h3>

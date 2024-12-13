@@ -8,20 +8,7 @@ import (
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/labstack/echo/v4"
-	"github.com/rs/zerolog"
 )
-
-// RouteContextMiddleware holds the middleware configuration
-type RouteContextMiddleware struct {
-    logger zerolog.Logger
-}
-
-// NewRouteContextMiddleware creates a new middleware instance
-func NewRouteContextMiddleware(logger zerolog.Logger) *RouteContextMiddleware {
-    return &RouteContextMiddleware{
-        logger: logger,
-    }
-}
 
 type RouteConfig struct {
     MinRole          types.UserRole
@@ -70,64 +57,6 @@ var RouteConfigs = map[string]RouteConfig{
     },
 }
 
-// WithRouteContext middleware ensures route context is available
-func (m *RouteContextMiddleware) WithRouteContext() echo.MiddlewareFunc {
-    return func(next echo.HandlerFunc) echo.HandlerFunc {
-        return func(c echo.Context) error {
-            // Create route context with only path information
-            routeCtx := &dto.RouteContext{
-                CurrentPath: getRoutePattern(c),
-                FullPath:   c.Request().URL.Path,
-            }
-
-            // Set base path if we're in a facility context
-            if facilityCode := c.Param("facility_id"); facilityCode != "" {
-                routeCtx.BasePath = fmt.Sprintf("/facility/%s", facilityCode)
-            }
-
-            c.Set("routeCtx", routeCtx)
-            return next(c)
-        }
-    }
-}
-
-
-// getRoutePattern returns the route pattern with parameter placeholders
-func getRoutePattern(c echo.Context) string {
-    route := c.Echo().Reverse(c.Path())
-    if route == "" {
-        return c.Path() // Fallback to actual path if reverse lookup fails
-    }
-    return route
-}
-
-// getRouteContext extracts and validates route context
-func BuildNav(routeCtx *dto.RouteContext, auth *dto.AuthContext, currentPath string) []dto.NavItem {
-    navItems := []dto.NavItem{}
-
-    for configPath, config := range RouteConfigs {
-        // Skip if user doesn't have required role
-        if !IsAtLeastRole(string(auth.Role), string(config.MinRole)) {
-            continue
-        }
-
-        // Build full path using facility code from auth context
-        fullPath := configPath
-        if config.RequiresFacility && auth.FacilityCode != "" {
-            fullPath = fmt.Sprintf("/facility/%s%s", auth.FacilityCode, configPath)
-        }
-
-        navItems = append(navItems, dto.NavItem{
-            Path:    fullPath,
-            Name:    config.Title,
-            Icon:    config.Icon,
-            Active:  isActiveRoute(routeCtx.CurrentPath, fullPath, RouteConfigs),
-            Visible: true,
-        })
-    }
-
-    return navItems
-}
 
 // Updated handler wrapper for cleaner context usage
 func (h *Handler) WithNav(fn HandlerFunc) echo.HandlerFunc {
@@ -193,6 +122,34 @@ func newRouteContext(c echo.Context) *dto.RouteContext {
         CurrentPath: c.Path(),        // Route pattern with parameter placeholders
         FullPath:    c.Request().URL.Path,  // Actual URL path
     }
+}
+
+// getRouteContext extracts and validates route context
+func BuildNav(routeCtx *dto.RouteContext, auth *dto.AuthContext, currentPath string) []dto.NavItem {
+    navItems := []dto.NavItem{}
+
+    for configPath, config := range RouteConfigs {
+        // Skip if user doesn't have required role
+        if !IsAtLeastRole(string(auth.Role), string(config.MinRole)) {
+            continue
+        }
+
+        // Build full path using facility code from auth context
+        fullPath := configPath
+        if config.RequiresFacility && auth.FacilityCode != "" {
+            fullPath = fmt.Sprintf("/facility/%s%s", auth.FacilityCode, configPath)
+        }
+
+        navItems = append(navItems, dto.NavItem{
+            Path:    fullPath,
+            Name:    config.Title,
+            Icon:    config.Icon,
+            Active:  isActiveRoute(routeCtx.CurrentPath, fullPath, RouteConfigs),
+            Visible: true,
+        })
+    }
+
+    return navItems
 }
 
 // isActiveRoute checks if the current path matches the nav item or its children

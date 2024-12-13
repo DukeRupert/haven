@@ -70,18 +70,15 @@ templ WeekDayBox(day string, isSelected bool) {
 	</div>
 }
 
-templ EmptyScheduleCard(route dto.RouteContext, schedule entity.Schedule) {
+templ EmptyScheduleCard(pageCtx dto.PageContext, schedule entity.Schedule) {
 	<div id="schedule-card" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
 				<div class="flex items-center justify-between">
 					<h3 class="text-lg font-medium text-gray-900">Schedule Details</h3>
-					if route.UserRole  == "admin" || route.UserRole == "super" {
+					if pageCtx.Auth.Role  == "admin" || pageCtx.Auth.Role == "super" {
 						<button
-							hx-get={ fmt.Sprintf("/api/schedule/%s/%s", route.PathFacility, map[bool]string{
-										true: route.PathInitials, 
-										false: route.UserInitials,
-									}[route.PathInitials != ""]) }
+							hx-get={ fmt.Sprintf("/api/%s/schedules/new/%s", pageCtx.Route.BasePath) }
 							hx-target="#schedule-card"
 							hx-swap="outerHTML"
 							hx-target-error="#global-alert"

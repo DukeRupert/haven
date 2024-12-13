@@ -7,9 +7,9 @@ import (
 	"github.com/DukeRupert/haven/web/view/layout"
 )
 
-templ ShowFacilities(route dto.RouteContext, navItems []dto.NavItem, title string, description string, facs []entity.Facility) {
+templ ShowFacilities(pageCtx dto.PageContext, title string, description string, facs []entity.Facility) {
 	@layout.BaseLayout() {
-		@layout.AppLayout(route, navItems) {
+		@layout.AppLayout(pageCtx) {
 			<div class="px-4 sm:px-6 lg:px-8">
 				<div class="sm:flex sm:items-center">
 					<div class="sm:flex-auto">

@@ -10,7 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "github.com/DukeRupert/haven/internal/model/dto"
 
-func Navigation(route dto.RouteContext, navItems []dto.NavItem) templ.Component {
+func Navigation(pageCtx dto.PageContext) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -35,7 +35,7 @@ func Navigation(route dto.RouteContext, navItems []dto.NavItem) templ.Component 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, item := range navItems {
+		for _, item := range pageCtx.Nav {
 			if item.Visible {
 				if item.Active {
 					templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 2)
@@ -54,7 +54,7 @@ func Navigation(route dto.RouteContext, navItems []dto.NavItem) templ.Component 
 					var templ_7745c5c3_Var3 string
 					templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(item.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/layout/navigation.templ`, Line: 42, Col: 51}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/layout/navigation.templ`, Line: 42, Col: 21}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 					if templ_7745c5c3_Err != nil {
@@ -81,7 +81,7 @@ func Navigation(route dto.RouteContext, navItems []dto.NavItem) templ.Component 
 					var templ_7745c5c3_Var5 string
 					templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(item.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/layout/navigation.templ`, Line: 49, Col: 51}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/layout/navigation.templ`, Line: 49, Col: 21}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 					if templ_7745c5c3_Err != nil {
@@ -98,7 +98,7 @@ func Navigation(route dto.RouteContext, navItems []dto.NavItem) templ.Component 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, item := range navItems {
+		for _, item := range pageCtx.Nav {
 			if item.Visible {
 				if item.Active {
 					templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 9)
@@ -117,7 +117,7 @@ func Navigation(route dto.RouteContext, navItems []dto.NavItem) templ.Component 
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(item.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/layout/navigation.templ`, Line: 112, Col: 43}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/layout/navigation.templ`, Line: 112, Col: 19}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
@@ -144,7 +144,7 @@ func Navigation(route dto.RouteContext, navItems []dto.NavItem) templ.Component 
 					var templ_7745c5c3_Var9 string
 					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(item.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/layout/navigation.templ`, Line: 119, Col: 43}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/layout/navigation.templ`, Line: 119, Col: 19}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 					if templ_7745c5c3_Err != nil {

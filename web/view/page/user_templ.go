@@ -18,7 +18,7 @@ import (
 )
 
 // "github.com/DukeRupert/haven/utils"
-func Profile(route dto.RouteContext, navItems []dto.NavItem, Title string, Description string, auth *dto.AuthContext, userDetails *dto.UserDetails) templ.Component {
+func UserPage(props dto.UserPageProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -67,7 +67,7 @@ func Profile(route dto.RouteContext, navItems []dto.NavItem, Title string, Descr
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = ProfileUserCard(userDetails.User, *auth).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = UserDetails(props.Details.User, *auth).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -76,12 +76,12 @@ func Profile(route dto.RouteContext, navItems []dto.NavItem, Title string, Descr
 					return templ_7745c5c3_Err
 				}
 				if userDetails.Schedule.ID == 0 {
-					templ_7745c5c3_Err = EmptyScheduleCard(route, userDetails.Schedule).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = EmptyScheduleCard(pageCtx, userDetails.Schedule).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = ScheduleCard(route.UserRole, userDetails.Schedule).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = ScheduleCard(auth.Role, userDetails.Schedule).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -93,7 +93,7 @@ func Profile(route dto.RouteContext, navItems []dto.NavItem, Title string, Descr
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(userDetails.Facility.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/profile.templ`, Line: 39, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/user.templ`, Line: 39, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -106,7 +106,7 @@ func Profile(route dto.RouteContext, navItems []dto.NavItem, Title string, Descr
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(userDetails.Facility.Code)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/profile.templ`, Line: 43, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/user.templ`, Line: 43, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -118,7 +118,7 @@ func Profile(route dto.RouteContext, navItems []dto.NavItem, Title string, Descr
 				}
 				return templ_7745c5c3_Err
 			})
-			templ_7745c5c3_Err = layout.AppLayout(route, navItems).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = layout.AppLayout(props.PageCtx).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -132,7 +132,7 @@ func Profile(route dto.RouteContext, navItems []dto.NavItem, Title string, Descr
 	})
 }
 
-func ProfileUserCard(user entity.User, auth dto.AuthContext) templ.Component {
+func UserDetails(user entity.User, auth dto.AuthContext) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -165,7 +165,7 @@ func ProfileUserCard(user entity.User, auth dto.AuthContext) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/user/%d", user.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/profile.templ`, Line: 62, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/user.templ`, Line: 62, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -183,7 +183,7 @@ func ProfileUserCard(user entity.User, auth dto.AuthContext) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/user/%d/update", user.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/profile.templ`, Line: 74, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/user.templ`, Line: 74, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -196,7 +196,7 @@ func ProfileUserCard(user entity.User, auth dto.AuthContext) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(user.Initials)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/profile.templ`, Line: 89, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/user.templ`, Line: 89, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -209,7 +209,7 @@ func ProfileUserCard(user entity.User, auth dto.AuthContext) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(user.FirstName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/profile.templ`, Line: 92, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/user.templ`, Line: 92, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -222,7 +222,7 @@ func ProfileUserCard(user entity.User, auth dto.AuthContext) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(user.LastName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/profile.templ`, Line: 92, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/user.templ`, Line: 92, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -235,7 +235,7 @@ func ProfileUserCard(user entity.User, auth dto.AuthContext) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(user.Email)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/profile.templ`, Line: 93, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/user.templ`, Line: 93, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -257,7 +257,7 @@ func ProfileUserCard(user entity.User, auth dto.AuthContext) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var13).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/profile.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/user.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -270,7 +270,7 @@ func ProfileUserCard(user entity.User, auth dto.AuthContext) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(user.Role.String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/profile.templ`, Line: 97, Col: 24}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/user.templ`, Line: 97, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {

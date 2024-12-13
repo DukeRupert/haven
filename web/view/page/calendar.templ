@@ -8,7 +8,7 @@ import (
 
 templ CalendarPage(props dto.CalendarPageProps) {
 @layout.BaseLayout() {
-    @layout.AppLayout(props.Route, props.NavItems) {
+    @layout.AppLayout(props.PageCtx) {
       @PageHeader(props.Title, props.Description) {}
       @component.Calendar(props.Calendar)
     }

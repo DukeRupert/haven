@@ -28,7 +28,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
 	e.Use(auth.Auth())
-	routeCtxMiddleware := NewRouteContextMiddleware(h.logger)
+	routeCtxMiddleware := context.NewRouteContextMiddleware(h.logger)
     e.Use(routeCtxMiddleware.WithRouteContext())
 
 	// Public routes - no group or additional middleware needed

@@ -16,7 +16,7 @@ import (
 	"github.com/DukeRupert/haven/web/view/layout"
 )
 
-func Facilities(route dto.RouteContext, navItems []dto.NavItem, title string, description string, facs []entity.Facility) templ.Component {
+func Facilities(pageCtx dto.PageContext, title string, description string, facs []entity.Facility) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -99,7 +99,7 @@ func Facilities(route dto.RouteContext, navItems []dto.NavItem, title string, de
 				}
 				return templ_7745c5c3_Err
 			})
-			templ_7745c5c3_Err = layout.AppLayout(route, navItems).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = layout.AppLayout(pageCtx).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

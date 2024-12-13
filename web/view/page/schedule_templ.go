@@ -173,7 +173,7 @@ func WeekDayBox(day string, isSelected bool) templ.Component {
 	})
 }
 
-func EmptyScheduleCard(route dto.RouteContext, schedule entity.Schedule) templ.Component {
+func EmptyScheduleCard(pageCtx dto.PageContext, schedule entity.Schedule) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -198,18 +198,15 @@ func EmptyScheduleCard(route dto.RouteContext, schedule entity.Schedule) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if route.UserRole == "admin" || route.UserRole == "super" {
+		if pageCtx.Auth.Role == "admin" || pageCtx.Auth.Role == "super" {
 			templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 13)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var10 string
-			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/schedule/%s/%s", route.PathFacility, map[bool]string{
-				true:  route.PathInitials,
-				false: route.UserInitials,
-			}[route.PathInitials != ""]))
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/%s/schedules/new/%s", pageCtx.Route.BasePath))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/schedule.templ`, Line: 84, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/schedule.templ`, Line: 81, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
