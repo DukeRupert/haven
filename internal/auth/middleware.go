@@ -8,26 +8,54 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DukeRupert/haven/internal/response"
-	"github.com/DukeRupert/haven/internal/store"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/types"
-	"github.com/DukeRupert/haven/internal/repository/facility"
-	
+	facilityRepo "github.com/DukeRupert/haven/internal/repository/facility"
+	"github.com/DukeRupert/haven/internal/response"
+	"github.com/DukeRupert/haven/internal/store"
+
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 )
 
-// PublicRoute represents a route that doesn't require authentication
+type RouteType int
+
+const (
+	RoutePublic RouteType = iota
+	RouteAuthenticated
+)
+
+// AuthConfig holds the configuration for auth middleware
+type AuthConfig struct {
+	RouteType       RouteType
+	RedirectToLogin bool
+}
+
+// AuthContext combines session data and optional full user data
+type AuthContext struct {
+	// Quick access session data
+	UserID       int            `json:"user_id"`
+	Role         types.UserRole `json:"role"`
+	Initials     string         `json:"initials,omitempty"`
+	FacilityID   int            `json:"facility_id,omitempty"`
+	FacilityCode string         `json:"facility_code,omitempty"`
+
+	// Lazy loaded data
+	user     *entity.User
+	facility *entity.Facility
+	loader   func() (*entity.User, *entity.Facility, error)
+}
+
+// PublicRoute represents a route that can be accessed without authentication
 type PublicRoute struct {
 	Path   string
 	Method string
 }
 
-// Middleware handles authentication and session management
+// Middleware structure
 type Middleware struct {
 	service *Service
 	logger  zerolog.Logger
@@ -36,20 +64,172 @@ type Middleware struct {
 
 // NewMiddleware creates a new auth middleware instance
 func NewMiddleware(service *Service, logger zerolog.Logger) *Middleware {
-	return &Middleware{
+	m := &Middleware{
 		service: service,
-		logger:  logger.With().Str("component", "auth_middleware").Logger(),
-		public: map[PublicRoute]bool{
-			{Path: "/login", Method: "GET"}:         true,
-			{Path: "/login", Method: "POST"}:        true,
-			{Path: "/logout", Method: "POST"}:       true,
-			{Path: "/register", Method: "GET"}:      true,
-			{Path: "/register", Method: "POST"}:     true,
-			{Path: "/set-password", Method: "GET"}:  true,
-			{Path: "/set-password", Method: "POST"}: true,
-			{Path: "/", Method: "GET"}:              true,
-		},
+		logger:  logger,
+		public:  make(map[PublicRoute]bool),
 	}
+
+	// Register default public routes
+	m.registerPublicRoutes()
+	return m
+}
+
+// RegisterPublicRoute adds a route to the public routes map
+func (m *Middleware) RegisterPublicRoute(path, method string) {
+	route := PublicRoute{
+		Path:   path,
+		Method: method,
+	}
+	m.public[route] = true
+}
+
+// registerPublicRoutes sets up default public routes
+func (m *Middleware) registerPublicRoutes() {
+	// Auth routes
+	m.RegisterPublicRoute("/login", http.MethodGet)
+	m.RegisterPublicRoute("/login", http.MethodPost)
+	m.RegisterPublicRoute("/logout", http.MethodPost)
+	m.RegisterPublicRoute("/register", http.MethodGet)
+	m.RegisterPublicRoute("/register", http.MethodPost)
+	m.RegisterPublicRoute("/set-password", http.MethodGet)
+	m.RegisterPublicRoute("/set-password", http.MethodPost)
+
+	// Add any other public routes your application needs
+}
+
+// Auth middleware that sets up the context
+func (m *Middleware) Auth() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			logger := m.logger.With().
+				Str("path", c.Path()).
+				Str("method", c.Request().Method).
+				Logger()
+
+			// Skip auth for static assets
+			if strings.HasPrefix(c.Request().RequestURI, "/static/") {
+				logger.Debug().Msg("allowing static asset access")
+				return next(c)
+			}
+
+			// Check if it's a public route
+			route := PublicRoute{
+				Path:   c.Path(),
+				Method: c.Request().Method,
+			}
+			if m.public[route] {
+				logger.Debug().Msg("allowing public route access")
+				return next(c)
+			}
+
+			// Get session
+			sess, err := session.Get("session", c)
+			if err != nil {
+				logger.Error().Err(err).Msg("session error")
+				return response.System(c)
+			}
+
+			// Create auth context from session
+			auth := &AuthContext{}
+
+			// Required values
+			userID, ok := sess.Values["user_id"].(int)
+			if !ok || userID == 0 {
+				logger.Debug().Msg("no valid user_id in session")
+				return redirectToLogin(c)
+			}
+			auth.UserID = userID
+
+			role, ok := sess.Values["role"].(types.UserRole)
+			if !ok {
+				logger.Debug().Msg("no valid role in session")
+				return redirectToLogin(c)
+			}
+			auth.Role = role
+
+			// Optional values
+			if initials, ok := sess.Values["initials"].(string); ok {
+				auth.Initials = initials
+			}
+			if facilityID, ok := sess.Values["facility_id"].(int); ok {
+				auth.FacilityID = facilityID
+			}
+			if facilityCode, ok := sess.Values["facility_code"].(string); ok {
+				auth.FacilityCode = facilityCode
+			}
+
+			// Set up lazy loader
+			auth.loader = func() (*entity.User, *entity.Facility, error) {
+				user, err := m.service.repos.User.GetByID(c.Request().Context(), userID)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				var facility *entity.Facility
+				if user.FacilityID != 0 {
+					facility, err = m.service.repos.Facility.GetByID(c.Request().Context(), user.FacilityID)
+					if err != nil && !errors.Is(err, facilityRepo.ErrNotFound) {
+						return nil, nil, err
+					}
+				}
+
+				return user, facility, nil
+			}
+
+			// Store in context
+			c.Set("auth", auth)
+
+			return next(c)
+		}
+	}
+}
+
+// GetUser returns the full user object, loading it if necessary
+func (ac *AuthContext) GetUser() (*entity.User, error) {
+	if ac.user != nil {
+		return ac.user, nil
+	}
+	if ac.loader == nil {
+		return nil, fmt.Errorf("no user loader available")
+	}
+
+	user, facility, err := ac.loader()
+	if err != nil {
+		return nil, err
+	}
+
+	ac.user = user
+	ac.facility = facility
+	return user, nil
+}
+
+// GetFacility returns the facility object, loading it if necessary
+func (ac *AuthContext) GetFacility() (*entity.Facility, error) {
+	if ac.facility != nil {
+		return ac.facility, nil
+	}
+	if ac.loader == nil {
+		return nil, fmt.Errorf("no facility loader available")
+	}
+
+	user, facility, err := ac.loader()
+	if err != nil {
+		return nil, err
+	}
+
+	ac.user = user
+	ac.facility = facility
+	return facility, nil
+}
+
+// Helper to get auth context
+func GetAuthContext(c echo.Context) (*AuthContext, error) {
+	auth, ok := c.Get("auth").(*AuthContext)
+	if !ok {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized, "no auth context found")
+	}
+	return auth, nil
 }
 
 // Authenticate middleware ensures requests are authenticated
@@ -102,7 +282,7 @@ func (m *Middleware) Authenticate() echo.MiddlewareFunc {
 			var fac *entity.Facility
 			if user.FacilityID != 0 {
 				fac, err = m.service.repos.Facility.GetByID(c.Request().Context(), user.FacilityID)
-				if err != nil && !errors.Is(err, facility.ErrNotFound) {
+				if err != nil && !errors.Is(err, facilityRepo.ErrNotFound) {
 					logger.Error().Err(err).Msg("failed to fetch facility")
 					return echo.NewHTTPError(http.StatusInternalServerError, "database error")
 				}
@@ -228,20 +408,20 @@ func (m *Middleware) ValidateFacility() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			logger := m.logger.With().
-                Str("middleware", "ValidateFacility").
-                Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
-                Logger()
+				Str("middleware", "ValidateFacility").
+				Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+				Logger()
 
-            // Get auth context
-            auth, err := m.GetAuthContext(c)
-            if err != nil {
-                logger.Error().Err(err).Msg("failed to get auth context")
-                return response.Error(c,
-                    http.StatusInternalServerError,
-                    "Authentication Error",
-                    []string{"Unable to verify permissions"},
-                )
-            }
+			// Get auth context
+			auth, err := m.GetAuthContext(c)
+			if err != nil {
+				logger.Error().Err(err).Msg("failed to get auth context")
+				return response.Error(c,
+					http.StatusInternalServerError,
+					"Authentication Error",
+					[]string{"Unable to verify permissions"},
+				)
+			}
 
 			// Get and validate facility code
 			facilityCode := c.Param("facility")
@@ -280,38 +460,38 @@ func (m *Middleware) ValidateFacility() echo.MiddlewareFunc {
 
 // GetContextFromSession retrieves auth context from session
 func (m *Middleware) GetAuthContext(c echo.Context) (*dto.AuthContext, error) {
-    sess, err := session.Get("session", c)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get session: %w", err)
-    }
+	sess, err := session.Get("session", c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session: %w", err)
+	}
 
-    userID, ok := sess.Values["user_id"].(int)
-    if !ok {
-        return nil, fmt.Errorf("invalid user_id in session")
-    }
+	userID, ok := sess.Values["user_id"].(int)
+	if !ok {
+		return nil, fmt.Errorf("invalid user_id in session")
+	}
 
-    role, ok := sess.Values["role"].(types.UserRole)
-    if !ok {
-        return nil, fmt.Errorf("invalid role in session")
-    }
+	role, ok := sess.Values["role"].(types.UserRole)
+	if !ok {
+		return nil, fmt.Errorf("invalid role in session")
+	}
 
-    auth := &dto.AuthContext{
-        UserID: userID,
-        Role:   role,
-    }
+	auth := &dto.AuthContext{
+		UserID: userID,
+		Role:   role,
+	}
 
-    // Optional values
-    if initials, ok := sess.Values["initials"].(string); ok {
-        auth.Initials = initials
-    }
-    if facilityID, ok := sess.Values["facility_id"].(int); ok {
-        auth.FacilityID = facilityID
-    }
-    if facilityCode, ok := sess.Values["facility_code"].(string); ok {
-        auth.FacilityCode = facilityCode
-    }
+	// Optional values
+	if initials, ok := sess.Values["initials"].(string); ok {
+		auth.Initials = initials
+	}
+	if facilityID, ok := sess.Values["facility_id"].(int); ok {
+		auth.FacilityID = facilityID
+	}
+	if facilityCode, ok := sess.Values["facility_code"].(string); ok {
+		auth.FacilityCode = facilityCode
+	}
 
-    return auth, nil
+	return auth, nil
 }
 
 // Helper methods

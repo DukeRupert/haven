@@ -94,16 +94,6 @@ func main() {
 
 	// Initialize Echo instance
 	e := echo.New()
-	e.Pre(middleware.RemoveTrailingSlash())
-	e.Static("/static", "web/assets")
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"https://sturdy-train-vq455j4p4rwf666v-8080.app.github.dev"},
-		AllowMethods: []string{echo.GET, echo.PUT, echo.POST, echo.DELETE},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
-	}))
-	e.Use(middleware.Recover())
-	e.Use(middleware.RequestID())
-	e.Use(middleware.Logger())
 
 	// Initialize database and repositories
 	database, err := repository.New(config.DatabaseURL, repository.DefaultConfig())
