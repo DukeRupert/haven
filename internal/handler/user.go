@@ -226,6 +226,79 @@ func (h *Handler) HandleUpdateUser(c echo.Context) error {
 	))
 }
 
+func (h *Handler) HandleAdminUpdateUser(c echo.Context) error {
+	logger := h.logger.With().
+		Str("handler", "HandleUpdateUser").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
+
+	// Validate user ID
+	userID, err := strconv.Atoi(c.Param("user_id"))
+	if err != nil {
+		logger.Debug().Err(err).Msg("invalid user ID format")
+		return response.Error(c, http.StatusBadRequest,
+			"Invalid User ID",
+			[]string{"Please provide a valid user ID"})
+	}
+
+	// Get auth context
+	auth, err := h.auth.GetAuthContext(c)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get auth context")
+		return response.System(c)
+	}
+
+	// Check basic permissions
+	if !canUpdateUser(auth, userID) {
+		logger.Warn().
+			Int("user_id", userID).
+			Str("role", string(auth.Role)).
+			Msg("unauthorized update attempt")
+		return response.Error(c, http.StatusForbidden,
+			"Forbidden",
+			[]string{"You don't have permission to update this user"})
+	}
+
+	// Bind and validate update params
+	var params params.UpdateUserParams
+	if err := c.Bind(&params); err != nil {
+		logger.Debug().Err(err).Msg("invalid form data")
+		return response.Error(c, http.StatusBadRequest,
+			"Invalid Request",
+			[]string{"Please check the form data and try again"})
+	}
+
+	logger.Debug().Interface("update_params", params).Msg("processing update")
+
+	// Validate role changes
+	if err := h.validateRoleChange(c.Request().Context(), auth, userID, params.Role); err != nil {
+		return err
+	}
+
+	// Perform update
+	updatedUser, err := h.repos.User.Update(c.Request().Context(), userID, params)
+	if err != nil {
+		if strings.Contains(err.Error(), "email already exists") {
+			return response.Validation(c, []string{"This email address is already in use"})
+		}
+		logger.Error().Err(err).Int("user_id", userID).Msg("failed to update user")
+		return response.System(c)
+	}
+
+	logger.Info().
+		Int("user_id", updatedUser.ID).
+		Str("email", updatedUser.Email).
+		Str("role", string(updatedUser.Role)).
+		Msg("user updated successfully")
+
+	return render(c, ComponentGroup(
+		alert.Success("User Updated",
+			fmt.Sprintf("Successfully updated user %s %s",
+				updatedUser.FirstName, updatedUser.LastName)),
+		page.ProfileUserCard(*updatedUser, *auth),
+	))
+}
+
 func (h *Handler) HandleDeleteUser(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error {
 	logger := h.logger.With().
 		Str("handler", "HandleDeleteUser").
@@ -461,6 +534,38 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 
 // GetUpdateUserForm renders the form for updating a user
 func (h *Handler) GetUpdateUserForm(c echo.Context) error {
+	logger := h.logger.With().
+		Str("handler", "GetUpdateUserForm").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
+
+	// Validate input and permissions
+	formData, err := h.validateFormAccess(c)
+	if err != nil {
+		return err // validateFormAccess handles error responses
+	}
+
+	// Get user details
+	user, err := h.repos.User.GetByID(c.Request().Context(), formData.UserID)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Int("user_id", formData.UserID).
+			Msg("failed to retrieve user")
+		return response.System(c)
+	}
+
+	logger.Debug().
+		Int("user_id", user.ID).
+		Str("email", user.Email).
+		Str("viewer_role", string(formData.Auth.Role)).
+		Msg("rendering update form")
+
+	return render(c, component.UpdateUserForm(*user, *formData.Auth))
+}
+
+// GetUpdateUserForm renders the form for updating a user
+func (h *Handler) GetAdminUpdateUserForm(c echo.Context) error {
 	logger := h.logger.With().
 		Str("handler", "GetUpdateUserForm").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).

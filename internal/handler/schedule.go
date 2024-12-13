@@ -222,6 +222,82 @@ func (h *Handler) HandleAvailabilityToggle(c echo.Context) error {
 	))
 }
 
+func (h *Handler) HandleAdminAvailabilityToggle(c echo.Context) error {
+	logger := h.logger.With().
+		Str("handler", "HandleAvailabilityToggle").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
+
+	// Get and validate protected date ID
+	dateID, err := getProtectedDateID(c)
+	if err != nil {
+		logger.Debug().
+			Err(err).
+			Str("date_id_param", c.Param("id")).
+			Msg("invalid protected date ID")
+		return response.Error(c,
+			http.StatusBadRequest,
+			"Invalid Request",
+			[]string{"Invalid protected date ID provided"},
+		)
+	}
+
+	// Get auth context
+	auth, err := h.auth.GetAuthContext(c)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get auth context")
+		return response.System(c)
+	}
+
+	// Get protected date
+	protectedDate, err := h.repos.Schedule.GetProtectedDateByID(c.Request().Context(), dateID)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Int("date_id", dateID).
+			Msg("failed to fetch protected date")
+		return response.System(c)
+	}
+
+	// Verify authorization
+	if !canToggleAvailability(auth, &protectedDate) {
+		logger.Warn().
+			Int("date_id", dateID).
+			Int("user_id", auth.UserID).
+			Str("role", string(auth.Role)).
+			Msg("unauthorized toggle attempt")
+		return response.Error(c,
+			http.StatusForbidden,
+			"Access Denied",
+			[]string{"You don't have permission to modify this date"},
+		)
+	}
+
+	// Toggle availability
+	updatedDate, err := h.repos.Schedule.ToggleProtectedDateAvailability(
+		c.Request().Context(),
+		dateID,
+	)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Int("date_id", dateID).
+			Msg("failed to toggle availability")
+		return response.System(c)
+	}
+
+	logger.Debug().
+		Int("date_id", dateID).
+		Bool("is_available", updatedDate.Available).
+		Msg("availability toggled successfully")
+
+	return render(c, component.ProtectedDay(
+		auth.UserID,
+		auth.FacilityCode,
+		updatedDate,
+	))
+}
+
 // Types for validation
 type scheduleRequestContext struct {
 	FacilityCode string

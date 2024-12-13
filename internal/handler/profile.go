@@ -11,8 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// HandleProfile renders the user profile page
-func (h *Handler) HandleProfile(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error {
+func (h *Handler) HandleGetUser(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error {
 	logger := h.logger.With().
 		Str("handler", "HandleProfile").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).

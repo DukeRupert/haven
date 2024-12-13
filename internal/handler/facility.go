@@ -18,8 +18,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// HandleFacilities renders the facilities list page
-func (h *Handler) HandleFacilities(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error {
+func (h *Handler) HandleGetFacilities(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error {
     logger := h.logger.With().
         Str("handler", "HandleFacilities").
         Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
@@ -58,52 +57,11 @@ func (h *Handler) HandleFacilities(c echo.Context, routeCtx *dto.RouteContext, n
     ).Render(c.Request().Context(), c.Response().Writer)
 }
 
-// GET /app/facilities/create
-func (h *Handler) CreateFacilityForm(c echo.Context) error {
+func (h *Handler) HandleCreateFacility(c echo.Context) error {
 	return render(c, page.CreateFacilityForm())
 }
 
-// Get /app/facilities/update
-func (h *Handler) UpdateFacilityForm(c echo.Context) error {
-	logger := zerolog.Ctx(c.Request().Context())
-	id, err := strconv.Atoi(c.Param("fid"))
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Str("facility_id", c.Param("fid")).
-			Msg("invalid facility ID format")
-		return render(c, alert.Error(
-			"Invalid request",
-			[]string{"Invalid facility ID provided"},
-		))
-	}
-
-	facility, err := h.repos.Facility.GetByID(c.Request().Context(), id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			logger.Error().
-				Int("facility_id", id).
-				Msg("facility not found")
-			return render(c, alert.Error(
-				"Not found",
-				[]string{"The requested facility does not exist"},
-			))
-		}
-		logger.Error().
-			Err(err).
-			Int("facility_id", id).
-			Msg("failed to retrieve facility")
-		return render(c, alert.Error(
-			"System error",
-			[]string{"Unable to load facility. Please try again later"},
-		))
-	}
-
-	return render(c, page.UpdateFacilityForm(*facility))
-}
-
-// PUT /app/facilities/:id
-func (h *Handler) UpdateFacility(c echo.Context) error {
+func (h *Handler) HandleUpdateFacility(c echo.Context) error {
 	logger := zerolog.Ctx(c.Request().Context())
 	id, err := strconv.Atoi(c.Param("fid"))
 	if err != nil {
@@ -169,3 +127,52 @@ func (h *Handler) UpdateFacility(c echo.Context) error {
 
 	return render(c, super.FacilityListItem(*facility))
 }
+
+func (h *Handler) HandleDeleteFacility(c echo.Context) error {
+	return render(c, page.CreateFacilityForm())
+}
+
+// GET /app/facilities/create
+func (h *Handler) CreateFacilityForm(c echo.Context) error {
+	return render(c, page.CreateFacilityForm())
+}
+
+// Get /app/facilities/update
+func (h *Handler) UpdateFacilityForm(c echo.Context) error {
+	logger := zerolog.Ctx(c.Request().Context())
+	id, err := strconv.Atoi(c.Param("fid"))
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Str("facility_id", c.Param("fid")).
+			Msg("invalid facility ID format")
+		return render(c, alert.Error(
+			"Invalid request",
+			[]string{"Invalid facility ID provided"},
+		))
+	}
+
+	facility, err := h.repos.Facility.GetByID(c.Request().Context(), id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			logger.Error().
+				Int("facility_id", id).
+				Msg("facility not found")
+			return render(c, alert.Error(
+				"Not found",
+				[]string{"The requested facility does not exist"},
+			))
+		}
+		logger.Error().
+			Err(err).
+			Int("facility_id", id).
+			Msg("failed to retrieve facility")
+		return render(c, alert.Error(
+			"System error",
+			[]string{"Unable to load facility. Please try again later"},
+		))
+	}
+
+	return render(c, page.UpdateFacilityForm(*facility))
+}
+
