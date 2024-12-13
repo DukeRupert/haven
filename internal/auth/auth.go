@@ -16,6 +16,17 @@ var (
     ErrInvalidCredentials = errors.New("invalid credentials")
 )
 
+// SessionKeys defines constants for session value keys
+const (
+    SessionKeyUserID       = "user_id"
+    SessionKeyRole        = "role"         
+    SessionKeyInitials    = "initials"     
+    SessionKeyFacilityID  = "facility_id"
+    SessionKeyFacilityCode = "facility_code"
+    SessionKeyLastAccess  = "last_access"
+)
+
+
 // Service handles authentication-related operations
 type Service struct {
     repos  *repository.Repositories

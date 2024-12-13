@@ -20,7 +20,6 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/pressly/goose/v3"
 	"github.com/rs/zerolog"
 )

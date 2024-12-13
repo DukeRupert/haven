@@ -30,20 +30,21 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	e.Use(auth.Auth())
 	e.Use(ctx.WithRouteContext())
 
-	// Public routes (no auth required)
-	public := e.Group("")
-	public.Use(auth.EnsurePublic())
-	{
-		public.GET("/", h.GetHome)
-		public.GET("/login", h.GetLogin, auth.RedirectAuthenticated())
-		public.POST("/login", authHandler.LoginHandler())
-		public.POST("/logout", authHandler.LogoutHandler())
-		public.GET("/register", h.GetRegister)
-		public.POST("/register", h.HandleRegistration)
-		public.GET("/set-password", h.GetSetPassword)
-		public.POST("/set-password", h.HandleSetPassword)
-	}
+	// Public routes - no group or additional middleware needed
+	e.GET("/", h.GetHome)
+	e.GET("/login", h.GetLogin, auth.RedirectAuthenticated())
+	e.POST("/login", authHandler.LoginHandler())
+	e.POST("/logout", authHandler.LogoutHandler())
+	e.GET("/register", h.GetRegister)
+	e.POST("/register", h.HandleRegistration)
+	e.GET("/set-password", h.GetSetPassword)
+	e.POST("/set-password", h.HandleSetPassword)
 
+	// Protected routes
+	facility := e.Group("/facility/:facility_id", auth.ValidateFacility())
+	// Calendar & availability
+	facility.GET("/calendar", h.WithNav(h.HandleCalendar))
+	
 	// API routes
 	api := e.Group("/api")
 	{
@@ -70,8 +71,6 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 		// Facility-specific routes
 		facility := api.Group("/facility/:facility_id", auth.ValidateFacility())
 		{
-			// Calendar & availability
-			facility.GET("/calendar", h.WithNav(h.HandleCalendar))
 
 			// User management (admin only)
 			users := facility.Group("/users", auth.RequireRole(types.UserRoleAdmin))

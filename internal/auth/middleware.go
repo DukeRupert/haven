@@ -107,7 +107,7 @@ func (m *Middleware) Auth() echo.MiddlewareFunc {
 				Str("method", c.Request().Method).
 				Logger()
 
-			// Skip auth for static assets
+			// Check static assets
 			if strings.HasPrefix(c.Request().RequestURI, "/static/") {
 				logger.Debug().Msg("allowing static asset access")
 				return next(c)
@@ -124,61 +124,74 @@ func (m *Middleware) Auth() echo.MiddlewareFunc {
 			}
 
 			// Get session
-			sess, err := session.Get("session", c)
+			sess, err := session.Get(store.DefaultSessionName, c)
 			if err != nil {
 				logger.Error().Err(err).Msg("session error")
-				return response.System(c)
+				return redirectToLogin(c)
 			}
 
-			// Create auth context from session
-			auth := &AuthContext{}
-
-			// Required values
-			userID, ok := sess.Values["user_id"].(int)
+			// Check required session values
+			userID, ok := sess.Values[SessionKeyUserID].(int)
 			if !ok || userID == 0 {
 				logger.Debug().Msg("no valid user_id in session")
 				return redirectToLogin(c)
 			}
-			auth.UserID = userID
 
-			role, ok := sess.Values["role"].(types.UserRole)
+			role, ok := sess.Values[SessionKeyRole].(types.UserRole)
 			if !ok {
 				logger.Debug().Msg("no valid role in session")
 				return redirectToLogin(c)
 			}
-			auth.Role = role
 
-			// Optional values
-			if initials, ok := sess.Values["initials"].(string); ok {
-				auth.Initials = initials
-			}
-			if facilityID, ok := sess.Values["facility_id"].(int); ok {
-				auth.FacilityID = facilityID
-			}
-			if facilityCode, ok := sess.Values["facility_code"].(string); ok {
-				auth.FacilityCode = facilityCode
+			// Get fresh user data using repository
+			user, err := m.service.repos.User.GetByID(c.Request().Context(), userID)
+			if err != nil {
+				logger.Error().Err(err).Int("user_id", userID).Msg("failed to fetch user")
+				return redirectToLogin(c)
 			}
 
-			// Set up lazy loader
-			auth.loader = func() (*entity.User, *entity.Facility, error) {
-				user, err := m.service.repos.User.GetByID(c.Request().Context(), userID)
-				if err != nil {
-					return nil, nil, err
+			// Get facility data if needed
+			var facility *entity.Facility
+			if user.FacilityID != 0 {
+				facility, err = m.service.repos.Facility.GetByID(c.Request().Context(), user.FacilityID)
+				if err != nil && !errors.Is(err, facilityRepo.ErrNotFound) {
+					logger.Error().Err(err).Msg("failed to fetch facility")
+					return echo.NewHTTPError(http.StatusInternalServerError, "database error")
 				}
-
-				var facility *entity.Facility
-				if user.FacilityID != 0 {
-					facility, err = m.service.repos.Facility.GetByID(c.Request().Context(), user.FacilityID)
-					if err != nil && !errors.Is(err, facilityRepo.ErrNotFound) {
-						return nil, nil, err
-					}
-				}
-
-				return user, facility, nil
 			}
 
-			// Store in context
-			c.Set("auth", auth)
+			// Update session with fresh data
+			sess.Values[SessionKeyUserID] = user.ID
+			sess.Values[SessionKeyRole] = user.Role
+			sess.Values[SessionKeyInitials] = user.Initials
+			if facility != nil {
+				sess.Values[SessionKeyFacilityID] = facility.ID
+				sess.Values[SessionKeyFacilityCode] = facility.Code
+			}
+			sess.Values[SessionKeyLastAccess] = time.Now()
+
+			if err := sess.Save(c.Request(), c.Response()); err != nil {
+				logger.Error().Err(err).Msg("failed to update session")
+				return echo.NewHTTPError(http.StatusInternalServerError, "session error")
+			}
+
+			// Set values in context for handlers to use
+			authContext := &AuthContext{
+				UserID:       user.ID,
+				Role:         role,
+				Initials:     user.Initials,
+				FacilityID:   user.FacilityID,
+				FacilityCode: facility.Code,
+				user:         user,
+				facility:     facility,
+			}
+			c.Set("auth", authContext)
+
+			logger.Debug().
+				Int("user_id", user.ID).
+				Str("role", string(role)).
+				Str("facility_code", facility.Code).
+				Msg("authentication successful")
 
 			return next(c)
 		}
@@ -230,76 +243,6 @@ func GetAuthContext(c echo.Context) (*AuthContext, error) {
 		return nil, echo.NewHTTPError(http.StatusUnauthorized, "no auth context found")
 	}
 	return auth, nil
-}
-
-// Authenticate middleware ensures requests are authenticated
-func (m *Middleware) Authenticate() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			logger := m.logger.With().
-				Str("path", c.Path()).
-				Str("method", c.Request().Method).
-				Logger()
-
-			// Check static assets
-			if strings.HasPrefix(c.Request().RequestURI, "/static/") {
-				logger.Debug().Msg("allowing static asset access")
-				return next(c)
-			}
-
-			// Check public routes
-			route := PublicRoute{
-				Path:   c.Path(),
-				Method: c.Request().Method,
-			}
-			if m.public[route] {
-				logger.Debug().Msg("allowing public route access")
-				return next(c)
-			}
-
-			// Get session
-			sess, err := session.Get(store.DefaultSessionName, c)
-			if err != nil {
-				logger.Error().Err(err).Msg("session error")
-				return m.clearSessionAndRedirect(c, sess)
-			}
-
-			// Validate user ID
-			userID, ok := sess.Values["user_id"].(int)
-			if !ok || userID == 0 {
-				logger.Debug().Msg("no valid user_id in session")
-				return redirectToLogin(c)
-			}
-
-			// Get fresh user data using repository
-			user, err := m.service.repos.User.GetByID(c.Request().Context(), userID)
-			if err != nil {
-				logger.Error().Err(err).Int("user_id", userID).Msg("failed to fetch user")
-				return redirectToLogin(c)
-			}
-
-			// Get fac data if needed
-			var fac *entity.Facility
-			if user.FacilityID != 0 {
-				fac, err = m.service.repos.Facility.GetByID(c.Request().Context(), user.FacilityID)
-				if err != nil && !errors.Is(err, facilityRepo.ErrNotFound) {
-					logger.Error().Err(err).Msg("failed to fetch facility")
-					return echo.NewHTTPError(http.StatusInternalServerError, "database error")
-				}
-			}
-
-			// Update session
-			if err := m.updateSession(c, sess, user, fac); err != nil {
-				logger.Error().Err(err).Msg("failed to update session")
-				return echo.NewHTTPError(http.StatusInternalServerError, "session error")
-			}
-
-			// Set context values
-			m.setContextValues(c, user, fac)
-
-			return next(c)
-		}
-	}
 }
 
 // RequireRole ensures users have sufficient role permissions
@@ -355,49 +298,34 @@ func (m *Middleware) RedirectAuthenticated() echo.MiddlewareFunc {
 
 			logger.Debug().Msg("checking authenticated status")
 
-			// Check authentication status
-			redirect, url, err := m.shouldRedirect(c)
+			// Get session
+			sess, err := session.Get(store.DefaultSessionName, c)
 			if err != nil {
-				logger.Error().Err(err).Msg("error checking redirect status")
+				logger.Debug().Err(err).Msg("session error, continuing to login")
 				return next(c)
 			}
 
-			if redirect {
+			// Check for required session values
+			userID, ok1 := sess.Values[SessionKeyUserID].(int)
+			role, ok2 := sess.Values[SessionKeyRole].(types.UserRole)
+			facilityCode, ok3 := sess.Values[SessionKeyFacilityCode].(string)
+
+			// Only redirect if we have all required session values
+			if ok1 && ok2 && ok3 && userID > 0 {
+				// Log session state for debugging
 				logger.Debug().
-					Str("redirect_url", url).
-					Msg("redirecting authenticated user")
-				return c.Redirect(http.StatusTemporaryRedirect, url)
+					Interface("session_values", map[string]interface{}{
+						"user_id":       userID,
+						"role":          role,
+						"facility_code": facilityCode,
+					}).
+					Msg("session values in redirect check")
+
+				redirectURL := fmt.Sprintf("/facility/%s/calendar", facilityCode)
+				return c.Redirect(http.StatusSeeOther, redirectURL)
 			}
 
-			return next(c)
-		}
-	}
-}
-
-// EnsurePublic middleware handles public route access and error states
-func (m *Middleware) EnsurePublic() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			logger := m.logger.With().
-				Str("middleware", "EnsurePublic").
-				Str("path", c.Path()).
-				Str("method", c.Request().Method).
-				Logger()
-
-			// Clear any existing error state
-			c.Set("error", nil)
-
-			// Log public route access
-			logger.Debug().Msg("accessing public route")
-
-			// Handle rate limiting or other public route protections here
-			if err := m.validatePublicAccess(c); err != nil {
-				logger.Warn().
-					Err(err).
-					Msg("public access denied")
-				return err
-			}
-
+			logger.Debug().Msg("user not authenticated, continuing to login")
 			return next(c)
 		}
 	}
@@ -424,7 +352,7 @@ func (m *Middleware) ValidateFacility() echo.MiddlewareFunc {
 			}
 
 			// Get and validate facility code
-			facilityCode := c.Param("facility")
+			facilityCode := c.Param("facility_id")
 			if facilityCode == "" {
 				logger.Error().Msg("missing facility code parameter")
 				return response.Error(c,
@@ -506,18 +434,6 @@ func canAccessFacility(auth *dto.AuthContext, facilityCode string) bool {
 	}
 }
 
-// validatePublicAccess handles any validation needed for public routes
-func (m *Middleware) validatePublicAccess(c echo.Context) error {
-	// Add any public route validations here, such as:
-	// - Rate limiting
-	// - Bot protection
-	// - Request validation
-	// - CORS checks
-	// - etc.
-
-	return nil
-}
-
 // hasMinimumRole checks if a role meets the minimum required level
 func (m *Middleware) hasMinimumRole(userRole, minimumRole types.UserRole) bool {
 	roleHierarchy := map[types.UserRole]int{
@@ -552,7 +468,7 @@ func (m *Middleware) shouldRedirect(c echo.Context) (bool, string, error) {
 	}
 
 	// Build redirect URL
-	redirectURL := fmt.Sprintf("/%s/calendar", facilityCode)
+	redirectURL := fmt.Sprintf("/facility/%s/calendar", facilityCode)
 	return true, redirectURL, nil
 }
 

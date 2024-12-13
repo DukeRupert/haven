@@ -19,7 +19,7 @@ func (h *Handler) HandleCalendar(c echo.Context, routeCtx *dto.RouteContext, nav
 		Logger()
 
 	// Get and validate facility code
-	facilityCode := c.Param("facility")
+	facilityCode := c.Param("facility_id")
 	if facilityCode == "" {
 		logger.Error().Msg("missing facility code")
 		return echo.NewHTTPError(
