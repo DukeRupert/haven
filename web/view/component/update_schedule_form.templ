@@ -5,7 +5,7 @@ import (
   "github.com/DukeRupert/haven/internal/model/entity"
 )
 
-templ UpdateScheduleForm(schedule entity.Schedule) {
+templ UpdateScheduleForm(schedule entity.Schedule, facilityCode string) {
 	<div id="update-schedule-form" hx-target="this" hx-target-error="#global-alert" hx-indicator="#loading-overlay" hx-swap="outerHTML" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
@@ -14,7 +14,7 @@ templ UpdateScheduleForm(schedule entity.Schedule) {
 				</div>
 				<div class="mt-6">
 					<form
-						hx-post={ fmt.Sprintf("/api/schedule/%d", schedule.ID)}
+						hx-put={ fmt.Sprintf("/api/facility/%s/schedule/%d", facilityCode, schedule.ID)}
 						hx-target="#update-schedule-form"
 						hx-swap="outerHTML"
 						hx-target-error="#global-alert"
@@ -70,7 +70,7 @@ templ UpdateScheduleForm(schedule entity.Schedule) {
 							<div class="flex justify-end space-x-3">
 								<button
 									type="button"
-									hx-get={ fmt.Sprintf("/api/schedule/%d", schedule.ID) }
+									hx-get={ fmt.Sprintf("/api/facility/%s/schedule/%d", facilityCode, schedule.ID) }
 									hx-target="#update-schedule-form"
 									hx-swap="outerHTML"
 									hx-target-error="#global-alert" 

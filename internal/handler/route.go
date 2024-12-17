@@ -42,18 +42,45 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	e.POST("/set-password", h.HandleSetPassword)
 
 	// Protected routes
+
+	// User self-service endpoints
+	self := e.Group("/profile", auth.RequireRole(types.UserRoleUser))
+	{
+		self.GET("", h.WithNav(h.HandleGetUser))
+		self.PUT("", h.HandleUpdateUser)
+		self.GET("/edit", h.GetUpdateUserForm)
+		self.PUT("/password", h.HandleUpdatePassword)
+		self.GET("/password", h.GetUpdatePasswordForm)
+		self.POST("/availability/:id", h.HandleAvailabilityToggle)
+	}
+	
+	// Facility specific endpoints (admin only)
 	facility := e.Group("/facility/:facility_id", auth.ValidateFacility())
-	// Calendar & availability
 	facility.GET("/calendar", h.WithNav(h.HandleCalendar))
+	users := facility.Group("/users", auth.RequireRole(types.UserRoleAdmin))
+	{
+		users.GET("", h.WithNav(h.HandleUsers))
+		users.POST("", h.HandleCreateUser)
+		users.GET("/new", h.GetCreateUserForm)
+		users.GET("/:user_id", h.WithNav(h.HandleGetUser))
+		users.PUT("/:user_id", h.HandleAdminUpdateUser)
+		users.DELETE("/:user_id", h.WithNav(h.HandleDeleteUser))
+		users.GET("/:user_id/edit", h.GetAdminUpdateUserForm)
+		users.GET("/:user_id/password", h.GetUpdatePasswordForm)
+	}
+
+	// Facility Management (super only)
+	e.GET("/facilities", h.WithNav(h.HandleGetFacilities), auth.RequireRole(types.UserRoleSuper))
 	
 	// API routes
 	api := e.Group("/api")
 	{
 		// User self-service endpoints
-		self := api.Group("/user", auth.RequireRole(types.UserRoleUser))
+		self := api.Group("/user/:user_id", auth.RequireRole(types.UserRoleUser))
 		{
 			self.GET("", h.WithNav(h.HandleGetUser))
 			self.PUT("", h.HandleUpdateUser)
+			self.DELETE("", h.WithNav(h.HandleDeleteUser))
 			self.GET("/edit", h.GetUpdateUserForm)
 			self.PUT("/password", h.HandleUpdatePassword)
 			self.GET("/password", h.GetUpdatePasswordForm)
@@ -63,8 +90,9 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 		// Facility management (super admin only)
 		admin := api.Group("/admin", auth.RequireRole(types.UserRoleSuper))
 		{
-			admin.GET("/facilities", h.WithNav(h.HandleGetFacilities))
 			admin.POST("/facilities", h.HandleCreateFacility)
+			admin.GET("/facilities/new", h.GetCreateFacilityForm)
+			admin.GET("/facilities/edit", h.GetUpdateFacilityForm)
 			admin.PUT("/facilities/:facility_id", h.HandleUpdateFacility)
 			admin.DELETE("/facilities/:facility_id", h.HandleDeleteFacility)
 		}
@@ -87,13 +115,13 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 			}
 
 			// Schedule management
-			schedules := facility.Group("/schedules")
+			schedule := facility.Group("/schedule")
 			{
-				schedules.POST("", h.HandleCreateSchedule)
-				schedules.GET("/new/:user_id", h.GetCreateScheduleForm)
-				schedules.GET("/:schedule_id", h.HandleGetSchedule)
-				schedules.PUT("/:schedule_id", h.HandleUpdateSchedule)
-				schedules.GET("/:schedule_id/edit", h.GetUpdateScheduleForm)
+				schedule.POST("", h.HandleCreateSchedule)
+				schedule.GET("/new/:user_id", h.GetCreateScheduleForm)
+				schedule.GET("/:schedule_id", h.HandleGetSchedule)
+				schedule.PUT("/:schedule_id", h.HandleUpdateSchedule)
+				schedule.GET("/:schedule_id/edit", h.GetUpdateScheduleForm)
 			}
 		}
 	}

@@ -19,7 +19,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func (h *Handler) HandleGetFacilities(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error {
+func (h *Handler) HandleGetFacilities(c echo.Context, ctx *dto.PageContext) error {
 	logger := h.logger.With().
 		Str("handler", "HandleFacilities").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
@@ -50,8 +50,7 @@ func (h *Handler) HandleGetFacilities(c echo.Context, routeCtx *dto.RouteContext
 
 	// Render the page
 	return page.Facilities(
-		*routeCtx,
-		navItems,
+		*ctx,
 		pageData.Title,
 		pageData.Description,
 		facilities,
@@ -134,12 +133,12 @@ func (h *Handler) HandleDeleteFacility(c echo.Context) error {
 }
 
 // GET /app/facilities/create
-func (h *Handler) CreateFacilityForm(c echo.Context) error {
+func (h *Handler) GetCreateFacilityForm(c echo.Context) error {
 	return render(c, page.CreateFacilityForm())
 }
 
 // Get /app/facilities/update
-func (h *Handler) UpdateFacilityForm(c echo.Context) error {
+func (h *Handler) GetUpdateFacilityForm(c echo.Context) error {
 	logger := zerolog.Ctx(c.Request().Context())
 	id, err := strconv.Atoi(c.Param("fid"))
 	if err != nil {

@@ -70,7 +70,7 @@ func (h *Handler) HandleCreateSchedule(c echo.Context) error {
 		Str("second_weekday", schedule.SecondWeekday.String()).
 		Msg("schedule created successfully")
 
-	return render(c, page.ScheduleCard(auth.Role, *schedule))
+	return render(c, page.ScheduleCard(auth.Role, createData.FacilityCode, *schedule))
 }
 
 // HandleGetSchedule retrieves and displays a schedule
@@ -79,6 +79,12 @@ func (h *Handler) HandleGetSchedule(c echo.Context) error {
 		Str("handler", "HandleGetSchedule").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
+
+	// Get facility code
+	facilityCode, err := ValidateFacilityCode(c, h.logger)
+	if err != nil {
+		return err
+	}
 
 	// Get and validate schedule ID
 	scheduleID, err := getScheduleID(c)
@@ -142,7 +148,7 @@ func (h *Handler) HandleGetSchedule(c echo.Context) error {
 		Str("viewer_role", string(auth.Role)).
 		Msg("rendering schedule card")
 
-	return render(c, page.ScheduleCard(auth.Role, *schedule))
+	return render(c, page.ScheduleCard(auth.Role, facilityCode, *schedule))
 }
 
 // HandleAvailabilityToggle processes requests to toggle protected date availability
@@ -372,6 +378,8 @@ func (h *Handler) GetUpdateScheduleForm(c echo.Context) error {
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
+	logger.Debug().Msg("GetUpdateScheduleForm()")
+
 	// Validate request and get context
 	reqCtx, err := h.validateScheduleUpdateRequest(c)
 	if err != nil {
@@ -384,7 +392,7 @@ func (h *Handler) GetUpdateScheduleForm(c echo.Context) error {
 		Int("facility_id", reqCtx.Facility.ID).
 		Msg("rendering schedule update form")
 
-	return render(c, component.UpdateScheduleForm(*reqCtx.Schedule))
+	return render(c, component.UpdateScheduleForm(*reqCtx.Schedule, reqCtx.Facility.Code))
 }
 
 func (h *Handler) validateScheduleUpdateRequest(c echo.Context) (*scheduleUpdateContext, error) {
@@ -499,6 +507,12 @@ func (h *Handler) HandleUpdateSchedule(c echo.Context) error {
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
+	// Get facility code
+	facilityCode, err := ValidateFacilityCode(c, h.logger)
+	if err != nil {
+		return err
+	}
+
 	// Validate input and permissions
 	updateData, auth, err := h.validateScheduleUpdate(c)
 	if err != nil {
@@ -527,12 +541,12 @@ func (h *Handler) HandleUpdateSchedule(c echo.Context) error {
 		Str("second_weekday", schedule.SecondWeekday.String()).
 		Msg("schedule updated successfully")
 
-	return render(c, page.ScheduleCard(auth.Role, *schedule))
+	return render(c, page.ScheduleCard(auth.Role, facilityCode, *schedule))
 }
 
 // General helpers
 func getScheduleID(c echo.Context) (int, error) {
-	return strconv.Atoi(c.Param("id"))
+	return strconv.Atoi(c.Param("schedule_id"))
 }
 
 // HandleCreateSchedule helpers

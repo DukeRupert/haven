@@ -10,14 +10,15 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/DukeRupert/haven/internal/response"
-	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/dto"
+	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
 	"github.com/DukeRupert/haven/internal/model/types"
+	"github.com/DukeRupert/haven/internal/response"
 	"github.com/a-h/templ"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -118,16 +119,16 @@ func canAccessUserForm(auth *dto.AuthContext, targetUserID int) bool {
 }
 
 func canDeleteUser(auth *dto.AuthContext, targetUser *entity.User) bool {
-    switch auth.Role {
-    case types.UserRoleSuper:
-        return true
-    case types.UserRoleAdmin:
-        // Admin can delete users in their facility except themselves
-        return auth.UserID != targetUser.ID && 
-               auth.FacilityID == targetUser.FacilityID
-    default:
-        return false
-    }
+	switch auth.Role {
+	case types.UserRoleSuper:
+		return true
+	case types.UserRoleAdmin:
+		// Admin can delete users in their facility except themselves
+		return auth.UserID != targetUser.ID &&
+			auth.FacilityID == targetUser.FacilityID
+	default:
+		return false
+	}
 }
 
 func canUpdatePassword(auth *dto.AuthContext, targetUserID int) bool {
@@ -345,4 +346,19 @@ func generateSecureToken() (string, error) {
 	// Encode to base64URL (URL-safe version of base64)
 	// Use RawURLEncoding to avoid padding characters
 	return base64.RawURLEncoding.EncodeToString(bytes), nil
+}
+
+// ValidateFacilityCode extracts and validates the facility code from the request context.
+// Returns the facility code if valid, or an error that can be directly returned from the handler.
+func ValidateFacilityCode(c echo.Context, logger zerolog.Logger) (string, error) {
+	facilityCode := c.Param("facility_id")
+	if facilityCode == "" {
+		logger.Error().Msg("missing facility code parameter")
+		return "", response.Error(c,
+			http.StatusBadRequest,
+			"Invalid Request",
+			[]string{"Facility code is required"},
+		)
+	}
+	return facilityCode, nil
 }

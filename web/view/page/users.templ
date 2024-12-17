@@ -19,7 +19,7 @@ templ ShowUsers(pageCtx dto.PageContext, title string, description string, role 
 				</div>
 				if role == "admin" || role == "super" {
 					<div class="mt-4 flex md:ml-4 md:mt-0">
-						<button hx-get={ fmt.Sprintf("/api/%s/users/new", pageCtx.Route.BasePath)} hx-target="#create-user-form" hx-swap="outerHTML" hx-target-error="#global-alert" hx-indicator="#loading-overlay" type="button" class="ml-3 inline-flex items-center rounded-md bg-picton-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600">Add</button>
+						<button hx-get={ fmt.Sprintf("/api%s/users/new", pageCtx.Route.BasePath)} hx-target="#create-user-form" hx-swap="outerHTML" hx-target-error="#global-alert" hx-indicator="#loading-overlay" type="button" class="ml-3 inline-flex items-center rounded-md bg-picton-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600">Add</button>
 					</div>
 				}
 			</header>
@@ -36,7 +36,7 @@ templ ShowUsers(pageCtx dto.PageContext, title string, description string, role 
 }
 
 templ UserListItem(route dto.RouteContext, u entity.User) {
-    <a href={ templ.URL(fmt.Sprintf("./%s", u.Initials)) } class="block hover:bg-gray-50">
+    <a href={ templ.URL(fmt.Sprintf("./users/%s", u.Initials)) } class="block hover:bg-gray-50">
         <li class="relative flex justify-between gap-x-6 py-5 px-4">
             <div class="flex min-w-0 gap-x-4">
                 <div class="bg-picton-blue-600 w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold">

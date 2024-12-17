@@ -18,14 +18,14 @@ import (
 )
 
 // HandleUsers renders the users list page for a specific facility
-func (h *Handler) HandleUsers(c echo.Context, routeCtx *dto.RouteContext, navItems []dto.NavItem) error {
+func (h *Handler) HandleUsers(c echo.Context, ctx *dto.PageContext) error {
 	logger := h.logger.With().
 		Str("handler", "HandleUsers").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
 	// Get and validate facility code
-	code := c.Param("facility")
+	code := c.Param("facility_id")
 	if code == "" {
 		logger.Error().Msg("missing facility code in request")
 		return echo.NewHTTPError(
@@ -82,8 +82,7 @@ func (h *Handler) HandleUsers(c echo.Context, routeCtx *dto.RouteContext, navIte
 
 	// Render the page
 	return page.ShowUsers(
-		*routeCtx,
-		navItems,
+		*ctx,
 		pageData.Title,
 		pageData.Description,
 		auth.Role,
@@ -222,7 +221,7 @@ func (h *Handler) HandleUpdateUser(c echo.Context) error {
 		alert.Success("User Updated",
 			fmt.Sprintf("Successfully updated user %s %s",
 				updatedUser.FirstName, updatedUser.LastName)),
-		page.ProfileUserCard(*updatedUser, *auth),
+		page.UserDetails(*updatedUser, *auth),
 	))
 }
 
@@ -295,67 +294,67 @@ func (h *Handler) HandleAdminUpdateUser(c echo.Context) error {
 		alert.Success("User Updated",
 			fmt.Sprintf("Successfully updated user %s %s",
 				updatedUser.FirstName, updatedUser.LastName)),
-		page.ProfileUserCard(*updatedUser, *auth),
+		page.UserDetails(*updatedUser, *auth),
 	))
 }
 
 func (h *Handler) HandleDeleteUser(c echo.Context, ctx *dto.PageContext) error {
-    logger := h.logger.With().
-        Str("handler", "HandleDeleteUser").
-        Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
-        Logger()
+	logger := h.logger.With().
+		Str("handler", "HandleDeleteUser").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
 
-    // Validate user ID
-    userID, err := getUserID(c)
-    if err != nil {
-        logger.Debug().
-            Err(err).
-            Str("user_id_param", c.Param("user_id")).
-            Msg("invalid user ID format")
-        return response.Error(c, http.StatusBadRequest,
-            "Invalid Request",
-            []string{"Please provide a valid user ID"})
-    }
+	// Validate user ID
+	userID, err := getUserID(c)
+	if err != nil {
+		logger.Debug().
+			Err(err).
+			Str("user_id_param", c.Param("user_id")).
+			Msg("invalid user ID format")
+		return response.Error(c, http.StatusBadRequest,
+			"Invalid Request",
+			[]string{"Please provide a valid user ID"})
+	}
 
-    // Verify user exists and get details for logging
-    user, err := h.repos.User.GetByID(c.Request().Context(), userID)
-    if err != nil {
-        logger.Error().
-            Err(err).
-            Int("user_id", userID).
-            Msg("failed to fetch user")
-        return response.System(c)
-    }
+	// Verify user exists and get details for logging
+	user, err := h.repos.User.GetByID(c.Request().Context(), userID)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Int("user_id", userID).
+			Msg("failed to fetch user")
+		return response.System(c)
+	}
 
-    // Check permissions using auth context from PageContext
-    if !canDeleteUser(ctx.Auth, user) {
-        logger.Warn().
-            Int("target_user_id", userID).
-            Int("requesting_user_id", ctx.Auth.UserID).
-            Str("role", string(ctx.Auth.Role)).
-            Msg("unauthorized deletion attempt")
-        return response.Error(c, http.StatusForbidden,
-            "Access Denied",
-            []string{"You don't have permission to delete this user"})
-    }
+	// Check permissions using auth context from PageContext
+	if !canDeleteUser(ctx.Auth, user) {
+		logger.Warn().
+			Int("target_user_id", userID).
+			Int("requesting_user_id", ctx.Auth.UserID).
+			Str("role", string(ctx.Auth.Role)).
+			Msg("unauthorized deletion attempt")
+		return response.Error(c, http.StatusForbidden,
+			"Access Denied",
+			[]string{"You don't have permission to delete this user"})
+	}
 
-    // Delete user
-    if err := h.repos.User.Delete(c.Request().Context(), userID); err != nil {
-        logger.Error().
-            Err(err).
-            Int("user_id", userID).
-            Msg("failed to delete user")
-        return response.System(c)
-    }
+	// Delete user
+	if err := h.repos.User.Delete(c.Request().Context(), userID); err != nil {
+		logger.Error().
+			Err(err).
+			Int("user_id", userID).
+			Msg("failed to delete user")
+		return response.System(c)
+	}
 
-    logger.Info().
-        Int("user_id", user.ID).
-        Str("email", user.Email).
-        Int("facility_id", user.FacilityID).
-        Msg("user deleted successfully")
+	logger.Info().
+		Int("user_id", user.ID).
+		Str("email", user.Email).
+		Int("facility_id", user.FacilityID).
+		Msg("user deleted successfully")
 
-    // Handle HTMX response using facility code from auth context
-    return handleDeleteResponse(c, ctx.Auth.FacilityCode)
+	// Handle HTMX response using facility code from auth context
+	return handleDeleteResponse(c, ctx.Auth.FacilityCode)
 }
 
 func handleDeleteResponse(c echo.Context, facilityCode string) error {
@@ -470,7 +469,7 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 		Logger()
 
 	// Get and validate facility code
-	facilityCode := c.Param("facility")
+	facilityCode := c.Param("facility_id")
 	if facilityCode == "" {
 		logger.Error().Msg("missing facility code")
 		return response.Error(c,

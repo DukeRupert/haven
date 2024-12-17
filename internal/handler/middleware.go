@@ -10,53 +10,55 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// RouteConfig defines the configuration for a route including access control
 type RouteConfig struct {
+    Title            string
+    Icon             string
     MinRole          types.UserRole
     RequiresFacility bool
-    Title            string
-    Parent          string        // Parent route path (empty for top-level)
-    Children        []string      // Child route paths
-    Icon            string        // Optional icon identifier
+    Children         []string
 }
 
+// RouteConfigs maps paths to their configurations
 var RouteConfigs = map[string]RouteConfig{
     "/calendar": {
+        Title:            "Calendar",
+        Icon:             "calendar",
         MinRole:          types.UserRoleUser,
         RequiresFacility: true,
-        Title:            "Calendar",
-        Icon:            "calendar",
-    },
-    "/controllers": {
-        MinRole:          types.UserRoleAdmin,
-        RequiresFacility: true,
-        Title:            "Controllers",
-        Icon:            "users",
-        Children:         []string{
-            "/controllers/new",
-            "/controllers/:id",
-            "/controllers/:id/edit",
+        Children: []string{
+            "/calendar/:date",
+            "/calendar/:date/events",
         },
     },
-    "/controllers/new": {
-        MinRole:          types.UserRoleAdmin,
-        RequiresFacility: true,
-        Title:            "New Controller",
-        Parent:          "/controllers",
+    "/profile": {
+        Title:    "Profile",
+        Icon:     "user",
+        MinRole:  types.UserRoleUser,
+        Children: []string{"/profile/edit"},
     },
-    "/controllers/:id": {
+    "/users": {
+        Title:            "Users",
+        Icon:             "users",
         MinRole:          types.UserRoleAdmin,
         RequiresFacility: true,
-        Title:            "Controller Details",
-        Parent:          "/controllers",
+        Children: []string{
+            "/users/new",
+            "/users/:id",
+            "/users/:id/edit",
+        },
     },
-    "/controllers/:id/edit": {
-        MinRole:          types.UserRoleAdmin,
-        RequiresFacility: true,
-        Title:            "Edit Controller",
-        Parent:          "/controllers",
+    "/facilities": {
+        Title:    "Facilities",
+        Icon:     "building",
+        MinRole:  types.UserRoleSuper,
+        Children: []string{
+            "/facilities/new",
+            "/facilities/:id",
+            "/facilities/:id/edit",
+        },
     },
 }
-
 
 // Updated handler wrapper for cleaner context usage
 func (h *Handler) WithNav(fn HandlerFunc) echo.HandlerFunc {

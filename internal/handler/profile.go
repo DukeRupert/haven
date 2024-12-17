@@ -8,7 +8,6 @@ import (
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/DukeRupert/haven/web/view/page"
-	"github.com/DukeRupert/haven/web/view/component"
 	"github.com/labstack/echo/v4"
 )
 
@@ -18,6 +17,17 @@ func (h *Handler) HandleGetUser(c echo.Context, ctx *dto.PageContext) error {
         Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
         Str("facility", ctx.Auth.FacilityCode).
         Logger()
+    
+    auth, err := h.auth.GetAuthContext(c)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Msg("failed to get auth context")
+		return echo.NewHTTPError(
+			http.StatusInternalServerError,
+			"Unable to verify permissions. Please try again later.",
+		)
+	}
 
     // Determine which profile to show
     initials := determineProfileInitials(c.Param("initials"), ctx.Auth.Initials)
@@ -69,7 +79,7 @@ func (h *Handler) HandleGetUser(c echo.Context, ctx *dto.PageContext) error {
 
     // Handle HTMX requests if needed
     if isHtmxRequest(c) {
-        return component.UserDetails(details).Render(
+        return page.UserDetails(details.User, *auth ).Render(
             c.Request().Context(),
             c.Response().Writer,
         )
