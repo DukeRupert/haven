@@ -10,6 +10,7 @@ import (
 
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
+	"github.com/DukeRupert/haven/internal/response"
 
 	"github.com/DukeRupert/haven/web/view/alert"
 	"github.com/DukeRupert/haven/web/view/page"
@@ -257,7 +258,7 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 	}
 
 	// Redirect to password setup
-	return c.Redirect(http.StatusSeeOther, fmt.Sprintf("/set-password?token=%s", registrationToken))
+	return render(c, page.SetPasswordForm(registrationToken))
 }
 
 func validateRegistrationParams(params *RegistrationParams) error {
@@ -342,54 +343,109 @@ func (h *Handler) GetSetPassword(c echo.Context) error {
 
 	// Optionally, you could pass the token to the template
 	// if you need it for the form submission
-	return render(c, page.SetPassword())
+	return render(c, page.SetPassword(token))
 }
 
 func (h *Handler) HandleSetPassword(c echo.Context) error {
-	ctx := context.Background()
-	var req SetPasswordRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
-	}
+    ctx := context.Background()
+    logger := h.logger.With().
+        Str("component", "registration").
+        Str("handler", "HandleSetPassword").
+        Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+        Logger()
 
-	// Validate passwords match and meet requirements
-	if err := validatePasswords(req.Password, req.ConfirmPassword); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
-	}
+    logger.Debug().Msg("Processing set password request")
 
-	// Verify token and get user ID
-	userID, err := h.repos.Token.Verify(ctx, req.Token)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid or expired token"})
-	}
+    var req SetPasswordRequest
+    if err := c.Bind(&req); err != nil {
+        logger.Debug().
+            Err(err).
+            Interface("request", req).
+            Msg("Invalid form data submitted")
+        return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
+    }
 
-	// Hash password using bcrypt
-	hashedPassword, err := hashPassword(req.Password)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Could not process password"})
-	}
+    logger.Debug().
+        Str("token", req.Token).
+        Msg("Form data bound successfully")
 
-	// Update user password and registration status
-	err = h.repos.User.SetPassword(ctx, userID, string(hashedPassword))
-	if err != nil {
-		return alert.Error(
-			"System Error",
-			[]string{"Unable to set password. Please try again."},
-		).Render(c.Request().Context(), c.Response().Writer)
-	}
+    // Validate passwords match and meet requirements
+    if err := validatePasswords(req.Password, req.ConfirmPassword); err != nil {
+        logger.Debug().
+            Err(err).
+            Msg("Password validation failed")
+		return response.Validation(c, []string{err.Error()})
+    }
 
-	// Clean up used token
-	err = h.repos.Token.Delete(ctx, req.Token)
-	if err != nil {
-		// Log the error but don't fail the request
-		h.logger.Error().Msg("failed to delete registration token")
-	}
+    logger.Debug().Msg("Password validation successful")
 
-	// Redirect to login page
-	return c.JSON(http.StatusOK, map[string]string{
-		"redirect": "/login",
-		"message":  "Password set successfully. Please log in.",
-	})
+    // Verify token and get user ID
+    userID, err := h.repos.Token.Verify(ctx, req.Token)
+    if err != nil {
+        logger.Debug().
+            Err(err).
+            Str("token", req.Token).
+            Msg("Token verification failed")
+        return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid or expired token"})
+    }
+
+    logger.Debug().
+        Int("user_id", userID).
+        Msg("Token verified successfully")
+
+    // Hash password using bcrypt
+    hashedPassword, err := hashPassword(req.Password)
+    if err != nil {
+        logger.Error().
+            Err(err).
+            Int("user_id", userID).
+            Msg("Failed to hash password")
+        return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Could not process password"})
+    }
+
+    logger.Debug().
+        Int("user_id", userID).
+        Msg("Password hashed successfully")
+
+    // Update user password and registration status
+    err = h.repos.User.SetPassword(ctx, userID, string(hashedPassword))
+    if err != nil {
+        logger.Error().
+            Err(err).
+            Int("user_id", userID).
+            Msg("Failed to set user password")
+        return alert.Error(
+            "System Error",
+            []string{"Unable to set password. Please try again."},
+        ).Render(c.Request().Context(), c.Response().Writer)
+    }
+
+    logger.Debug().
+        Int("user_id", userID).
+        Msg("Password updated successfully")
+
+    // Clean up used token
+    err = h.repos.Token.Delete(ctx, req.Token)
+    if err != nil {
+        logger.Error().
+            Err(err).
+            Int("user_id", userID).
+            Str("token", req.Token).
+            Msg("Failed to delete registration token")
+    } else {
+        logger.Debug().
+            Int("user_id", userID).
+            Str("token", req.Token).
+            Msg("Registration token deleted successfully")
+    }
+
+    logger.Info().
+        Int("user_id", userID).
+        Msg("Password set successfully, redirecting to login")
+
+    // Redirect to login page
+	c.Response().Header().Set("HX-Redirect", "/login")
+	return c.String(http.StatusOK, "")
 }
 
 func validateRegistrationRequest(req RegistrationParams) error {

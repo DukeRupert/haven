@@ -20,7 +20,7 @@ templ Register(props params.RegisterParams) {
 }
 
 templ RegisterForm(props params.RegisterParams) {
-    <form id="register-form" class="space-y-6" hx-post="/register" hx-swap="none" hx-target-error="#global-alert" hx-indicator="#loading-overlay">
+    <form id="register-form" class="space-y-6" hx-post="/register" hx-swap="outerHTML" hx-target="this" hx-target-error="#global-alert" hx-indicator="#loading-overlay">
         <div>
             <label for="facility-code" class="block text-sm/6 font-medium text-gray-900">Facility Code</label>
             <div class="mt-2">
@@ -86,7 +86,7 @@ templ RegisterForm(props params.RegisterParams) {
     </form>
 }
 
-templ SetPassword() {
+templ SetPassword(token string) {
     @layout.BaseLayout() {
         <div class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
             <div class="sm:mx-auto sm:w-full sm:max-w-sm">
@@ -94,13 +94,13 @@ templ SetPassword() {
                 <h2 class="mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900">Set your password</h2>
             </div>
             <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-                @SetPasswordForm()
+                @SetPasswordForm(token)
             </div>
         </div>
     }
 }
 
-templ SetPasswordForm() {
+templ SetPasswordForm(token string) {
     <form id="set-password-form" class="space-y-6" hx-post="/set-password" hx-swap="none" hx-target-error="#global-alert" hx-indicator="#loading-overlay">
         <div>
             <label for="password" class="block text-sm/6 font-medium text-gray-900">New Password</label>
@@ -128,7 +128,7 @@ templ SetPasswordForm() {
                 />
             </div>
         </div>
-        <input type="hidden" name="token" value=""/>
+        <input type="hidden" name="token" value={token} />
         <div>
             <button type="submit" class="flex w-full justify-center rounded-md bg-picton-blue-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-sm hover:bg-picton-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600">
                 Set Password
