@@ -20,6 +20,7 @@ type RegistrationParams struct {
 	FacilityCode string `form:"facility_code"`
 	Initials     string `form:"initials"`
 	Email        string `form:"email"`
+	Token        string `form:"token"`
 }
 
 type EmailVerificationRequest struct {
@@ -109,6 +110,10 @@ func (h *Handler) InitiateEmailVerification(c echo.Context) error {
 	).Render(c.Request().Context(), c.Response().Writer)
 }
 
+func (h *Handler) GetVerificationPage(c echo.Context) error {
+	return render(c, page.Verify())
+}
+
 func (h *Handler) sendVerificationEmail(ctx context.Context, user *entity.User, token string) error {
 	verificationURL := fmt.Sprintf("%s/register?token=%s", h.config.BaseURL, token)
 
@@ -130,27 +135,33 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
-	// Get token from query params
-	token := c.QueryParam("token")
-	if token == "" {
-		return c.Redirect(http.StatusSeeOther, "/verify")
-	}
-
-	// Verify token exists and is valid
-	verificationToken, err := h.repos.Token.GetVerificationToken(c.Request().Context(), token)
-	if err != nil {
-		logger.Error().Err(err).Msg("Invalid verification token")
-		return c.Redirect(http.StatusSeeOther, "/verify")
-	}
+	logger.Debug().Msg("HandleRegistration() executing")
 
 	// If it's a GET request, render the registration form with pre-filled email
 	if c.Request().Method == http.MethodGet {
+		// Get token from query params
+		token := c.QueryParam("token")
+		if token == "" {
+			return c.Redirect(http.StatusSeeOther, "/verify")
+		}
+
+		logger.Debug().Str(token, "token").Msg("query params")
+
+		// Verify token exists and is valid
+		verificationToken, err := h.repos.Token.GetVerificationToken(c.Request().Context(), token)
+		if err != nil {
+			logger.Error().Err(err).Msg("Invalid verification token")
+			return c.Redirect(http.StatusSeeOther, "/verify")
+		}
+
+		logger.Debug().Str(verificationToken.Email, "email").Str(token, "token").Msg("Get method invoked. Rendering page.Register()")
 		return render(c, page.Register(params.RegisterParams{
 			Email: verificationToken.Email,
 			Token: token,
 		}))
 	}
 
+	logger.Debug().Msg("POST handler")
 	// Handle POST request
 	params := new(RegistrationParams)
 	if err := c.Bind(params); err != nil {
@@ -164,7 +175,16 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 		).Render(c.Request().Context(), c.Response().Writer)
 	}
 
+	// Verify token exists and is valid
+	logger.Debug().Str(params.Token, "token").Msg("Verify token exists and is valid")
+	verificationToken, err := h.repos.Token.GetVerificationToken(c.Request().Context(), params.Token)
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid verification token")
+		return c.Redirect(http.StatusSeeOther, "/verify")
+	}
+
 	// Validate input format
+	logger.Debug().Msg("Validate input format")
 	if err := validateRegistrationParams(params); err != nil {
 		return alert.Error(
 			"Invalid Input",
@@ -207,7 +227,7 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 	}
 
 	// Mark verification token as used
-	if err := h.repos.Token.MarkAsUsed(c.Request().Context(), token); err != nil {
+	if err := h.repos.Token.MarkAsUsed(c.Request().Context(), params.Token); err != nil {
 		logger.Error().Err(err).Msg("Failed to mark token as used")
 		// Continue anyway since verification was successful
 	}
@@ -294,6 +314,13 @@ type SetPasswordRequest struct {
 
 func (h *Handler) GetSetPassword(c echo.Context) error {
 	ctx := c.Request().Context()
+	logger := h.logger.With().
+		Str("component", "registration").
+		Str("handler", "GetSetPassword").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
+
+	logger.Debug().Msg("GetSetPassword() executing")
 
 	// Get and validate token
 	token := c.QueryParam("token")
@@ -302,12 +329,16 @@ func (h *Handler) GetSetPassword(c echo.Context) error {
 		return c.Redirect(302, "/register")
 	}
 
+	logger.Debug().Str("token", token).Msg("Query params")
+
 	// Verify token is valid in database
 	_, err := h.repos.Token.Verify(ctx, token)
 	if err != nil {
 		h.logger.Error().Err(err).Str("token", token).Msg("Invalid or expired registration token")
 		return c.Redirect(302, "/register")
 	}
+
+	logger.Debug().Msg("Token verified. Render page.SetPassword()")
 
 	// Optionally, you could pass the token to the template
 	// if you need it for the form submission

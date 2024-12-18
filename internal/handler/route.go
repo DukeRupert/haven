@@ -36,6 +36,10 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	e.GET("/login", h.GetLogin, auth.RedirectAuthenticated())
 	e.POST("/login", authHandler.LoginHandler())
 	e.POST("/logout", authHandler.LogoutHandler())
+	e.POST("/verify", h.InitiateEmailVerification)
+	e.GET("/verify", h.GetVerificationPage) // You'll need to create this handler to show the email form
+	e.GET("/register", h.HandleRegistration)
+	e.POST("/register", h.HandleRegistration)
 	e.GET("/register", h.HandleRegistration)
 	e.POST("/register", h.HandleRegistration)
 	e.GET("/set-password", h.GetSetPassword)
@@ -43,7 +47,9 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 
 	// Protected routes
 
-	// User self-service endpoints
+	/* 	User self-service endpoints
+		/profile
+	*/
 	self := e.Group("/profile", auth.RequireRole(types.UserRoleUser))
 	{
 		self.GET("", h.WithNav(h.HandleGetUser))
@@ -54,9 +60,15 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 		self.POST("/availability/:id", h.HandleAvailabilityToggle)
 	}
 	
-	// Facility specific endpoints (admin only)
+	/* 	Facility specific endpoints (admin only)
+		/facility/:facility_id
+	*/
 	facility := e.Group("/facility/:facility_id", auth.ValidateFacility())
 	facility.GET("/calendar", h.WithNav(h.HandleCalendar))
+
+	/* 
+		/facility/:facility_id/users
+	*/
 	users := facility.Group("/users", auth.RequireRole(types.UserRoleAdmin))
 	{
 		users.GET("", h.WithNav(h.HandleUsers))
@@ -75,7 +87,10 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	// API routes
 	api := e.Group("/api")
 	{
-		// User self-service endpoints
+
+		/* User self-service endpoints
+			/api/user/:user_id
+		*/
 		self := api.Group("/user/:user_id", auth.RequireRole(types.UserRoleUser))
 		{
 			self.GET("", h.WithNav(h.HandleGetUser))
@@ -87,7 +102,9 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 			self.POST("/availability/:id", h.HandleAvailabilityToggle)
 		}
 
-		// Facility management (super admin only)
+		/* Facility management (super admin only
+			/api/admin/facilities
+		*/
 		admin := api.Group("/admin", auth.RequireRole(types.UserRoleSuper))
 		{
 			admin.POST("/facilities", h.HandleCreateFacility)
@@ -97,11 +114,16 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 			admin.DELETE("/facilities/:facility_id", h.HandleDeleteFacility)
 		}
 
-		// Facility-specific routes
+		/* Facility-specific routes
+			/api/facility/:facility_id
+		*/
 		facility := api.Group("/facility/:facility_id", auth.ValidateFacility())
 		{
 
-			// User management (admin only)
+			
+			/* User management (admin only)
+				/api/facility/:facility_id/users
+			*/
 			users := facility.Group("/users", auth.RequireRole(types.UserRoleAdmin))
 			{
 				users.GET("", h.WithNav(h.HandleUsers))
@@ -114,7 +136,9 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 				users.GET("/:user_id/password", h.GetUpdatePasswordForm)
 			}
 
-			// Schedule management
+			/* Schedule management
+				/api/facility/:facility_id/schedule
+			*/
 			schedule := facility.Group("/schedule")
 			{
 				schedule.POST("", h.HandleCreateSchedule)

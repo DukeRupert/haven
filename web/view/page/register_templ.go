@@ -50,7 +50,7 @@ func Register(props params.RegisterParams) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = RegisterForm().Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = RegisterForm(props).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -68,7 +68,7 @@ func Register(props params.RegisterParams) templ.Component {
 	})
 }
 
-func RegisterForm() templ.Component {
+func RegisterForm(props params.RegisterParams) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -89,7 +89,33 @@ func RegisterForm() templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form id=\"register-form\" class=\"space-y-6\" hx-post=\"/register\" hx-swap=\"none\" hx-target-error=\"#global-alert\" hx-indicator=\"#loading-overlay\"><div><label for=\"facility-code\" class=\"block text-sm/6 font-medium text-gray-900\">Facility Code</label><div class=\"mt-2\"><input id=\"facility-code\" name=\"facility_code\" type=\"text\" required maxlength=\"3\" pattern=\"[A-Za-z]{3}\" class=\"block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-picton-blue-600 sm:text-sm/6\" placeholder=\"Enter 3 letters\"></div></div><div><label for=\"initials\" class=\"block text-sm/6 font-medium text-gray-900\">Initials</label><div class=\"mt-2\"><input id=\"initials\" name=\"initials\" type=\"text\" required maxlength=\"2\" pattern=\"[A-Za-z]{2}\" class=\"block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-picton-blue-600 sm:text-sm/6\" placeholder=\"Enter 2 letters\"></div></div><div><label for=\"email\" class=\"block text-sm/6 font-medium text-gray-900\">Email address</label><div class=\"mt-2\"><input id=\"email\" name=\"email\" type=\"email\" autocomplete=\"email\" required class=\"block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-picton-blue-600 sm:text-sm/6\"></div></div><div><button type=\"submit\" class=\"flex w-full justify-center rounded-md bg-picton-blue-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-sm hover:bg-picton-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600\">Verify Account</button></div></form>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form id=\"register-form\" class=\"space-y-6\" hx-post=\"/register\" hx-swap=\"none\" hx-target-error=\"#global-alert\" hx-indicator=\"#loading-overlay\"><div><label for=\"facility-code\" class=\"block text-sm/6 font-medium text-gray-900\">Facility Code</label><div class=\"mt-2\"><input id=\"facility-code\" name=\"facility_code\" type=\"text\" required maxlength=\"3\" pattern=\"[A-Za-z]{3}\" class=\"block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-picton-blue-600 sm:text-sm/6\" placeholder=\"Enter 3 letters\"></div></div><div><label for=\"initials\" class=\"block text-sm/6 font-medium text-gray-900\">Initials</label><div class=\"mt-2\"><input id=\"initials\" name=\"initials\" type=\"text\" required maxlength=\"2\" pattern=\"[A-Za-z]{2}\" class=\"block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-picton-blue-600 sm:text-sm/6\" placeholder=\"Enter 2 letters\"></div></div><div><label for=\"email\" class=\"block text-sm/6 font-medium text-gray-900\">Email address</label><div class=\"mt-2\"><input id=\"email\" name=\"email\" type=\"email\" autocomplete=\"email\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var4 string
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(props.Email)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/register.templ`, Line: 62, Col: 38}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" required class=\"block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-picton-blue-600 sm:text-sm/6\"></div></div><div class=\"hidden\"><label for=\"token\" class=\"block text-sm/6 font-medium text-gray-900\">Token</label><div class=\"mt-2\"><input id=\"token\" name=\"token\" type=\"string\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var5 string
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(props.Token)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/register.templ`, Line: 75, Col: 38}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" required class=\"block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-picton-blue-600 sm:text-sm/6\"></div></div><div><button type=\"submit\" class=\"flex w-full justify-center rounded-md bg-picton-blue-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-sm hover:bg-picton-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600\">Verify Account</button></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -113,12 +139,12 @@ func SetPassword() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var4 == nil {
-			templ_7745c5c3_Var4 = templ.NopComponent
+		templ_7745c5c3_Var6 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var6 == nil {
+			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var5 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var7 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -144,7 +170,7 @@ func SetPassword() templ.Component {
 			}
 			return templ_7745c5c3_Err
 		})
-		templ_7745c5c3_Err = layout.BaseLayout().Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = layout.BaseLayout().Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -168,9 +194,9 @@ func SetPasswordForm() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var6 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var6 == nil {
-			templ_7745c5c3_Var6 = templ.NopComponent
+		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var8 == nil {
+			templ_7745c5c3_Var8 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form id=\"set-password-form\" class=\"space-y-6\" hx-post=\"/set-password\" hx-swap=\"none\" hx-target-error=\"#global-alert\" hx-indicator=\"#loading-overlay\"><div><label for=\"password\" class=\"block text-sm/6 font-medium text-gray-900\">New Password</label><div class=\"mt-2\"><input id=\"password\" name=\"password\" type=\"password\" required minlength=\"8\" class=\"block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-picton-blue-600 sm:text-sm/6\"></div></div><div><label for=\"confirm-password\" class=\"block text-sm/6 font-medium text-gray-900\">Confirm Password</label><div class=\"mt-2\"><input id=\"confirm-password\" name=\"confirm_password\" type=\"password\" required minlength=\"8\" class=\"block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-picton-blue-600 sm:text-sm/6\"></div></div><input type=\"hidden\" name=\"token\" value=\"\"><div><button type=\"submit\" class=\"flex w-full justify-center rounded-md bg-picton-blue-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-sm hover:bg-picton-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600\">Set Password</button></div></form>")

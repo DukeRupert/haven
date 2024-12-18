@@ -92,6 +92,8 @@ func (m *Middleware) registerPublicRoutes() {
 	m.RegisterPublicRoute("/logout", http.MethodPost)
 	m.RegisterPublicRoute("/register", http.MethodGet)
 	m.RegisterPublicRoute("/register", http.MethodPost)
+	m.RegisterPublicRoute("/verify", http.MethodGet)
+	m.RegisterPublicRoute("/verify", http.MethodPost)
 	m.RegisterPublicRoute("/set-password", http.MethodGet)
 	m.RegisterPublicRoute("/set-password", http.MethodPost)
 	m.RegisterPublicRoute("/hash-password", http.MethodGet)
