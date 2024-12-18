@@ -79,7 +79,9 @@ templ UserDetails(user entity.User, auth dto.AuthContext) {
 				@component.Change_Password_Button(user.ID)
 			}
 			if auth.Role == types.UserRoleAdmin || auth.Role == types.UserRoleSuper {
-				@component.Delete_User_Button(user.ID)
+				if user.ID != auth.UserID {
+					@component.Delete_User_Button(user.ID)
+				}	
 			}
 		</div>
 	</div>

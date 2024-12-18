@@ -104,40 +104,48 @@ func main() {
 	repos := repository.NewRepositories(database)
 
 	// Initialize session store
-    sessionStore, err := store.NewPgxStore(repos.Session, []byte("your-secret-key"))
-    if err != nil {
-        logger.Fatal().Err(err).Msg("Failed to create session store")
-    }
+	sessionStore, err := store.NewPgxStore(repos.Session, []byte("your-secret-key"))
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Failed to create session store")
+	}
 	// Add session middleware at application level
 	e.Use(session.Middleware(sessionStore))
 
-    // Initialize auth service
+	// Initialize auth service
 	authService := auth.NewService(auth.Config{
-        Repos:  repos,
-        Logger: logger,
-    })
+		Repos:  repos,
+		Logger: logger,
+	})
 
-    // Initialize auth middleware
-    authMiddleware := auth.NewMiddleware(authService, logger)
+	// Initialize auth middleware
+	authMiddleware := auth.NewMiddleware(authService, logger)
 
-    // Initialize auth handler
-    authHandler := auth.NewHandler(auth.HandlerConfig{
-        Service: authService,
-        Logger:  logger,
-    })
+	// Initialize auth handler
+	authHandler := auth.NewHandler(auth.HandlerConfig{
+		Service: authService,
+		Logger:  logger,
+	})
 
 	// Initialize other middleware
 	routeCtxMiddleware := context.NewRouteContextMiddleware(logger)
 
-    // Initialize main application handler
-    appHandler := handler.New(handler.Config{
-        Repos:    repos,
-        Auth:     authMiddleware,
-        Logger:   logger,
-    })
+	// Initialize main application handler
+	appHandler, err := handler.New(handler.Config{
+		Repos:  repos,
+		Auth:   authMiddleware,
+		Logger: logger,
+		MailerConfig: handler.MailerConfig{
+			ServerToken: config.PostmarkServerToken,
+			FromEmail:   "logan@fireflysoftware.dev",
+			FromName:    "MirandaShift Support",
+		},
+	})
+	if err != nil {
+    logger.Fatal().Err(err).Msg("failed to initialize handler")
+}
 
-    // Setup routes with all components
-    handler.SetupRoutes(e, appHandler, authMiddleware, authHandler, routeCtxMiddleware)
+	// Setup routes with all components
+	handler.SetupRoutes(e, appHandler, authMiddleware, authHandler, routeCtxMiddleware)
 
 	// Create and start token cleaner
 	tokenCleaner := worker.NewTokenCleaner(

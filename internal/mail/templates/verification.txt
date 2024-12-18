@@ -1,0 +1,13 @@
+// mail/templates/verification.txt
+Hello {{.FirstName}} {{.LastName}},
+
+An account has been created for you at Haven. To complete your registration and set your password, please click the following link or copy it into your browser:
+
+{{.VerificationURL}}
+
+This link will expire in {{.ExpiresIn}}.
+
+If you did not expect this email, please ignore it or contact your administrator.
+
+Best regards,
+MirandaShift Support

@@ -36,7 +36,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	e.GET("/login", h.GetLogin, auth.RedirectAuthenticated())
 	e.POST("/login", authHandler.LoginHandler())
 	e.POST("/logout", authHandler.LogoutHandler())
-	e.GET("/register", h.GetRegister)
+	e.GET("/register", h.HandleRegistration)
 	e.POST("/register", h.HandleRegistration)
 	e.GET("/set-password", h.GetSetPassword)
 	e.POST("/set-password", h.HandleSetPassword)
@@ -47,10 +47,10 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	self := e.Group("/profile", auth.RequireRole(types.UserRoleUser))
 	{
 		self.GET("", h.WithNav(h.HandleGetUser))
-		self.PUT("", h.HandleUpdateUser)
-		self.GET("/edit", h.GetUpdateUserForm)
-		self.PUT("/password", h.HandleUpdatePassword)
-		self.GET("/password", h.GetUpdatePasswordForm)
+		self.PUT("/:user_id", h.HandleUpdateUser)
+		self.GET("/:user_id/edit", h.GetUpdateUserForm)
+		self.PUT("/:user_id/password", h.HandleUpdatePassword)
+		self.GET("/:user_id/password", h.GetUpdatePasswordForm)
 		self.POST("/availability/:id", h.HandleAvailabilityToggle)
 	}
 	

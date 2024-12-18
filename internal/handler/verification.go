@@ -1,12 +1,15 @@
-// handlers/registration.go
 package handler
 
 import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/mail"
 	"strings"
 	"time"
+
+	"github.com/DukeRupert/haven/internal/model/entity"
+	"github.com/DukeRupert/haven/internal/model/params"
 
 	"github.com/DukeRupert/haven/web/view/alert"
 	"github.com/DukeRupert/haven/web/view/page"
@@ -19,7 +22,107 @@ type RegistrationParams struct {
 	Email        string `form:"email"`
 }
 
-// HandleRegistration processes the registration form submission
+type EmailVerificationRequest struct {
+	Email string `json:"email" form:"email"`
+}
+
+// InitiateEmailVerification handles the initial email verification request
+func (h *Handler) InitiateEmailVerification(c echo.Context) error {
+	logger := h.logger.With().
+		Str("component", "verification").
+		Str("handler", "InitiateEmailVerification").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
+
+	var req EmailVerificationRequest
+	if err := c.Bind(&req); err != nil {
+		logger.Debug().Err(err).Msg("Invalid request format")
+		return alert.Error(
+			"Invalid Request",
+			[]string{"Please provide a valid email address."},
+		).Render(c.Request().Context(), c.Response().Writer)
+	}
+
+	// Validate email format
+	if _, err := mail.ParseAddress(req.Email); err != nil {
+		return alert.Error(
+			"Invalid Email",
+			[]string{"Please provide a valid email address."},
+		).Render(c.Request().Context(), c.Response().Writer)
+	}
+
+	// Check if user exists with this email
+	user, err := h.repos.User.GetByEmail(c.Request().Context(), req.Email)
+	if err != nil {
+		logger.Error().Err(err).Str("email", req.Email).Msg("Database error when checking user")
+		return alert.Error(
+			"System Error",
+			[]string{"Unable to process request. Please try again."},
+		).Render(c.Request().Context(), c.Response().Writer)
+	}
+	if user == nil {
+		// Don't reveal if email exists or not for security
+		return alert.Success(
+			"Verification Email Sent",
+			"If an account exists with this email, you will receive a verification link shortly.",
+		).Render(c.Request().Context(), c.Response().Writer)
+	}
+
+	// Generate verification token
+	token, err := generateSecureToken()
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to generate verification token")
+		return alert.Error(
+			"System Error",
+			[]string{"Unable to process request. Please try again."},
+		).Render(c.Request().Context(), c.Response().Writer)
+	}
+
+	// Store verification token
+	verificationToken := &entity.VerificationToken{
+		UserID:    user.ID,
+		Token:     token,
+		Email:     req.Email,
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+	}
+
+	if err := h.repos.Token.StoreVerification(c.Request().Context(), verificationToken); err != nil {
+		logger.Error().Err(err).Msg("Failed to store verification token")
+		return alert.Error(
+			"System Error",
+			[]string{"Unable to process request. Please try again."},
+		).Render(c.Request().Context(), c.Response().Writer)
+	}
+
+	// Send verification email
+	if err := h.sendVerificationEmail(c.Request().Context(), user, token); err != nil {
+		logger.Error().Err(err).Msg("Failed to send verification email")
+		return alert.Error(
+			"System Error",
+			[]string{"Unable to send verification email. Please try again."},
+		).Render(c.Request().Context(), c.Response().Writer)
+	}
+
+	return alert.Success(
+		"Verification Email Sent",
+		"Please check your email for a verification link.",
+	).Render(c.Request().Context(), c.Response().Writer)
+}
+
+func (h *Handler) sendVerificationEmail(ctx context.Context, user *entity.User, token string) error {
+	verificationURL := fmt.Sprintf("%s/register?token=%s", h.config.BaseURL, token)
+
+	data := map[string]interface{}{
+		"VerificationURL": verificationURL,
+		"ExpiresIn":       "24 hours",
+		"FromName":        "Haven Support",
+		"Subject":         "Complete Your Registration",
+	}
+
+	return h.mailer.SendTemplate(ctx, "verification", user.Email, data)
+}
+
+// Modify the existing registration handler to work with verification
 func (h *Handler) HandleRegistration(c echo.Context) error {
 	logger := h.logger.With().
 		Str("component", "registration").
@@ -27,9 +130,28 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
-	logger.Debug().Msg("Processing registration request")
+	// Get token from query params
+	token := c.QueryParam("token")
+	if token == "" {
+		return c.Redirect(http.StatusSeeOther, "/verify")
+	}
 
-	// Bind form data
+	// Verify token exists and is valid
+	verificationToken, err := h.repos.Token.GetVerificationToken(c.Request().Context(), token)
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid verification token")
+		return c.Redirect(http.StatusSeeOther, "/verify")
+	}
+
+	// If it's a GET request, render the registration form with pre-filled email
+	if c.Request().Method == http.MethodGet {
+		return render(c, page.Register(params.RegisterParams{
+			Email: verificationToken.Email,
+			Token: token,
+		}))
+	}
+
+	// Handle POST request
 	params := new(RegistrationParams)
 	if err := c.Bind(params); err != nil {
 		logger.Debug().
@@ -44,13 +166,17 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 
 	// Validate input format
 	if err := validateRegistrationParams(params); err != nil {
-		logger.Debug().
-			Err(err).
-			Interface("params", params).
-			Msg("Validation failed")
 		return alert.Error(
 			"Invalid Input",
 			[]string{err.Error()},
+		).Render(c.Request().Context(), c.Response().Writer)
+	}
+
+	// Verify email matches the one in the token
+	if params.Email != verificationToken.Email {
+		return alert.Error(
+			"Invalid Email",
+			[]string{"The email address doesn't match the verification token."},
 		).Render(c.Request().Context(), c.Response().Writer)
 	}
 
@@ -59,20 +185,7 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 
 	// Check if facility exists
 	facility, err := h.repos.Facility.GetByCode(c.Request().Context(), fullFacilityCode)
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Str("facility_code", fullFacilityCode).
-			Msg("Database error when checking facility")
-		return alert.Error(
-			"System Error",
-			[]string{"Unable to process registration. Please try again."},
-		).Render(c.Request().Context(), c.Response().Writer)
-	}
-	if facility == nil {
-		logger.Debug().
-			Str("facility_code", fullFacilityCode).
-			Msg("Invalid facility code")
+	if err != nil || facility == nil {
 		return alert.Error(
 			"Invalid Facility",
 			[]string{"The facility code you entered is not valid."},
@@ -86,82 +199,52 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 		strings.ToUpper(params.Initials),
 		strings.ToLower(params.Email),
 	)
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Str("facility_code", fullFacilityCode).
-			Str("email", params.Email).
-			Msg("Database error when verifying credentials")
-		return alert.Error(
-			"System Error",
-			[]string{"Unable to verify credentials. Please try again."},
-		).Render(c.Request().Context(), c.Response().Writer)
-	}
-	if user == nil {
-		logger.Debug().
-			Str("facility_code", fullFacilityCode).
-			Str("email", params.Email).
-			Msg("No matching user found")
+	if err != nil || user == nil {
 		return alert.Error(
 			"Invalid Credentials",
 			[]string{"No matching user found with these credentials."},
 		).Render(c.Request().Context(), c.Response().Writer)
 	}
 
-	// Generate and store registration token
-	token, err := generateSecureToken()
+	// Mark verification token as used
+	if err := h.repos.Token.MarkAsUsed(c.Request().Context(), token); err != nil {
+		logger.Error().Err(err).Msg("Failed to mark token as used")
+		// Continue anyway since verification was successful
+	}
+
+	// Generate registration token for password setup
+	registrationToken, err := generateSecureToken()
 	if err != nil {
-		logger.Error().
-			Err(err).
-			Int("user_id", user.ID).
-			Msg("Failed to generate security token")
+		logger.Error().Err(err).Msg("Failed to generate registration token")
 		return alert.Error(
 			"System Error",
 			[]string{"Unable to complete registration. Please try again."},
 		).Render(c.Request().Context(), c.Response().Writer)
 	}
 
-	// Store token with 24-hour expiration
-	err = h.repos.Token.Store(
+	// Store registration token
+	if err := h.repos.Token.Store(
 		c.Request().Context(),
 		user.ID,
-		token,
+		registrationToken,
 		time.Now().Add(24*time.Hour),
-	)
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Int("user_id", user.ID).
-			Msg("Failed to store registration token")
+	); err != nil {
+		logger.Error().Err(err).Msg("Failed to store registration token")
 		return alert.Error(
 			"System Error",
 			[]string{"Unable to complete registration. Please try again."},
 		).Render(c.Request().Context(), c.Response().Writer)
 	}
 
-	logger.Info().
-		Int("user_id", user.ID).
-		Str("email", params.Email).
-		Str("facility_code", fullFacilityCode).
-		Msg("Registration successful")
-
-	if c.Request().Header.Get("HX-Request") == "true" {
-		// Return both success alert and redirect
-		c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/set-password?token=%s", token))
-		return render(c, ComponentGroup(
-			alert.Success(
-				"Registration Successful",
-				"Please set your password to complete registration.",
-			),
-		))
-	}
-
-	// Non-HTMX fallback
-	return c.Redirect(http.StatusSeeOther, fmt.Sprintf("/set-password?token=%s", token))
+	// Redirect to password setup
+	return c.Redirect(http.StatusSeeOther, fmt.Sprintf("/set-password?token=%s", registrationToken))
 }
 
 func validateRegistrationParams(params *RegistrationParams) error {
 	// Validate facility code (3 letters)
+	if len(params.FacilityCode) == 0 {
+		return fmt.Errorf("facility code is required")
+	}
 	if len(params.FacilityCode) != 3 {
 		return fmt.Errorf("facility code must be exactly 3 letters")
 	}
@@ -170,6 +253,9 @@ func validateRegistrationParams(params *RegistrationParams) error {
 	}
 
 	// Validate initials (2 letters)
+	if len(params.Initials) == 0 {
+		return fmt.Errorf("initials are required")
+	}
 	if len(params.Initials) != 2 {
 		return fmt.Errorf("initials must be exactly 2 letters")
 	}
@@ -177,17 +263,20 @@ func validateRegistrationParams(params *RegistrationParams) error {
 		return fmt.Errorf("initials must contain only letters")
 	}
 
-	// Basic email validation
+	// Validate email
 	if params.Email == "" {
 		return fmt.Errorf("email is required")
 	}
-	if !strings.Contains(params.Email, "@") || !strings.Contains(params.Email, ".") {
+
+	// Use mail.ParseAddress for robust email validation
+	if _, err := mail.ParseAddress(params.Email); err != nil {
 		return fmt.Errorf("invalid email format")
 	}
 
 	return nil
 }
 
+// Helper function to check if a string contains only letters
 func isAlpha(s string) bool {
 	for _, r := range s {
 		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')) {
@@ -223,11 +312,6 @@ func (h *Handler) GetSetPassword(c echo.Context) error {
 	// Optionally, you could pass the token to the template
 	// if you need it for the form submission
 	return render(c, page.SetPassword())
-}
-
-// GetRegister renders the registration page
-func (h *Handler) GetRegister(c echo.Context) error {
-	return render(c, page.Register())
 }
 
 func (h *Handler) HandleSetPassword(c echo.Context) error {

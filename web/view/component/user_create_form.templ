@@ -62,14 +62,13 @@ templ CreateUserForm(code string, role string) {
 				/>
 			</div>
 			<!-- Password -->
-			<div class="w-full">
+			<div class="hidden">
 				<label for="password" class="block text-sm/6 font-medium text-gray-900">Password</label>
 				<input
 					id="password"
 					name="password"
 					type="password"
-					required
-					minlength="8"
+					value=""
 					class="block w-full ring-1 ring-inset ring-gray-300 py-1.5 pl-1 rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm"
 				/>
 			</div>

@@ -14,6 +14,7 @@ type Config struct {
 	Port        string
 	Environment string
 	SessionKey  string
+	BaseURL		string
 
 	// Database Configuration
 	DBHost     string
@@ -22,6 +23,9 @@ type Config struct {
 	DBPassword string
 	DBName     string
 	DatabaseURL string
+
+	// Email config
+	PostmarkServerToken string
 }
 
 // LoadConfig loads configuration from environment variables
@@ -49,6 +53,9 @@ func Load() (*Config, error) {
 	if !isValidEnvironment(config.Environment) {
 		return nil, fmt.Errorf("invalid ENVIRONMENT value: %s", config.Environment)
 	}
+
+	config.BaseURL = getEnvWithDefault("BASE_URL", "http://localhost")
+	config.PostmarkServerToken = getEnvWithDefault("POSTMARK_SERVER_TOKEN", "")
 
 	// Session key is required and must be at least 32 characters
 	config.SessionKey = os.Getenv("SESSION_KEY")

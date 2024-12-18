@@ -258,9 +258,11 @@ func UserDetails(user entity.User, auth dto.AuthContext) templ.Component {
 			}
 		}
 		if auth.Role == types.UserRoleAdmin || auth.Role == types.UserRoleSuper {
-			templ_7745c5c3_Err = component.Delete_User_Button(user.ID).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
+			if user.ID != auth.UserID {
+				templ_7745c5c3_Err = component.Delete_User_Button(user.ID).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div>")

@@ -272,14 +272,6 @@ func (h *Handler) validateCreateUser(c echo.Context) (*createUserData, error) {
 		errors = append(errors, err.Error())
 	}
 
-	// Validate password
-	if err := validatePassword(params.UpdatePasswordParams{
-		Password: formParams.Password,
-		Confirm:  formParams.Password, // Assuming single password field for creation
-	}); err != nil {
-		errors = append(errors, err.Error())
-	}
-
 	// Return all validation errors
 	if len(errors) > 0 {
 		return nil, response.Validation(c, errors)

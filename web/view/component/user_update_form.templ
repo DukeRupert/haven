@@ -1,15 +1,15 @@
 package component
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/dto"
+	"fmt"
 )
 
 templ UpdateUserForm(user entity.User, auth dto.AuthContext) {
-	<form hx-post={ fmt.Sprintf("/api/user/%d", user.ID) } hx-target="this" hx-swap="outerHTML" hx-target-error="#global-alert" hx-indicator="#loading-overlay" class="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0">
+	<form hx-put={fmt.Sprintf("/profile/%d", user.ID)} hx-target="this" hx-swap="outerHTML" hx-target-error="#global-alert" hx-indicator="#loading-overlay" class="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0">
 		<input type="hidden" name="facility_id" value={ strconv.Itoa(user.FacilityID) } />
 		<div class="w-full">
 			<label for="first_name" class="block text-sm/6 font-medium text-gray-900">First Name</label>
@@ -75,6 +75,18 @@ templ UpdateUserForm(user entity.User, auth dto.AuthContext) {
 					if auth.Role == "super" {
 						<option value="super" selected?={ user.Role == "super" }>Super Admin</option>
 					}
+				</select>
+			</div>
+		} else {
+			<div class="hidden">
+				<label for="role" class="block text-sm/6 font-medium text-gray-900">Role</label>
+				<select
+					id="role"
+					name="role"
+					required
+					class="block w-full ring-1 ring-inset ring-gray-300 py-1.5 pl-1 rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm"
+				>
+					<option value="user" selected>User</option>
 				</select>
 			</div>
 		}

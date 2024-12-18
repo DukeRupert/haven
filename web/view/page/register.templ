@@ -1,8 +1,11 @@
 package page
 
-import "github.com/DukeRupert/haven/web/view/layout"
+import (
+"github.com/DukeRupert/haven/internal/model/params"
+"github.com/DukeRupert/haven/web/view/layout"
+)
 
-templ Register() {
+templ Register(props params.RegisterParams) {
     @layout.BaseLayout() {
         <div class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
             <div class="sm:mx-auto sm:w-full sm:max-w-sm">

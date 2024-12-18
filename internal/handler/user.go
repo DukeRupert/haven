@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
@@ -103,10 +104,10 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 		return err // validateCreateUser handles error responses
 	}
 
-	// Hash password
-	hashedPassword, err := hashPassword(createData.Password)
+	// Generate verification token
+	token, err := generateSecureToken()
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to hash password")
+		logger.Error().Err(err).Msg("failed to generate verification token")
 		return response.System(c)
 	}
 
@@ -115,7 +116,7 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 		FirstName:  createData.FirstName,
 		LastName:   createData.LastName,
 		Email:      createData.Email,
-		Password:   string(hashedPassword),
+		Password:   "", // Password will be set by user during verification
 		Initials:   createData.Initials,
 		Role:       createData.Role,
 		FacilityID: createData.FacilityID,
@@ -131,19 +132,57 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 		return response.System(c)
 	}
 
+	// Store verification token
+	verificationToken := &entity.VerificationToken{
+		UserID:    user.ID,
+		Token:     token,
+		Email:     user.Email,
+		CreatedAt: time.Now(),
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+		Used:      false,
+	}
+
+	if err := h.repos.Token.StoreVerification(c.Request().Context(), verificationToken); err != nil {
+		logger.Error().
+			Err(err).
+			Int("user_id", user.ID).
+			Msg("failed to store verification token")
+		// Continue execution since user was created successfully
+	}
+
+	// Send verification email
+	emailData := map[string]interface{}{
+		"VerificationURL": fmt.Sprintf("%s/register?token=%s", h.config.BaseURL, token),
+		"ExpiresIn":      "24 hours",
+		"FromName":       "MirandaShift Support",
+		"Subject":        "Complete Your MirandaShift Registration",
+	}
+
+	if err := h.mailer.SendTemplate(c.Request().Context(), "verification", user.Email, emailData); err != nil {
+		logger.Error().
+			Err(err).
+			Int("user_id", user.ID).
+			Msg("failed to send verification email")
+		// Continue execution since user was created successfully
+	}
+
 	logger.Info().
 		Int("user_id", user.ID).
 		Str("email", user.Email).
 		Int("facility_id", user.FacilityID).
 		Str("role", string(user.Role)).
-		Msg("user created successfully")
+		Msg("user created successfully and verification email sent")
 
 	// Handle HTMX request
 	if isHtmxRequest(c) {
 		return render(c, ComponentGroup(
 			alert.Success(
 				"User Created",
-				fmt.Sprintf("Successfully created user %s %s", user.FirstName, user.LastName),
+				fmt.Sprintf("Successfully created user %s %s. A verification email has been sent to %s.", 
+					user.FirstName, 
+					user.LastName,
+					user.Email,
+				),
 			),
 			page.UserListItem(h.RouteCtx, *user),
 		))

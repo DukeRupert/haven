@@ -94,7 +94,8 @@ func (m *Middleware) registerPublicRoutes() {
 	m.RegisterPublicRoute("/register", http.MethodPost)
 	m.RegisterPublicRoute("/set-password", http.MethodGet)
 	m.RegisterPublicRoute("/set-password", http.MethodPost)
-
+	m.RegisterPublicRoute("/hash-password", http.MethodGet)
+	m.RegisterPublicRoute("/hash-password", http.MethodPost)
 	// Add any other public routes your application needs
 }
 
@@ -424,14 +425,14 @@ func (m *Middleware) GetAuthContext(c echo.Context) (*dto.AuthContext, error) {
 
 // Helper methods
 func canAccessFacility(auth *dto.AuthContext, facilityCode string) bool {
-	switch auth.Role {
-	case types.UserRoleSuper:
-		return true
-	case types.UserRoleAdmin:
-		return auth.FacilityCode == facilityCode
-	default:
-		return false
-	}
+    switch auth.Role {
+    case types.UserRoleSuper:
+        return true
+    case types.UserRoleAdmin, types.UserRoleUser:
+        return strings.EqualFold(auth.FacilityCode, facilityCode)
+    default:
+        return false
+    }
 }
 
 // hasMinimumRole checks if a role meets the minimum required level
@@ -501,9 +502,4 @@ func (m *Middleware) setContextValues(c echo.Context, user *entity.User, facilit
 		c.Set("facility_id", facility.ID)
 		c.Set("facility_code", facility.Code)
 	}
-}
-
-// IsPublicRoute checks if a route is public
-func (m *Middleware) IsPublicRoute(path, method string) bool {
-	return m.public[PublicRoute{Path: path, Method: method}]
 }
