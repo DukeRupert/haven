@@ -31,7 +31,7 @@ func Edit_User_Button(user_id int) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button hx-get=\"")
+		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 1)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -44,7 +44,7 @@ func Edit_User_Button(user_id int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-target=\"#user-card\" hx-swap=\"innerHTML\" class=\"inline-flex items-center gap-x-1.5 rounded-md bg-picton-blue-600 px-2.5 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600\" aria-label=\"Edit user information\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"-mr-0.5 size-5\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path d=\"M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z\"></path></svg> Edit</button>")
+		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 2)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -73,7 +73,7 @@ func Change_Password_Button(user_id int) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"user-password\"></div><button hx-get=\"")
+		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 3)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -86,7 +86,7 @@ func Change_Password_Button(user_id int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-target=\"#user-password\" hx-swap=\"innerHTML\" hx-target-error=\"#global-alert\" hx-indicator=\"#loading-overlay\" type=\"button\" class=\"w-full max-w-48 mt-6 rounded-md bg-picton-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600\" aria-label=\"change password\">Change Password</button>")
+		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 4)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -115,7 +115,7 @@ func Delete_User_Button(user_id int) templ.Component {
 			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button hx-delete=\"")
+		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 5)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -128,7 +128,7 @@ func Delete_User_Button(user_id int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-target=\"#user-card\" hx-swap=\"innerHTML\" hx-indicator=\"#loading-overlay\" hx-confirm=\"Are you sure you want to delete this user?\" class=\"w-full max-w-48 rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600\" aria-label=\"Delete user\">Delete User</button>")
+		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 6)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -157,7 +157,7 @@ func Update_Password_Form(user_id int) templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form id=\"update-password-form\" hx-put=\"")
+		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 7)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -170,7 +170,7 @@ func Update_Password_Form(user_id int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-target=\"#user-password\" hx-swap=\"innerHTML\" hx-target-error=\"#global-alert\" hx-indicator=\"#loading-overlay\" class=\"w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0\"><!-- Password --><div class=\"w-full\"><label for=\"password\" class=\"block text-sm/6 font-medium text-gray-900\">Password</label> <input id=\"password\" name=\"password\" type=\"password\" required minlength=\"8\" class=\"block w-full ring-1 ring-inset ring-gray-300 py-1.5 pl-1 rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm\"></div><!-- Confirm Password --><div class=\"w-full\"><label for=\"password\" class=\"block text-sm/6 font-medium text-gray-900\">Confirm Password</label> <input id=\"confirm\" name=\"confirm\" type=\"password\" required minlength=\"8\" class=\"block w-full ring-1 ring-inset ring-gray-300 py-1.5 pl-1 rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm\"></div><button type=\"submit\" class=\"rounded-md bg-picton-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600\">Submit</button></form>")
+		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 8)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

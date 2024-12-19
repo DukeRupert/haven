@@ -26,13 +26,12 @@ type TemplateData struct {
 type Mailer struct {
 	client    *Client
 	templates *template.Template
-	baseURL   string
 	fromEmail string
 	fromName  string
 }
 
 // NewMailer creates a new Mailer instance with template support
-func NewMailer(client *Client, BaseURL string, fromEmail, fromName string) (*Mailer, error) {
+func NewMailer(client *Client, fromEmail string, fromName string) (*Mailer, error) {
 	// Parse all email templates
 	templates, err := template.ParseFS(templateFS, "templates/*.html", "templates/*.txt")
 	if err != nil {
@@ -42,7 +41,6 @@ func NewMailer(client *Client, BaseURL string, fromEmail, fromName string) (*Mai
 	return &Mailer{
 		client:    client,
 		templates: templates,
-		baseURL:   BaseURL,
 		fromEmail: fromEmail,
 		fromName:  fromName,
 	}, nil

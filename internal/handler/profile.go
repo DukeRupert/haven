@@ -30,7 +30,7 @@ func (h *Handler) HandleGetUser(c echo.Context, ctx *dto.PageContext) error {
 	}
 
     // Determine which profile to show
-    initials := determineProfileInitials(c.Param("initials"), ctx.Auth.Initials)
+    initials := determineProfileInitials(c.Param("user_id"), ctx.Auth.Initials)
 
     // Check permissions if viewing other profile
     if initials != ctx.Auth.Initials && !canViewOtherProfiles(ctx.Auth) {

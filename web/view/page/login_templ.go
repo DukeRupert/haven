@@ -43,7 +43,7 @@ func Login() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex min-h-full flex-col justify-center px-6 py-12 lg:px-8\"><div class=\"sm:mx-auto sm:w-full sm:max-w-sm\"><img class=\"mx-auto h-16 w-16\" src=\"static/logo.svg\" alt=\"Haven\"><h2 class=\"mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900\">Sign in to your account</h2></div><div class=\"mt-10 sm:mx-auto sm:w-full sm:max-w-sm\">")
+			templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 1)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -51,7 +51,7 @@ func Login() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"mt-10 text-center text-sm/6 text-gray-500\">Need an account? <a href=\"/register\" class=\"font-semibold text-picton-blue-600 hover:text-picton-blue-500\">Click here to register</a></p></div></div>")
+			templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 2)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -86,7 +86,7 @@ func LoginForm() templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form id=\"login-form\" class=\"space-y-6\" hx-post=\"/login\" hx-swap=\"none\" hx-target-error=\"#global-alert\" hx-indicator=\"#loading-overlay\"><div><label for=\"email\" class=\"block text-sm/6 font-medium text-gray-900\">Email address</label><div class=\"mt-2\"><input id=\"email\" name=\"email\" type=\"email\" autocomplete=\"email\" required class=\"block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-picton-blue-600 sm:text-sm/6\"></div></div><div><div class=\"flex items-center justify-between\"><label for=\"password\" class=\"block text-sm/6 font-medium text-gray-900\">Password</label><div class=\"text-sm\"><a href=\"#\" class=\"font-semibold text-picton-blue-600 hover:text-picton-blue-500\">Forgot password?</a></div></div><div class=\"mt-2\"><input id=\"password\" name=\"password\" type=\"password\" autocomplete=\"current-password\" required minlength=\"8\" class=\"block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-picton-blue-600 sm:text-sm/6\"></div></div><div><button type=\"submit\" class=\"flex w-full justify-center rounded-md bg-picton-blue-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-sm hover:bg-picton-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600\">Sign in</button></div></form>")
+		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 3)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

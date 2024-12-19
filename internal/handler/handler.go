@@ -47,7 +47,6 @@ func New(cfg Config) (*Handler, error) {
 	mailClient := mail.NewClient(cfg.MailerConfig.ServerToken)
 	mailer, err := mail.NewMailer(
 		mailClient,
-		cfg.BaseURL,
 		cfg.MailerConfig.FromEmail,
 		cfg.MailerConfig.FromName,
 	)

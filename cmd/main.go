@@ -134,6 +134,7 @@ func main() {
 		Repos:  repos,
 		Auth:   authMiddleware,
 		Logger: logger,
+		BaseURL: config.BaseURL,
 		MailerConfig: handler.MailerConfig{
 			ServerToken: config.PostmarkServerToken,
 			FromEmail:   "logan@fireflysoftware.dev",
