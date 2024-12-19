@@ -116,7 +116,7 @@ func (h *Handler) sendVerificationEmail(ctx context.Context, user *entity.User, 
 	data := map[string]interface{}{
 		"VerificationURL": verificationURL,
 		"ExpiresIn":       "24 hours",
-		"FromName":        "Haven Support",
+		"FromName":        "MirandaShift Support",
 		"Subject":         "Complete Your Registration",
 	}
 
