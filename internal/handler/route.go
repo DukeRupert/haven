@@ -36,12 +36,10 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	e.GET("/login", h.GetLogin, auth.RedirectAuthenticated())
 	e.POST("/login", authHandler.LoginHandler())
 	e.POST("/logout", authHandler.LogoutHandler())
+	e.GET("/register", h.GetRegistration)
+	e.POST("/register", h.HandleRegistration)
 	e.POST("/verify", h.InitiateEmailVerification)
-	e.GET("/verify", h.GetVerificationPage) // You'll need to create this handler to show the email form
-	e.GET("/register", h.HandleRegistration)
-	e.POST("/register", h.HandleRegistration)
-	e.GET("/register", h.HandleRegistration)
-	e.POST("/register", h.HandleRegistration)
+	e.GET("/verify", h.GetVerificationPage)
 	e.GET("/set-password", h.GetSetPassword)
 	e.POST("/set-password", h.HandleSetPassword)
 
