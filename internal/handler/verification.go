@@ -17,13 +17,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type RegistrationParams struct {
-	FacilityCode string `form:"facility_code"`
-	Initials     string `form:"initials"`
-	Email        string `form:"email"`
-	Token        string `form:"token"`
-}
-
 type EmailVerificationRequest struct {
 	Email string `json:"email" form:"email"`
 }
@@ -163,7 +156,7 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
-	params := new(RegistrationParams)
+	params := new(params.RegisterParams)
 	if err := c.Bind(params); err != nil {
 		logger.Debug().
 			Err(err).
@@ -186,18 +179,24 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 	// Validate input format
 	logger.Debug().Msg("Validate input format")
 	if err := validateRegistrationParams(params); err != nil {
-		return alert.Error(
-			"Invalid Input",
-			[]string{err.Error()},
-		).Render(c.Request().Context(), c.Response().Writer)
+		return render(c, ComponentGroup(
+			alert.Error(
+				"Invalid Input",
+				[]string{"Please contact tech support if this problem persists."},
+			),
+			page.RegisterForm(*params),
+		))
 	}
 
 	// Verify email matches the one in the token
 	if params.Email != verificationToken.Email {
-		return alert.Error(
-			"Invalid Email",
-			[]string{"The email address doesn't match the verification token."},
-		).Render(c.Request().Context(), c.Response().Writer)
+		return render(c, ComponentGroup(
+			alert.Error(
+				"Invalid Email",
+				[]string{"The email address doesn't match the verification token."},
+			),
+			page.RegisterForm(*params),
+		))
 	}
 
 	// Add 'K' prefix to facility code
@@ -206,10 +205,13 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 	// Check if facility exists
 	facility, err := h.repos.Facility.GetByCode(c.Request().Context(), fullFacilityCode)
 	if err != nil || facility == nil {
-		return alert.Error(
-			"Invalid Facility",
-			[]string{"The facility code you entered is not valid."},
-		).Render(c.Request().Context(), c.Response().Writer)
+		return render(c, ComponentGroup(
+			alert.Error(
+				"Invalid Facility",
+				[]string{"The facility code you entered is not valid."},
+			),
+			page.RegisterForm(*params),
+		))
 	}
 
 	// Verify user credentials
@@ -220,10 +222,13 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 		strings.ToLower(params.Email),
 	)
 	if err != nil || user == nil {
-		return alert.Error(
-			"Invalid Credentials",
-			[]string{"No matching user found with these credentials."},
-		).Render(c.Request().Context(), c.Response().Writer)
+		return render(c, ComponentGroup(
+			alert.Error(
+				"Invalid Credentials",
+				[]string{"No matching user found with these credentials."},
+			),
+			page.RegisterForm(*params),
+		))
 	}
 
 	// Mark verification token as used
@@ -260,7 +265,7 @@ func (h *Handler) HandleRegistration(c echo.Context) error {
 	return render(c, page.SetPasswordForm(registrationToken))
 }
 
-func validateRegistrationParams(params *RegistrationParams) error {
+func validateRegistrationParams(params *params.RegisterParams) error {
 	// Validate facility code (3 letters)
 	if len(params.FacilityCode) == 0 {
 		return fmt.Errorf("facility code is required")
@@ -447,7 +452,7 @@ func (h *Handler) HandleSetPassword(c echo.Context) error {
 	return c.String(http.StatusOK, "")
 }
 
-func validateRegistrationRequest(req RegistrationParams) error {
+func validateRegistrationRequest(req params.RegisterParams) error {
 	// Validate facility code (3 letters)
 	if len(req.FacilityCode) != 3 || !isAlpha(req.FacilityCode) {
 		return fmt.Errorf("facility code must be exactly 3 letters")

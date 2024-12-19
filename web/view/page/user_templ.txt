@@ -11,5 +11,5 @@
 </p></div></div>
 <span class=\"
 \">
-</span></div><!-- Rest of user profile content --><div class=\"flex flex-col gap-4\">
+</span></div><!-- Rest of user profile content --><div class=\"mt-6 flex flex-col gap-4\">
 </div></div>

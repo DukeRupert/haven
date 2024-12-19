@@ -74,7 +74,7 @@ templ UserDetails(user entity.User, auth dto.AuthContext) {
 			</span>
 		</div>
 		<!-- Rest of user profile content -->
-		<div class="flex flex-col gap-4">
+		<div class="mt-6 flex flex-col gap-4">
 			if user.ID == auth.UserID {
 				@component.Change_Password_Button(user.ID)
 			}

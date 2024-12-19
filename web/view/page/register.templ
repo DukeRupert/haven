@@ -27,7 +27,8 @@ templ RegisterForm(props params.RegisterParams) {
                 <input 
                     id="facility-code" 
                     name="facility_code" 
-                    type="text" 
+                    type="text"
+                    value={props.FacilityCode} 
                     required 
                     maxlength="3"
                     pattern="[A-Za-z]{3}"
@@ -43,6 +44,7 @@ templ RegisterForm(props params.RegisterParams) {
                     id="initials" 
                     name="initials" 
                     type="text" 
+                    value={props.Initials}
                     required 
                     maxlength="2"
                     pattern="[A-Za-z]{2}"
