@@ -105,6 +105,7 @@ func (h *Handler) InitiateEmailVerification(c echo.Context) error {
 }
 
 func (h *Handler) GetVerificationPage(c echo.Context) error {
+	h.logger.Debug().Str("baseURL", h.config.BaseURL).Msg("GetVerificationPage()")
 	return render(c, page.Verify())
 }
 

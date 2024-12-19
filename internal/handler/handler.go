@@ -58,6 +58,7 @@ func New(cfg Config) (*Handler, error) {
 		repos:  cfg.Repos,
 		auth:   cfg.Auth,
 		logger: cfg.Logger.With().Str("component", "handler").Logger(),
+		config: Cfg{BaseURL: cfg.BaseURL},
 		mailer: mailer,
 	}, nil
 }
