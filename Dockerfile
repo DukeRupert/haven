@@ -23,7 +23,7 @@ COPY . .
 RUN templ generate
 
 # Run Tailwind CLI
-RUN npx --yes tailwindcss -i ./input.css -o ./styles.css --minify
+RUN npx --yes tailwindcss -i ./web/assets/input.css -o ./web/assets/styles.css --minify
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o app ./cmd/main.go
@@ -36,7 +36,7 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates
 
 COPY --from=builder /build/app .
-COPY --from=builder /build/assets ./assets
+COPY --from=builder /build/web/assets ./web/assets
 
 RUN adduser -D appuser
 USER appuser
