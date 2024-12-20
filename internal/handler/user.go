@@ -153,9 +153,9 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 	// Send verification email
 	emailData := map[string]interface{}{
 		"VerificationURL": fmt.Sprintf("%s/register?token=%s", h.config.BaseURL, token),
-		"ExpiresIn":      "24 hours",
-		"FromName":       "MirandaShift Support",
-		"Subject":        "Complete Your MirandaShift Registration",
+		"ExpiresIn":       "24 hours",
+		"FromName":        "MirandaShift Support",
+		"Subject":         "Complete Your MirandaShift Registration",
 	}
 
 	if err := h.mailer.SendTemplate(c.Request().Context(), "verification", user.Email, emailData); err != nil {
@@ -178,8 +178,8 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 		return render(c, ComponentGroup(
 			alert.Success(
 				"User Created",
-				fmt.Sprintf("Successfully created user %s %s. A verification email has been sent to %s.", 
-					user.FirstName, 
+				fmt.Sprintf("Successfully created user %s %s. A verification email has been sent to %s.",
+					user.FirstName,
 					user.LastName,
 					user.Email,
 				),

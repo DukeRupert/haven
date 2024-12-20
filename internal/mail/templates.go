@@ -67,7 +67,7 @@ func (m *Mailer) SendTemplate(ctx context.Context, templateName string, to strin
 
 	// Create email
 	email := Email{
-		From:     fmt.Sprintf("%s <%s>", m.fromName, m.fromEmail),
+		From:     m.fromEmail,
 		To:       to,
 		Subject:  getSubjectFromData(data),
 		HtmlBody: htmlBody.String(),
