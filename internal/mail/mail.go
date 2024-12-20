@@ -46,6 +46,8 @@ func (c *Client) SendEmail(email Email) (*EmailResponse, error) {
 		return nil, fmt.Errorf("validating email: %w", err)
 	}
 
+	c.logger.Debug().Str("emailFrom", email.From).Msg("SendEmail()")
+
 	var response EmailResponse
 	err := c.doRequest(requestParams{
 		method:    "POST",

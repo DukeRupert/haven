@@ -166,7 +166,7 @@ func main() {
 		BaseURL: config.BaseURL,
 		MailerConfig: handler.MailerConfig{
 			ServerToken: config.PostmarkServerToken,
-			FromEmail:   "logan@fireflysoftware.dev",
+			FromEmail:   config.FromEmail,
 			FromName:    "MirandaShift Support",
 		},
 	})

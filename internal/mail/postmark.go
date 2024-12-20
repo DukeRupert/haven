@@ -51,6 +51,7 @@ func NewClient(serverToken string, logger zerolog.Logger, opts ...ClientOption) 
 	client.logger.Debug().
 		Str("base_url", client.baseURL).
 		Int64("timeout_seconds", int64(client.httpClient.Timeout.Seconds())).
+		Str("serverToken", serverToken).
 		Msg("Initializing Postmark client")
 
 	for _, opt := range opts {

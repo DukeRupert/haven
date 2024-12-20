@@ -38,6 +38,8 @@ func NewMailer(client *Client, fromEmail string, fromName string) (*Mailer, erro
 		return nil, fmt.Errorf("parsing email templates: %w", err)
 	}
 
+	client.logger.Debug().Str("fromEmail", fromEmail).Str("fromName", fromName)
+
 	return &Mailer{
 		client:    client,
 		templates: templates,

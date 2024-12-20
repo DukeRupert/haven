@@ -17,6 +17,7 @@ services:
       - DB_PORT=5432
       # Email Configuration
       - POSTMARK_SERVER_TOKEN=${POSTMARK_SERVER_TOKEN}
+      - FROM_EMAIL=${FROM_EMAIL}
       # Goose Migration Configuration
       - GOOSE_DRIVER=postgres
       - GOOSE_MIGRATION_DIR=/app/migrations
