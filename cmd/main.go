@@ -19,6 +19,7 @@ import (
 	"github.com/DukeRupert/haven/internal/worker"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/pressly/goose/v3"
@@ -122,6 +123,10 @@ func main() {
 	// Initialize Echo instance
 	e := echo.New()
 	e.Static("/static", "web/assets")
+	// Add Prometheus middleware early in the chain
+	e.Use(echoprometheus.NewMiddleware("mirandashift"))
+	// Add metrics endpoint - consider protecting this in production
+	e.GET("/metrics", echoprometheus.NewHandler())
 
 	// Initialize database and repositories
 	database, err := repository.New(config.DatabaseURL, repository.DefaultConfig())
