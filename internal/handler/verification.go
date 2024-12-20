@@ -11,6 +11,7 @@ import (
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
 	"github.com/DukeRupert/haven/internal/response"
+	"github.com/rs/zerolog"
 
 	"github.com/DukeRupert/haven/web/view/alert"
 	"github.com/DukeRupert/haven/web/view/page"
@@ -19,6 +20,103 @@ import (
 
 type EmailVerificationRequest struct {
 	Email string `json:"email" form:"email"`
+}
+
+// SendVerificationEmail handles the creation and sending of verification emails
+func (h *Handler) SendVerificationEmail(ctx context.Context, user *entity.User, logger zerolog.Logger) error {
+    // Generate verification token
+    token, err := generateSecureToken()
+    if err != nil {
+        logger.Error().Err(err).Msg("failed to generate verification token")
+        return fmt.Errorf("generating token: %w", err)
+    }
+
+    // Store verification token
+    verificationToken := &entity.VerificationToken{
+        UserID:    user.ID,
+        Token:     token,
+        Email:     user.Email,
+        CreatedAt: time.Now(),
+        ExpiresAt: time.Now().Add(24 * time.Hour),
+        Used:      false,
+    }
+
+    if err := h.repos.Token.StoreVerification(ctx, verificationToken); err != nil {
+        logger.Error().
+            Err(err).
+            Int("user_id", user.ID).
+            Msg("failed to store verification token")
+        return fmt.Errorf("storing verification token: %w", err)
+    }
+
+    // Send verification email
+    emailData := map[string]interface{}{
+        "VerificationURL": fmt.Sprintf("%s/register?token=%s", h.config.BaseURL, token),
+        "ExpiresIn":      "24 hours",
+        "FromName":       "MirandaShift Support",
+        "Subject":        "Complete Your MirandaShift Registration",
+        "FirstName":      user.FirstName,
+        "LastName":       user.LastName,
+    }
+
+    if err := h.mailer.SendTemplate(ctx, "verification", user.Email, emailData); err != nil {
+        logger.Error().
+            Err(err).
+            Int("user_id", user.ID).
+            Msg("failed to send verification email")
+        return fmt.Errorf("sending verification email: %w", err)
+    }
+
+    return nil
+}
+
+// HandleResendVerification handles requests to resend verification emails
+func (h *Handler) HandleResendVerification(c echo.Context) error {
+    logger := h.logger.With().
+        Str("handler", "HandleResendVerification").
+        Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+        Logger()
+
+    // Get email from request
+    email := c.QueryParam("email")
+    if email == "" {
+        return alert.Error(
+            "Invalid Request",
+            []string{"Email is required"},
+        ).Render(c.Request().Context(), c.Response().Writer)
+    }
+
+    // Get user by email
+    user, err := h.repos.User.GetByEmail(c.Request().Context(), email)
+    if err != nil {
+        // Don't reveal if email exists
+        return alert.Success(
+            "Verification Email",
+            "If an account exists with this email, a new verification link will be sent.",
+        ).Render(c.Request().Context(), c.Response().Writer)
+    }
+
+    // Check if user already verified
+    if user.Password != "" {
+        return alert.Error(
+            "Already Verified",
+            []string{"This account has already been verified. Please login."},
+        ).Render(c.Request().Context(), c.Response().Writer)
+    }
+
+    // Send verification email
+    if err := h.SendVerificationEmail(c.Request().Context(), user, logger); err != nil {
+        logger.Error().Err(err).Msg("failed to resend verification email")
+        return alert.Error(
+            "System Error",
+            []string{"Unable to send verification email. Please try again."},
+        ).Render(c.Request().Context(), c.Response().Writer)
+    }
+
+    return alert.Success(
+        "Verification Email Sent",
+        "A new verification link has been sent to your email.",
+    ).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // InitiateEmailVerification handles the initial email verification request

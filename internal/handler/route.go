@@ -54,6 +54,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	e.GET("/verify", h.GetVerificationPage)
 	e.GET("/set-password", h.GetSetPassword)
 	e.POST("/set-password", h.HandleSetPassword)
+	e.GET("/resend-verification", h.HandleResendVerification)
 
 	// Protected routes
 

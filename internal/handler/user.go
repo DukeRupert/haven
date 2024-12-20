@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
@@ -104,13 +103,6 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 		return err // validateCreateUser handles error responses
 	}
 
-	// Generate verification token
-	token, err := generateSecureToken()
-	if err != nil {
-		logger.Error().Err(err).Msg("failed to generate verification token")
-		return response.System(c)
-	}
-
 	// Prepare create params
 	params := params.CreateUserParams{
 		FirstName:  createData.FirstName,
@@ -132,33 +124,8 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 		return response.System(c)
 	}
 
-	// Store verification token
-	verificationToken := &entity.VerificationToken{
-		UserID:    user.ID,
-		Token:     token,
-		Email:     user.Email,
-		CreatedAt: time.Now(),
-		ExpiresAt: time.Now().Add(24 * time.Hour),
-		Used:      false,
-	}
-
-	if err := h.repos.Token.StoreVerification(c.Request().Context(), verificationToken); err != nil {
-		logger.Error().
-			Err(err).
-			Int("user_id", user.ID).
-			Msg("failed to store verification token")
-		// Continue execution since user was created successfully
-	}
-
 	// Send verification email
-	emailData := map[string]interface{}{
-		"VerificationURL": fmt.Sprintf("%s/register?token=%s", h.config.BaseURL, token),
-		"ExpiresIn":       "24 hours",
-		"FromName":        "MirandaShift Support",
-		"Subject":         "Complete Your MirandaShift Registration",
-	}
-
-	if err := h.mailer.SendTemplate(c.Request().Context(), "verification", user.Email, emailData); err != nil {
+	if err := h.SendVerificationEmail(c.Request().Context(), user, logger); err != nil {
 		logger.Error().
 			Err(err).
 			Int("user_id", user.ID).
