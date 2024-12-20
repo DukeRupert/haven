@@ -167,32 +167,9 @@ func (h *Handler) LogoutHandler() echo.HandlerFunc {
 			// Continue with logout even if save fails
 		}
 
-		// Explicitly clear the session cookie
-		cookie := new(http.Cookie)
-		cookie.Name = store.DefaultSessionName
-		cookie.Value = ""
-		cookie.Path = "/"
-		cookie.MaxAge = -1
-		cookie.HttpOnly = true
-		cookie.Secure = true
-		c.SetCookie(cookie)
-
-		// Clear any other auth-related cookies if they exist
-		clearCookie := func(name string) {
-			c.SetCookie(&http.Cookie{
-				Name:     name,
-				Value:    "",
-				Path:     "/",
-				MaxAge:   -1,
-				HttpOnly: true,
-				Secure:   true,
-			})
-		}
-
 		// Clear any additional cookies your app might use
-		clearCookie("remember_token") // if you use this
-		clearCookie("auth_token")     // if you use this
-
+		clearCookie(c, store.DefaultSessionName)
+		
 		// Prevent caching
 		c.Response().Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		c.Response().Header().Set("Pragma", "no-cache")
@@ -203,6 +180,18 @@ func (h *Handler) LogoutHandler() echo.HandlerFunc {
 		// Use 303 See Other to ensure a GET request to login page
 		return c.Redirect(http.StatusSeeOther, "/login")
 	}
+}
+
+// Clear any other auth-related cookies if they exist
+func clearCookie(c echo.Context, name string) {
+	c.SetCookie(&http.Cookie{
+		Name:     name,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+	})
 }
 
 // Helper function to convert session values for logging
