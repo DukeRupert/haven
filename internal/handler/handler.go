@@ -64,7 +64,11 @@ func New(cfg Config) (*Handler, error) {
 }
 
 func (h *Handler) GetLogin(c echo.Context) error {
-	return render(c, page.Login())
+	// If redirected from set-password
+	// notify the user of the successful password update
+	verify := c.QueryParam("verify") == "success"
+	// Else simply return the login page
+	return render(c, page.Login(verify))
 }
 
 func (h *Handler) GetHome(c echo.Context) error {

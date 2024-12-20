@@ -2,19 +2,22 @@ package page
 
 import "github.com/DukeRupert/haven/web/view/layout"
 
-templ Login() {
+templ Login(verify bool) {
 	@layout.BaseLayout() {
 		<div class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
 			<div class="sm:mx-auto sm:w-full sm:max-w-sm">
 				<img class="mx-auto h-16 w-16" src="static/logo.svg" alt="Haven"/>
 				<h2 class="mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900">Sign in to your account</h2>
+				if verify {
+					<p class="mt-6 text-center text-lg text-picton-blue-600">Your password has been set successfully. You can now log in to your account.</p>
+				}
 			</div>
 			<div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
 				@LoginForm()
-        <p class="mt-10 text-center text-sm/6 text-gray-500">
-          Need an account?
-          <a href="/register" class="font-semibold text-picton-blue-600 hover:text-picton-blue-500">Click here to register</a>
-        </p>
+				<p class="mt-10 text-center text-sm/6 text-gray-500">
+					Need an account?
+					<a href="/register" class="font-semibold text-picton-blue-600 hover:text-picton-blue-500">Click here to register</a>
+				</p>
 			</div>
 		</div>
 	}

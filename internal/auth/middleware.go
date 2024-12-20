@@ -127,22 +127,45 @@ func (m *Middleware) Auth() echo.MiddlewareFunc {
 			}
 
 			// Get session
+			logger.Debug().Msg("Attempting to get session")
 			sess, err := session.Get(store.DefaultSessionName, c)
 			if err != nil {
-				logger.Error().Err(err).Msg("session error")
+				logger.Error().
+					Err(err).
+					Str("session_name", store.DefaultSessionName).
+					Msg("Failed to get session")
 				return redirectToLogin(c)
 			}
+			logger.Debug().
+				Str("session_id", sess.ID).
+				Msg("Session retrieved successfully")
 
 			// Check required session values
 			userID, ok := sess.Values[SessionKeyUserID].(int)
+			logger.Debug().
+				Bool("user_id_exists", ok).
+				Interface("user_id_raw", sess.Values[SessionKeyUserID]).
+				Int("user_id", userID).
+				Msg("Checking user_id in session")
 			if !ok || userID == 0 {
-				logger.Debug().Msg("no valid user_id in session")
+				logger.Debug().
+					Bool("type_assertion_ok", ok).
+					Int("user_id", userID).
+					Msg("Invalid or missing user_id in session")
 				return redirectToLogin(c)
 			}
 
 			role, ok := sess.Values[SessionKeyRole].(types.UserRole)
+			logger.Debug().
+				Bool("role_exists", ok).
+				Interface("role_raw", sess.Values[SessionKeyRole]).
+				Str("role", string(role)).
+				Msg("Checking role in session")
 			if !ok {
-				logger.Debug().Msg("no valid role in session")
+				logger.Debug().
+					Bool("type_assertion_ok", ok).
+					Interface("role_value", sess.Values[SessionKeyRole]).
+					Msg("Invalid or missing role in session")
 				return redirectToLogin(c)
 			}
 
@@ -427,14 +450,14 @@ func (m *Middleware) GetAuthContext(c echo.Context) (*dto.AuthContext, error) {
 
 // Helper methods
 func canAccessFacility(auth *dto.AuthContext, facilityCode string) bool {
-    switch auth.Role {
-    case types.UserRoleSuper:
-        return true
-    case types.UserRoleAdmin, types.UserRoleUser:
-        return strings.EqualFold(auth.FacilityCode, facilityCode)
-    default:
-        return false
-    }
+	switch auth.Role {
+	case types.UserRoleSuper:
+		return true
+	case types.UserRoleAdmin, types.UserRoleUser:
+		return strings.EqualFold(auth.FacilityCode, facilityCode)
+	default:
+		return false
+	}
 }
 
 // hasMinimumRole checks if a role meets the minimum required level

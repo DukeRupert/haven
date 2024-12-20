@@ -547,7 +547,7 @@ func (h *Handler) HandleSetPassword(c echo.Context) error {
 		Msg("Password set successfully, redirecting to login")
 
 		// Redirect to login page
-	c.Response().Header().Set("HX-Redirect", "/login")
+	c.Response().Header().Set("HX-Redirect", "/login?verify=success")
 	return c.String(http.StatusOK, "")
 }
 
