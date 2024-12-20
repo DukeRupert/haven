@@ -84,3 +84,21 @@ Key points about this setup:
    - This ensures consistency between development and production
 
 3. `GOOSE_DRIVER` is set to 'postgres' directly in docker-compose.yml since it's unlikely to change
+
+## Logs
+To view logs:
+```bash
+# View web service logs
+docker compose logs -f web
+
+# View logs with timestamps
+docker compose logs -f --timestamps web
+
+# View logs for all services
+docker compose logs -f
+```
+To change logging level:
+```bash
+LOG_LEVEL=debug  # or info, warn, error as needed
+```
+```

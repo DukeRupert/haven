@@ -33,14 +33,29 @@ FROM alpine:latest
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates
+# Add necessary packages and create log directory
+RUN apk add --no-cache ca-certificates tzdata && \
+    mkdir -p /var/log/app && \
+    chmod 755 /var/log/app
 
+# Set environment variables for logging
+ENV LOG_LEVEL=debug \
+    ENVIRONMENT=production \
+    TZ=UTC
+
+# Copy binary and assets
 COPY --from=builder /build/app .
 COPY --from=builder /build/web/assets ./web/assets
 
-RUN adduser -D appuser
+# Create and switch to non-root user
+RUN adduser -D appuser && \
+    chown -R appuser:appuser /app /var/log/app
 USER appuser
 
+# Expose port
 EXPOSE 8080
+
+# Create volume for logs if needed
+VOLUME ["/var/log/app"]
 
 CMD ["./app"]

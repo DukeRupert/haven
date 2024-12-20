@@ -19,17 +19,14 @@ Super admin: 		/api/admin/facilities/*
 func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *auth.Handler, ctx *context.RouteContextMiddleware) {
 	// Global middleware
 	e.Pre(middleware.RemoveTrailingSlash())
-	e.Static("/static", "web/assets")
+	e.Use(RequestLogger(h.logger))
+	e.Use(ErrorLogger(h.logger))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"https://sturdy-train-vq455j4p4rwf666v-8080.app.github.dev"},
+		AllowOrigins: []string{h.config.BaseURL, "https://sturdy-train-vq455j4p4rwf666v-8080.app.github.dev"},
 		AllowMethods: []string{echo.GET, echo.PUT, echo.POST, echo.DELETE},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 	}))
-	e.Use(middleware.Recover())
-	e.Use(middleware.RequestID())
-	e.Use(auth.Auth())
-	routeCtxMiddleware := context.NewRouteContextMiddleware(h.logger)
-	e.Use(routeCtxMiddleware.WithRouteContext())
+	// Custom error handling
 	e.HTTPErrorHandler = CustomHTTPErrorHandler
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -40,6 +37,11 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 			return nil
 		}
 	})
+	e.Use(middleware.Recover())
+	e.Use(middleware.RequestID())
+	e.Use(auth.Auth())
+	routeCtxMiddleware := context.NewRouteContextMiddleware(h.logger)
+	e.Use(routeCtxMiddleware.WithRouteContext())
 
 	// Public routes - no group or additional middleware needed
 	e.GET("/", h.GetHome)

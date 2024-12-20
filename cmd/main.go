@@ -6,6 +6,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/DukeRupert/haven/internal/auth"
@@ -60,6 +61,27 @@ func runMigrations(dbURL string, command string) error {
 	}
 }
 
+// Helper function to set log level based on environment
+func getLogLevel() zerolog.Level {
+	level := os.Getenv("LOG_LEVEL")
+	switch strings.ToLower(level) {
+	case "debug":
+		return zerolog.DebugLevel
+	case "info":
+		return zerolog.InfoLevel
+	case "warn":
+		return zerolog.WarnLevel
+	case "error":
+		return zerolog.ErrorLevel
+	default:
+		// Default to INFO in production, DEBUG in development
+		if os.Getenv("ENVIRONMENT") == "production" {
+			return zerolog.InfoLevel
+		}
+		return zerolog.DebugLevel
+	}
+}
+
 func init() {
 	gob.Register(types.UserRole(""))
 	gob.Register(time.Time{})
@@ -71,10 +93,16 @@ func main() {
 	flag.Parse()
 
 	// Initialize logger
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	zerolog.TimeFieldFormat = time.RFC3339
+	logger := zerolog.New(os.Stdout).
+		With().
+		Timestamp().
+		Caller(). // Adds file name and line number
+		Int("pid", os.Getpid()).
+		Logger().
+		Level(getLogLevel()) // We'll define this function below
 
-	// Load configuration
+		// Load configuration
 	config, err := config.Load()
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
@@ -93,6 +121,7 @@ func main() {
 
 	// Initialize Echo instance
 	e := echo.New()
+	e.Static("/static", "web/assets")
 
 	// Initialize database and repositories
 	database, err := repository.New(config.DatabaseURL, repository.DefaultConfig())
@@ -131,9 +160,9 @@ func main() {
 
 	// Initialize main application handler
 	appHandler, err := handler.New(handler.Config{
-		Repos:  repos,
-		Auth:   authMiddleware,
-		Logger: logger,
+		Repos:   repos,
+		Auth:    authMiddleware,
+		Logger:  logger,
 		BaseURL: config.BaseURL,
 		MailerConfig: handler.MailerConfig{
 			ServerToken: config.PostmarkServerToken,
@@ -142,8 +171,8 @@ func main() {
 		},
 	})
 	if err != nil {
-    logger.Fatal().Err(err).Msg("failed to initialize handler")
-}
+		logger.Fatal().Err(err).Msg("failed to initialize handler")
+	}
 
 	// Setup routes with all components
 	handler.SetupRoutes(e, appHandler, authMiddleware, authHandler, routeCtxMiddleware)

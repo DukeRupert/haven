@@ -5,6 +5,7 @@ services:
       - "${PORT}:${PORT}"
     environment:
       # Server Configuration
+      - BASE_URL=${BASE_URL}
       - PORT=${PORT}
       - ENVIRONMENT=${ENVIRONMENT}
       - SESSION_KEY=${SESSION_KEY}
@@ -14,12 +15,25 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
       - DB_PORT=5432
+      # Email Configuration
+      - POSTMARK_SERVER_TOKEN=${POSTMARK_SERVER_TOKEN}
       # Goose Migration Configuration
       - GOOSE_DRIVER=postgres
       - GOOSE_MIGRATION_DIR=/app/migrations
       - GOOSE_DBSTRING=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}?sslmode=disable
       # Migration Control
       - RESET_MIGRATIONS=${RESET_MIGRATIONS}
+      # Logging Configuration
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - app_logs:/var/log/app
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "{{.Name}}"
     depends_on:
       db:
         condition: service_healthy
@@ -28,6 +42,11 @@ services:
     restart: unless-stopped
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:${PORT}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   db:
     image: postgres:15-alpine
@@ -39,6 +58,12 @@ services:
       - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "postgres"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 5s
@@ -58,12 +83,19 @@ services:
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_DEBUG=true
       - WATCHTOWER_TRACE=true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "watchtower"
     restart: unless-stopped
     networks:
       - app-network
 
 volumes:
   postgres_data:
+  app_logs:
 
 networks:
   app-network:

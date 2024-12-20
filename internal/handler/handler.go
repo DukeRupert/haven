@@ -44,7 +44,7 @@ type Handler struct {
 
 func New(cfg Config) (*Handler, error) {
 	// Initialize mail client
-	mailClient := mail.NewClient(cfg.MailerConfig.ServerToken)
+	mailClient := mail.NewClient(cfg.MailerConfig.ServerToken, cfg.Logger.With().Str("component", "postmark_client").Logger())
 	mailer, err := mail.NewMailer(
 		mailClient,
 		cfg.MailerConfig.FromEmail,
