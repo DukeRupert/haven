@@ -39,7 +39,6 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	})
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
-	e.Use(auth.Auth())
 	routeCtxMiddleware := context.NewRouteContextMiddleware(h.logger)
 	e.Use(routeCtxMiddleware.WithRouteContext())
 
@@ -61,7 +60,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	/* 	User self-service endpoints
 	/profile
 	*/
-	self := e.Group("/profile", auth.RequireRole(types.UserRoleUser))
+	self := e.Group("/profile", auth.Auth(), auth.RequireRole(types.UserRoleUser))
 	{
 		self.GET("", h.WithNav(h.HandleGetUser))
 		self.PUT("/:user_id", h.HandleUpdateUser)
@@ -74,13 +73,13 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	/* 	Facility specific endpoints (admin only)
 	/facility/:facility_id
 	*/
-	facility := e.Group("/facility/:facility_id", auth.ValidateFacility())
+	facility := e.Group("/facility/:facility_id", auth.Auth(), auth.ValidateFacility())
 	facility.GET("/calendar", h.WithNav(h.HandleCalendar))
 
 	/*
 		/facility/:facility_id/users
 	*/
-	users := facility.Group("/users", auth.RequireRole(types.UserRoleAdmin))
+	users := facility.Group("/users",auth.Auth(), auth.RequireRole(types.UserRoleAdmin))
 	{
 		users.GET("", h.WithNav(h.HandleUsers))
 		users.POST("", h.HandleCreateUser)
@@ -93,7 +92,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	}
 
 	// Facility Management (super only)
-	e.GET("/facilities", h.WithNav(h.HandleGetFacilities), auth.RequireRole(types.UserRoleSuper))
+	e.GET("/facilities", h.WithNav(h.HandleGetFacilities), auth.Auth(), auth.RequireRole(types.UserRoleSuper))
 
 	// API routes
 	api := e.Group("/api")
@@ -102,7 +101,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 		/* User self-service endpoints
 		/api/user/:user_id
 		*/
-		self := api.Group("/user/:user_id", auth.RequireRole(types.UserRoleUser))
+		self := api.Group("/user/:user_id", auth.Auth(), auth.RequireRole(types.UserRoleUser))
 		{
 			self.GET("", h.WithNav(h.HandleGetUser))
 			self.PUT("", h.HandleUpdateUser)
@@ -116,7 +115,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 		/* Facility management (super admin only
 		/api/admin/facilities
 		*/
-		admin := api.Group("/admin", auth.RequireRole(types.UserRoleSuper))
+		admin := api.Group("/admin", auth.Auth(), auth.RequireRole(types.UserRoleSuper))
 		{
 			admin.POST("/facilities", h.HandleCreateFacility)
 			admin.GET("/facilities/new", h.GetCreateFacilityForm)
@@ -128,7 +127,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 		/* Facility-specific routes
 		/api/facility/:facility_id
 		*/
-		facility := api.Group("/facility/:facility_id", auth.ValidateFacility())
+		facility := api.Group("/facility/:facility_id", auth.Auth(), auth.ValidateFacility())
 		{
 			facility.PUT("/publish", h.HandleUpdatePublishedThrough, auth.RequireRole(types.UserRoleAdmin))
 
