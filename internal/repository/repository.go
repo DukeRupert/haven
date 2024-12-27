@@ -7,6 +7,7 @@ import (
 	"github.com/DukeRupert/haven/internal/repository/session"
 	"github.com/DukeRupert/haven/internal/repository/token"
 	"github.com/DukeRupert/haven/internal/repository/user"
+	"github.com/DukeRupert/haven/internal/repository/publication"
 )
 
 type Repositories struct {
@@ -15,6 +16,7 @@ type Repositories struct {
 	Schedule *schedule.Repository
 	Token    *token.Repository
 	Session  *session.Repository
+	Publication *publication.Repository
 }
 
 func NewRepositories(db *DB) *Repositories {
@@ -23,6 +25,7 @@ func NewRepositories(db *DB) *Repositories {
 	scheduleRepo := schedule.New(db.pool)
 	tokenRepo := token.New(db.pool)
 	sessionRepo := session.New(db.pool)
+	publicationRepo := publication.New(db.pool)
 
 	// User repository depends on facility and schedule
 	userRepo := user.New(
@@ -37,5 +40,6 @@ func NewRepositories(db *DB) *Repositories {
 		Schedule: scheduleRepo,
 		Token:    tokenRepo,
 		Session:  sessionRepo,
+		Publication: publicationRepo,
 	}
 }

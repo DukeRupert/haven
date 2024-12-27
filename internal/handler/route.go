@@ -130,6 +130,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 		*/
 		facility := api.Group("/facility/:facility_id", auth.ValidateFacility())
 		{
+			facility.PUT("/publish", h.HandleUpdatePublishedThrough, auth.RequireRole(types.UserRoleAdmin))
 
 			/* User management (admin only)
 			/api/facility/:facility_id/users

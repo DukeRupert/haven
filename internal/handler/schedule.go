@@ -20,6 +20,63 @@ import (
 	"github.com/rs/zerolog"
 )
 
+func (h *Handler) HandleUpdatePublishedThrough(c echo.Context) error {
+   logger := h.logger.With().
+       Str("handler", "HandleUpdatePublishedThrough").
+       Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+       Logger()
+
+   // Get auth context
+   auth, err := h.auth.GetAuthContext(c)
+   if err != nil {
+       logger.Error().Err(err).Msg("failed to get auth context")
+       return response.System(c)
+   }
+
+   // Verify admin role
+   if auth.Role != types.UserRoleAdmin {
+       return response.Error(c,
+           http.StatusForbidden,
+           "Access Denied",
+           []string{"Only administrators can update schedule publication dates"},
+       )
+   }
+
+   // Parse date from request body
+   var req struct {
+       PublishedThrough time.Time `json:"published_through"`
+   }
+   if err := c.Bind(&req); err != nil {
+       return response.Error(c,
+           http.StatusBadRequest,
+           "Invalid Request",
+           []string{"Invalid date format"},
+       )
+   }
+
+   // Update publication date
+   pub, err := h.repos.Publication.Update(
+       c.Request().Context(),
+       auth.FacilityID,
+       req.PublishedThrough,
+   )
+   if err != nil {
+       logger.Error().
+           Err(err).
+           Int("facility_id", auth.FacilityID).
+           Time("published_through", req.PublishedThrough).
+           Msg("failed to update publication date")
+       return response.System(c)
+   }
+
+   logger.Info().
+       Int("facility_id", auth.FacilityID).
+       Time("published_through", pub.PublishedThrough).
+       Msg("publication date updated successfully")
+
+   return response.Success(c, "Success", "Schedule publication date has been updated")
+}
+
 func (h *Handler) HandleCreateSchedule(c echo.Context) error {
 	logger := h.logger.With().
 		Str("handler", "HandleCreateSchedule").
@@ -815,17 +872,6 @@ func canViewSchedule(auth *dto.AuthContext, schedule *entity.Schedule) bool {
 		return auth.UserID == schedule.UserID
 	}
 }
-
-// func canModifySchedule(auth *dto.AuthContext, schedule *entity.Schedule) bool {
-// 	switch auth.Role {
-// 	case types.UserRoleSuper:
-// 		return true
-// 	case types.UserRoleAdmin:
-// 		return auth.FacilityID == schedule.FacilityID
-// 	default:
-// 		return auth.UserID == schedule.UserID
-// 	}
-// }
 
 func canModifySchedule(auth *dto.AuthContext, schedule *entity.Schedule) bool {
 	logger := zerolog.New(os.Stdout).With().
