@@ -18,7 +18,7 @@ templ CalendarPage(props dto.CalendarPageProps) {
                     <button
                         type="button"
                         class="rounded-md bg-picton-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-500"
-                        hx-put={ fmt.Sprintf("/api/facility/%d/publish", props.PageCtx.Auth.FacilityID) }
+                        hx-put={ fmt.Sprintf("/api/facility/%s/publish", props.PageCtx.Auth.FacilityCode) }
                         hx-headers={ fmt.Sprintf(`{"Content-Type": "application/json"}`) }
                         hx-vals={ fmt.Sprintf(`{"published_through": "%s"}`, time.Now().Format("2006-01-02")) }
                         hx-target="#global-alert"
