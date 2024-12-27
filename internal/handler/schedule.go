@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/DukeRupert/haven/internal/repository/schedule"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
@@ -222,6 +224,13 @@ func (h *Handler) HandleAvailabilityToggle(c echo.Context) error {
 		dateID,
 	)
 	if err != nil {
+		if errors.Is(err, schedule.ErrSchedulePublished) {
+			return response.Error(c,
+				http.StatusBadRequest,
+				"Schedule Published",
+				[]string{"Cannot modify availability for dates in published schedule"},
+			)
+		}
 		logger.Error().
 			Err(err).
 			Int("date_id", dateID).
