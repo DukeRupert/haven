@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"sort"
 
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/types"
@@ -172,32 +173,71 @@ func newRouteContext(c echo.Context) *dto.RouteContext {
 	}
 }
 
+// Add this new type and function for sorting
+type NavItems []dto.NavItem
+
+// Define the desired order
+var navOrder = map[string]int{
+    "Calendar":   1,
+    "Profile":    2,
+    "Users":      3,
+    "Facilities": 4,
+    // Add other items with higher numbers if needed
+}
+
+// Implement sort.Interface for NavItems
+func (n NavItems) Len() int { return len(n) }
+func (n NavItems) Swap(i, j int) { n[i], n[j] = n[j], n[i] }
+func (n NavItems) Less(i, j int) bool {
+    // Get order values, default to a high number if not found
+    iOrder, iExists := navOrder[n[i].Name]
+    jOrder, jExists := navOrder[n[j].Name]
+    
+    // If neither exists in the order map, sort alphabetically
+    if !iExists && !jExists {
+        return n[i].Name < n[j].Name
+    }
+    
+    // Items not in the order map go last
+    if !iExists {
+        return false
+    }
+    if !jExists {
+        return true
+    }
+    
+    return iOrder < jOrder
+}
+
 // getRouteContext extracts and validates route context
 func BuildNav(routeCtx *dto.RouteContext, auth *dto.AuthContext, currentPath string) []dto.NavItem {
-	navItems := []dto.NavItem{}
+    navItems := NavItems{} // Change type to NavItems
 
-	for configPath, config := range RouteConfigs {
-		// Skip if user doesn't have required role
-		if !IsAtLeastRole(string(auth.Role), string(config.MinRole)) {
-			continue
-		}
+    for configPath, config := range RouteConfigs {
+        // Skip if user doesn't have required role
+        if !IsAtLeastRole(string(auth.Role), string(config.MinRole)) {
+            continue
+        }
 
-		// Build full path using facility code from auth context
-		fullPath := configPath
-		if config.RequiresFacility && auth.FacilityCode != "" {
-			fullPath = fmt.Sprintf("/facility/%s%s", auth.FacilityCode, configPath)
-		}
+        // Build full path using facility code from auth context
+        fullPath := configPath
+        if config.RequiresFacility && auth.FacilityCode != "" {
+            fullPath = fmt.Sprintf("/facility/%s%s", auth.FacilityCode, configPath)
+        }
 
-		navItems = append(navItems, dto.NavItem{
-			Path:    fullPath,
-			Name:    config.Title,
-			Icon:    config.Icon,
-			Active:  isActiveRoute(routeCtx.CurrentPath, fullPath, RouteConfigs),
-			Visible: true,
-		})
-	}
+        navItems = append(navItems, dto.NavItem{
+            Path:    fullPath,
+            Name:    config.Title,
+            Icon:    config.Icon,
+            Active:  isActiveRoute(routeCtx.CurrentPath, fullPath, RouteConfigs),
+            Visible: true,
+        })
+    }
 
-	return navItems
+    // Sort the nav items
+    sort.Sort(navItems)
+
+    return navItems
 }
 
 // isActiveRoute checks if the current path matches the nav item or its children
