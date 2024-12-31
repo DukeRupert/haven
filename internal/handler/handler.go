@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"github.com/DukeRupert/haven/internal/auth"
 	"github.com/DukeRupert/haven/internal/mail"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/repository"
@@ -20,7 +19,6 @@ type Cfg struct {
 
 type Config struct {
 	Repos        *repository.Repositories
-	Auth         *auth.Middleware
 	Logger       zerolog.Logger
 	BaseURL      string
 	MailerConfig MailerConfig
@@ -35,7 +33,6 @@ type MailerConfig struct {
 
 type Handler struct {
 	repos    *repository.Repositories
-	auth     *auth.Middleware
 	logger   zerolog.Logger
 	config   Cfg
 	mailer   *mail.Mailer
@@ -56,7 +53,6 @@ func New(cfg Config) (*Handler, error) {
 
 	return &Handler{
 		repos:  cfg.Repos,
-		auth:   cfg.Auth,
 		logger: cfg.Logger.With().Str("component", "handler").Logger(),
 		config: Cfg{BaseURL: cfg.BaseURL},
 		mailer: mailer,

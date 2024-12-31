@@ -1,37 +1,24 @@
-package auth
+package handler
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/store"
 	"github.com/DukeRupert/haven/web/view/alert"
-
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
-	"github.com/rs/zerolog"
+	"golang.org/x/crypto/bcrypt"
 )
 
-// Handler configuration
-type HandlerConfig struct {
-	Service *Service
-	Logger  zerolog.Logger
-}
-
-// Handler struct
-type Handler struct {
-	service *Service
-	logger  zerolog.Logger
-}
-
-// NewHandler creates a new auth handler
-func NewHandler(cfg HandlerConfig) *Handler {
-	return &Handler{
-		service: cfg.Service,
-		logger:  cfg.Logger.With().Str("component", "auth_handler").Logger(),
-	}
-}
+// Common errors
+var (
+	ErrInvalidCredentials = errors.New("invalid credentials")
+)
 
 // LoginParams represents the expected login request body
 type LoginParams struct {
@@ -79,7 +66,7 @@ func (h *Handler) LoginHandler() echo.HandlerFunc {
 		}
 
 		// Authenticate using the service (don't verify password again)
-		user, err := h.service.Authenticate(c.Request().Context(), params.Email, params.Password)
+		user, err := h.Authenticate(c.Request().Context(), params.Email, params.Password)
 		if err != nil {
 			logger.Debug().Err(err).Str("email", params.Email).Msg("authentication failed")
 			return h.LoginResponse(c, http.StatusUnauthorized, "Login Failed",
@@ -87,7 +74,7 @@ func (h *Handler) LoginHandler() echo.HandlerFunc {
 		}
 
 		// Get facility
-		facility, err := h.service.repos.Facility.GetByID(c.Request().Context(), user.FacilityID)
+		facility, err := h.repos.Facility.GetByID(c.Request().Context(), user.FacilityID)
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to get facility")
 			return h.LoginResponse(c, http.StatusInternalServerError, "System Error",
@@ -95,12 +82,12 @@ func (h *Handler) LoginHandler() echo.HandlerFunc {
 		}
 
 		// Set session values
-		sess.Values[SessionKeyUserID] = user.ID
-		sess.Values[SessionKeyRole] = user.Role
-		sess.Values[SessionKeyInitials] = user.Initials
-		sess.Values[SessionKeyFacilityCode] = facility.Code
-		sess.Values[SessionKeyFacilityID] = facility.ID
-		sess.Values[SessionKeyLastAccess] = time.Now()
+		sess.Values[store.SessionKeyUserID] = user.ID
+		sess.Values[store.SessionKeyRole] = user.Role
+		sess.Values[store.SessionKeyInitials] = user.Initials
+		sess.Values[store.SessionKeyFacilityCode] = facility.Code
+		sess.Values[store.SessionKeyFacilityID] = facility.ID
+		sess.Values[store.SessionKeyLastAccess] = time.Now()
 
 		h.logger.Debug().
 			Interface("session_values", sess.Values).
@@ -117,11 +104,11 @@ func (h *Handler) LoginHandler() echo.HandlerFunc {
 
 		logger.Debug().
 			Interface("session_values", map[string]interface{}{
-				"user_id":       sess.Values[SessionKeyUserID],
-				"role":          sess.Values[SessionKeyRole],
-				"initials":      sess.Values[SessionKeyInitials],
-				"facility_code": sess.Values[SessionKeyFacilityCode],
-				"facility_id":   sess.Values[SessionKeyFacilityID],
+				"user_id":       sess.Values[store.SessionKeyUserID],
+				"role":          sess.Values[store.SessionKeyRole],
+				"initials":      sess.Values[store.SessionKeyInitials],
+				"facility_code": sess.Values[store.SessionKeyFacilityCode],
+				"facility_id":   sess.Values[store.SessionKeyFacilityID],
 			}).
 			Msg("session values after save")
 
@@ -169,7 +156,7 @@ func (h *Handler) LogoutHandler() echo.HandlerFunc {
 
 		// Clear any additional cookies your app might use
 		clearCookie(c, store.DefaultSessionName)
-		
+
 		// Prevent caching
 		c.Response().Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		c.Response().Header().Set("Pragma", "no-cache")
@@ -180,6 +167,26 @@ func (h *Handler) LogoutHandler() echo.HandlerFunc {
 		// Use 303 See Other to ensure a GET request to login page
 		return c.Redirect(http.StatusSeeOther, "/login")
 	}
+}
+
+// Authenticate verifies user credentials
+func (h *Handler) Authenticate(ctx context.Context, email, password string) (*entity.User, error) {
+	log := h.logger.With().Str("method", "Authenticate").Logger()
+
+	user, err := h.repos.User.GetByEmail(ctx, email)
+	if err != nil {
+		log.Debug().Str("email", email).Err(err).Msg("user lookup failed")
+		return nil, ErrInvalidCredentials
+	}
+
+	// Verify password
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		log.Debug().Str("email", email).Msg("invalid password")
+		return nil, ErrInvalidCredentials
+	}
+
+	return user, nil
 }
 
 // Clear any other auth-related cookies if they exist
@@ -212,16 +219,4 @@ func redirectToLogin(c echo.Context) error {
 	}
 	// For regular requests, redirect to login
 	return c.Redirect(http.StatusTemporaryRedirect, "/login")
-}
-
-func isAPIRequest(c echo.Context) bool {
-	// Check Accept header
-	if c.Request().Header.Get("Accept") == "application/json" {
-		return true
-	}
-	// Check if it's an XHR request
-	if c.Request().Header.Get("X-Requested-With") == "XMLHttpRequest" {
-		return true
-	}
-	return false
 }

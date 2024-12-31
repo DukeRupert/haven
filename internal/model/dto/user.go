@@ -15,20 +15,32 @@ type PageContext struct {
 	Nav   []NavItem
 }
 
-// AuthContext handles all user and authorization data
-type AuthContext struct {
-	UserID       int            `json:"user_id"`
-	Role         types.UserRole `json:"role"`
-	Initials     string         `json:"initials"`
-	FacilityID   int            `json:"facility_id"`
-	FacilityCode string         `json:"facility_code"`
+type AuthContextData struct {
+    UserID       int
+    Role         types.UserRole
+    Initials     string
+    FacilityID   int
+    FacilityCode string
 }
+
+type AuthDataProvider interface {
+    GetUser() (*entity.User, error)
+    GetFacility() (*entity.Facility, error)
+}
+
+type AuthContext struct {
+    AuthContextData
+    Provider AuthDataProvider
+}
+
 
 // RouteContext focuses only on routing/path information
 type RouteContext struct {
-	BasePath    string // Base path including facility prefix (e.g., "/facility/KHLN")
-	CurrentPath string // Current route pattern with parameters (e.g., "/controllers/:id")
-	FullPath    string // Actual full URL path (e.g., "/facility/KHLN/controllers/123")
+	BasePath     string // Base path including facility prefix (e.g., "/facility/KHLN")
+	CurrentPath  string // Current route pattern with parameters (e.g., "/controllers/:id")
+	FullPath     string // Actual full URL path (e.g., "/facility/KHLN/controllers/123")
+	FacilityCode string
+	UserInitials string
 }
 
 // NavItem remains focused on navigation structure
@@ -49,14 +61,14 @@ type Route struct {
 }
 
 type UserPageProps struct {
-	PageCtx		PageContext
-    Title       string
-    Description string
-    Details     *UserDetails
+	PageCtx     PageContext
+	Title       string
+	Description string
+	Details     *UserDetails
 }
 
 type CalendarPageProps struct {
-	PageCtx		PageContext
+	PageCtx     PageContext
 	Title       string
 	Description string
 	Calendar    CalendarProps

@@ -5,23 +5,36 @@ import (
 	"github.com/DukeRupert/haven/internal/auth"
 	"github.com/DukeRupert/haven/internal/context"
 	"github.com/DukeRupert/haven/internal/model/types"
+	"github.com/DukeRupert/haven/internal/middleware"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	echoMiddleware "github.com/labstack/echo/v4/middleware"
 )
 
 /*
+OLD
 User Self-service: 	/api/user/*
 Facility admin: 	/api/facility/:facility_id/*
 Super admin: 		/api/admin/facilities/*
 */
 
-func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *auth.Handler, ctx *context.RouteContextMiddleware) {
+/*
+NEW
+Public: 			/
+Authenticated:		/app/
+Super:				/app/admin/
+Facility:			/app/facility_code/
+User:				/app/facility_code/user_initials/
+Api: 				/app/api/facility_code/user_initials/
+*/
+
+func SetupRoutes(e *echo.Echo, h *Handler, m *middleware.Middleware) {
 	// Global middleware
-	e.Pre(middleware.RemoveTrailingSlash())
+	e.Pre(echoMiddleware.RemoveTrailingSlash())
+	e.Use(echoMiddleware.RequestID())
 	e.Use(RequestLogger(h.logger))
 	e.Use(ErrorLogger(h.logger))
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+	e.Use(echoMiddleware.CORSWithConfig(echoMiddleware.CORSConfig{
 		AllowOrigins: []string{h.config.BaseURL, "https://sturdy-train-vq455j4p4rwf666v-8080.app.github.dev"},
 		AllowMethods: []string{echo.GET, echo.PUT, echo.POST, echo.DELETE},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
@@ -37,10 +50,19 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 			return nil
 		}
 	})
-	e.Use(middleware.Recover())
-	e.Use(middleware.RequestID())
-	routeCtxMiddleware := context.NewRouteContextMiddleware(h.logger)
-	e.Use(routeCtxMiddleware.WithRouteContext())
+	e.Use(echoMiddleware.Recover())
+
+	/*
+	   middleware := middleware.NewMiddleware(middleware.Config{
+	       Repos:  repositories,
+	       Logger: logger,
+	   })
+
+	   // In your route setup
+	   e.Use(middleware.Auth())
+	   e.Use(middleware.RouteContext())
+	*/
+	ctxMiddleware := context.NewRouteContextMiddleware(h.logger)
 
 	// Public routes - no group or additional middleware needed
 	e.GET("/", h.GetHome)
@@ -55,7 +77,9 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	e.POST("/set-password", h.HandleSetPassword)
 	e.GET("/resend-verification", h.HandleResendVerification)
 
-	// Protected routes
+	// Protected routes, require successful login to access
+	app := e.Group("/app", auth.Auth(), ctxMiddleware.RouteContext())
+	app.GET("/calendar", h.WithNav(h.HandleCalendar))
 
 	/* 	User self-service endpoints
 	/profile
@@ -79,7 +103,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, auth *auth.Middleware, authHandler *a
 	/*
 		/facility/:facility_id/users
 	*/
-	users := facility.Group("/users",auth.Auth(), auth.RequireRole(types.UserRoleAdmin))
+	users := facility.Group("/users", auth.Auth(), auth.RequireRole(types.UserRoleAdmin))
 	{
 		users.GET("", h.WithNav(h.HandleUsers))
 		users.POST("", h.HandleCreateUser)

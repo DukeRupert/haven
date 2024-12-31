@@ -20,8 +20,15 @@ type PgxStore struct {
 	logger   zerolog.Logger
 }
 
+// SessionKeys defines constants for session value keys
 const (
-	DefaultSessionName = "session"
+	DefaultSessionName     = "session"
+	SessionKeyUserID       = "user_id"
+	SessionKeyRole         = "role"
+	SessionKeyInitials     = "initials"
+	SessionKeyFacilityID   = "facility_id"
+	SessionKeyFacilityCode = "facility_code"
+	SessionKeyLastAccess   = "last_access"
 )
 
 func NewPgxStore(repo *session.Repository, keyPairs ...[]byte) (*PgxStore, error) {

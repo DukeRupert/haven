@@ -3,59 +3,14 @@ package handler
 import (
 	"fmt"
 	"regexp"
-	"strings"
-	"time"
 	"sort"
+	"strings"
 
+	"github.com/DukeRupert/haven/internal/middleware"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/labstack/echo/v4"
-	"github.com/rs/zerolog"
 )
-
-func RequestLogger(logger zerolog.Logger) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			req := c.Request()
-			res := c.Response()
-
-			start := time.Now()
-
-			err := next(c)
-			if err != nil {
-				c.Error(err)
-			}
-
-			stop := time.Now()
-
-			logger.Info().
-				Str("method", req.Method).
-				Str("path", req.URL.Path).
-				Int("status", res.Status).
-				Str("ip", c.RealIP()).
-				Dur("latency", stop.Sub(start)).
-				Msg("Request handled")
-
-			return err
-		}
-	}
-}
-
-func ErrorLogger(logger zerolog.Logger) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			err := next(c)
-			if err != nil {
-				logger.Error().
-					Err(err).
-					Str("path", c.Request().URL.Path).
-					Str("method", c.Request().Method).
-					Msg("Request error occurred")
-			}
-			return err
-		}
-	}
-}
 
 // RouteConfig defines the configuration for a route including access control
 type RouteConfig struct {
@@ -115,7 +70,7 @@ func (h *Handler) WithNav(fn HandlerFunc) echo.HandlerFunc {
 			return err
 		}
 
-		auth, err := GetAuthContext(c)
+		auth, err := middleware.GetAuthContext(c)
 		if err != nil {
 			return err
 		}
@@ -178,66 +133,66 @@ type NavItems []dto.NavItem
 
 // Define the desired order
 var navOrder = map[string]int{
-    "Calendar":   1,
-    "Profile":    2,
-    "Users":      3,
-    "Facilities": 4,
-    // Add other items with higher numbers if needed
+	"Calendar":   1,
+	"Profile":    2,
+	"Users":      3,
+	"Facilities": 4,
+	// Add other items with higher numbers if needed
 }
 
 // Implement sort.Interface for NavItems
-func (n NavItems) Len() int { return len(n) }
+func (n NavItems) Len() int      { return len(n) }
 func (n NavItems) Swap(i, j int) { n[i], n[j] = n[j], n[i] }
 func (n NavItems) Less(i, j int) bool {
-    // Get order values, default to a high number if not found
-    iOrder, iExists := navOrder[n[i].Name]
-    jOrder, jExists := navOrder[n[j].Name]
-    
-    // If neither exists in the order map, sort alphabetically
-    if !iExists && !jExists {
-        return n[i].Name < n[j].Name
-    }
-    
-    // Items not in the order map go last
-    if !iExists {
-        return false
-    }
-    if !jExists {
-        return true
-    }
-    
-    return iOrder < jOrder
+	// Get order values, default to a high number if not found
+	iOrder, iExists := navOrder[n[i].Name]
+	jOrder, jExists := navOrder[n[j].Name]
+
+	// If neither exists in the order map, sort alphabetically
+	if !iExists && !jExists {
+		return n[i].Name < n[j].Name
+	}
+
+	// Items not in the order map go last
+	if !iExists {
+		return false
+	}
+	if !jExists {
+		return true
+	}
+
+	return iOrder < jOrder
 }
 
 // getRouteContext extracts and validates route context
 func BuildNav(routeCtx *dto.RouteContext, auth *dto.AuthContext, currentPath string) []dto.NavItem {
-    navItems := NavItems{} // Change type to NavItems
+	navItems := NavItems{} // Change type to NavItems
 
-    for configPath, config := range RouteConfigs {
-        // Skip if user doesn't have required role
-        if !IsAtLeastRole(string(auth.Role), string(config.MinRole)) {
-            continue
-        }
+	for configPath, config := range RouteConfigs {
+		// Skip if user doesn't have required role
+		if !IsAtLeastRole(string(auth.Role), string(config.MinRole)) {
+			continue
+		}
 
-        // Build full path using facility code from auth context
-        fullPath := configPath
-        if config.RequiresFacility && auth.FacilityCode != "" {
-            fullPath = fmt.Sprintf("/facility/%s%s", auth.FacilityCode, configPath)
-        }
+		// Build full path using facility code from auth context
+		fullPath := configPath
+		if config.RequiresFacility && auth.FacilityCode != "" {
+			fullPath = fmt.Sprintf("/facility/%s%s", auth.FacilityCode, configPath)
+		}
 
-        navItems = append(navItems, dto.NavItem{
-            Path:    fullPath,
-            Name:    config.Title,
-            Icon:    config.Icon,
-            Active:  isActiveRoute(routeCtx.CurrentPath, fullPath, RouteConfigs),
-            Visible: true,
-        })
-    }
+		navItems = append(navItems, dto.NavItem{
+			Path:    fullPath,
+			Name:    config.Title,
+			Icon:    config.Icon,
+			Active:  isActiveRoute(routeCtx.CurrentPath, fullPath, RouteConfigs),
+			Visible: true,
+		})
+	}
 
-    // Sort the nav items
-    sort.Sort(navItems)
+	// Sort the nav items
+	sort.Sort(navItems)
 
-    return navItems
+	return navItems
 }
 
 // isActiveRoute checks if the current path matches the nav item or its children
@@ -306,4 +261,3 @@ func IsAtLeastRole(userRole string, minRole string) bool {
 
 	return userRoleLevel >= minRoleLevel
 }
-

@@ -10,52 +10,17 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/DukeRupert/haven/internal/middleware"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
 	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/DukeRupert/haven/internal/response"
 	"github.com/a-h/templ"
-	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/bcrypt"
 )
-
-func GetAuthContext(c echo.Context) (*dto.AuthContext, error) {
-	sess, err := session.Get("session", c)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get session: %w", err)
-	}
-
-	userID, ok := sess.Values["user_id"].(int)
-	if !ok {
-		return nil, fmt.Errorf("invalid user_id in session")
-	}
-
-	role, ok := sess.Values["role"].(types.UserRole)
-	if !ok {
-		return nil, fmt.Errorf("invalid role in session")
-	}
-
-	auth := &dto.AuthContext{
-		UserID: userID,
-		Role:   role,
-	}
-
-	// Optional values
-	if initials, ok := sess.Values["initials"].(string); ok {
-		auth.Initials = initials
-	}
-	if facilityID, ok := sess.Values["facility_id"].(int); ok {
-		auth.FacilityID = facilityID
-	}
-	if facilityCode, ok := sess.Values["facility_code"].(string); ok {
-		auth.FacilityCode = facilityCode
-	}
-
-	return auth, nil
-}
 
 func canUpdateUser(auth *dto.AuthContext, targetUserID int) bool {
 	if auth.Role == types.UserRoleSuper {
@@ -159,7 +124,7 @@ func (h *Handler) validatePasswordUpdate(c echo.Context) (*passwordUpdateData, *
 	}
 
 	// Get auth context
-	auth, err := GetAuthContext(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		return nil, nil, response.Error(c,
 			http.StatusInternalServerError,

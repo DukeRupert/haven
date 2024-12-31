@@ -13,6 +13,7 @@ import (
 	"github.com/DukeRupert/haven/internal/config"
 	"github.com/DukeRupert/haven/internal/context"
 	"github.com/DukeRupert/haven/internal/handler"
+	"github.com/DukeRupert/haven/internal/middleware"
 	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/DukeRupert/haven/internal/repository"
 	"github.com/DukeRupert/haven/internal/store"
@@ -103,7 +104,7 @@ func main() {
 		Logger().
 		Level(getLogLevel()) // We'll define this function below
 
-		// Load configuration
+	// Load configuration
 	config, err := config.Load()
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
@@ -145,28 +146,14 @@ func main() {
 	// Add session middleware at application level
 	e.Use(session.Middleware(sessionStore))
 
-	// Initialize auth service
-	authService := auth.NewService(auth.Config{
+	middleware := middleware.NewMiddleware(middleware.Config{
 		Repos:  repos,
 		Logger: logger,
 	})
 
-	// Initialize auth middleware
-	authMiddleware := auth.NewMiddleware(authService, logger)
-
-	// Initialize auth handler
-	authHandler := auth.NewHandler(auth.HandlerConfig{
-		Service: authService,
-		Logger:  logger,
-	})
-
-	// Initialize other middleware
-	routeCtxMiddleware := context.NewRouteContextMiddleware(logger)
-
 	// Initialize main application handler
 	appHandler, err := handler.New(handler.Config{
 		Repos:   repos,
-		Auth:    authMiddleware,
 		Logger:  logger,
 		BaseURL: config.BaseURL,
 		MailerConfig: handler.MailerConfig{
@@ -180,7 +167,7 @@ func main() {
 	}
 
 	// Setup routes with all components
-	handler.SetupRoutes(e, appHandler, authMiddleware, authHandler, routeCtxMiddleware)
+	handler.SetupRoutes(e, appHandler, middleware)
 
 	// Create and start token cleaner
 	tokenCleaner := worker.NewTokenCleaner(
