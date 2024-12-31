@@ -45,7 +45,7 @@ func HashPassword() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 1)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"max-w-md mx-auto p-6\"><h1 class=\"text-2xl font-bold mb-4\">Password Hash Utility</h1><form hx-post=\"/hash-password\" hx-swap=\"afterend\" class=\"space-y-4\"><div><label for=\"password\" class=\"block text-sm font-medium\">Password</label> <input type=\"password\" id=\"password\" name=\"password\" required class=\"mt-1 block w-full rounded-md border-gray-300 shadow-sm\"></div><button type=\"submit\" class=\"w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500\">Generate Hash</button></form></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -73,7 +73,7 @@ func Facilities(pageCtx dto.PageContext, title string, description string, facs 
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 1)
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button hx-get=\"/api/admin/facilities/create\" hx-target=\"#facility-list\" hx-swap=\"afterbegin\" hx-target-error=\"#global-alert\" hx-indicator=\"#loading-overlay\" type=\"button\" class=\"ml-3 inline-flex items-center rounded-md bg-picton-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600\">Add</button>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -83,7 +83,7 @@ func Facilities(pageCtx dto.PageContext, title string, description string, facs 
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 2)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" <ul id=\"facility-list\" role=\"list\" class=\"mt-8 divide-y divide-gray-100\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -93,7 +93,7 @@ func Facilities(pageCtx dto.PageContext, title string, description string, facs 
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 3)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</ul>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -134,7 +134,7 @@ func FacilityListItem(f entity.Facility) templ.Component {
 			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 4)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<li hx-target=\"this\" hx-swap=\"outerHTML\" class=\"flex flex-col sm:flex-row justify-between gap-x-6 gap-y-4 py-5\"><div class=\"flex min-w-0 gap-x-4\"><div class=\"min-w-0 flex-auto\"><p class=\"text-sm/6 font-semibold text-gray-900\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -147,7 +147,7 @@ func FacilityListItem(f entity.Facility) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 5)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p class=\"mt-1 truncate text-xs/5 text-gray-500\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -160,7 +160,7 @@ func FacilityListItem(f entity.Facility) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 6)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div><div class=\"flex gap-x-6 items-end\"><button hx-get=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -173,7 +173,7 @@ func FacilityListItem(f entity.Facility) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 7)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" class=\"text-picton-blue-600 hover:text-picton-blue-900\">Edit <span class=\"sr-only\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -186,7 +186,7 @@ func FacilityListItem(f entity.Facility) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 8)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span></button> <a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -195,7 +195,7 @@ func FacilityListItem(f entity.Facility) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 9)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" class=\"text-picton-blue-600 hover:text-picton-blue-900\">Manage <span class=\"sr-only\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -208,7 +208,7 @@ func FacilityListItem(f entity.Facility) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 10)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span></a></div></li>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -237,7 +237,7 @@ func CreateFacilityForm() templ.Component {
 			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 11)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<li id=\"create-facility-form\" hx-target=\"this\" hx-target-error=\"#global-alert\" hx-swap=\"outerHTML\" class=\"flex flex-col sm:flex-row justify-between gap-x-6 gap-y-4 py-5\"><form hx-post=\"./facilities\" hx-status=\"400, 500\" class=\"w-full flex flex-col sm:flex-row justify-between  gap-y-4 gap-x-6 mb-0\"><div class=\"w-full\"><label for=\"name\" class=\"block text-sm/6 font-medium text-gray-900\">Facility Name</label> <input id=\"name\" name=\"name\" type=\"text\" placeholder=\"Miranda Capital Spaceport\" class=\"block w-full ring-1 ring-inset ring-gray-300 py-1.5 pl-1 rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm\"></div><div class=\"w-full\"><label for=\"code\" class=\"block text-sm/6 font-medium text-gray-900\">Facility Code</label> <input id=\"code\" name=\"code\" type=\"text\" placeholder=\"KMIR\" class=\"block w-full ring-1 ring-inset ring-gray-300 py-1.5 pl-1 rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm\"></div><div class=\"flex gap-x-6 items-end\"><button @click.prevent=\"$el.closest(&#39;li&#39;).remove()\" class=\"text-sm/6 font-semibold text-gray-900\">Cancel</button> <button type=\"submit\" class=\"text-picton-blue-600 hover:text-picton-blue-900\">Save</button></div></form></li>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -266,7 +266,7 @@ func UpdateFacilityForm(f entity.Facility) templ.Component {
 			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 12)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<li hx-target=\"this\" hx-swap=\"outerHTML\" class=\"flex flex-col sm:flex-row justify-between gap-x-6 gap-y-4 py-5\"><form hx-put=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -279,7 +279,7 @@ func UpdateFacilityForm(f entity.Facility) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 13)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" class=\"w-full flex flex-col sm:flex-row justify-between  gap-y-4 gap-x-6 mb-0\"><div class=\"w-full\"><label for=\"name\" class=\"block text-sm/6 font-medium text-gray-900\">Facility Name</label> <input id=\"name\" name=\"name\" type=\"text\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -292,7 +292,7 @@ func UpdateFacilityForm(f entity.Facility) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 14)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" class=\"block w-full ring-1 ring-inset ring-gray-300 py-1.5 pl-1 rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm\"></div><div class=\"w-full\"><label for=\"code\" class=\"block text-sm/6 font-medium text-gray-900\">Facility Code</label> <input id=\"code\" name=\"code\" type=\"text\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -305,7 +305,7 @@ func UpdateFacilityForm(f entity.Facility) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 15)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" class=\"block w-full ring-1 ring-inset ring-gray-300 py-1.5 pl-1 rounded-md border-gray-300 shadow-sm focus:border-picton-blue-500 focus:ring-picton-blue-500 sm:text-sm\"></div><div class=\"flex gap-x-6 items-end\"><a href=\"./facilities\" class=\"text-sm/6 font-semibold text-gray-900\">Cancel</a> <button type=\"submit\" class=\"text-picton-blue-600 hover:text-picton-blue-900\">Save<span class=\"sr-only\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -318,7 +318,7 @@ func UpdateFacilityForm(f entity.Facility) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 16)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span></button></div></form></li>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

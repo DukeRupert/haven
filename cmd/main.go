@@ -9,9 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DukeRupert/haven/internal/auth"
 	"github.com/DukeRupert/haven/internal/config"
-	"github.com/DukeRupert/haven/internal/context"
 	"github.com/DukeRupert/haven/internal/handler"
 	"github.com/DukeRupert/haven/internal/middleware"
 	"github.com/DukeRupert/haven/internal/model/types"

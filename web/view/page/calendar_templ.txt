@@ -1,5 +1,0 @@
-<button type=\"button\" class=\"rounded-md bg-picton-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-500\" hx-put=\"
-\" hx-headers=\"
-\" hx-vals=\"
-\" hx-target=\"#global-alert\">Publish Schedule</button>
- 

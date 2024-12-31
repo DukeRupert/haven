@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/DukeRupert/haven/internal/middleware"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
@@ -54,7 +55,7 @@ func (h *Handler) HandleUsers(c echo.Context, ctx *dto.PageContext) error {
 	}
 
 	// Get auth context for role information
-	auth, err := h.auth.GetAuthContext(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		logger.Error().
 			Err(err).
@@ -174,7 +175,7 @@ func (h *Handler) HandleUpdateUser(c echo.Context) error {
 	}
 
 	// Get auth context
-	auth, err := h.auth.GetAuthContext(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return response.System(c)
@@ -247,7 +248,7 @@ func (h *Handler) HandleAdminUpdateUser(c echo.Context) error {
 	}
 
 	// Get auth context
-	auth, err := h.auth.GetAuthContext(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return response.System(c)
@@ -387,7 +388,7 @@ func (h *Handler) GetUpdatePasswordForm(c echo.Context) error {
 	}
 
 	// Get auth context for permission check
-	auth, err := h.auth.GetAuthContext(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return response.Error(c,
@@ -500,7 +501,7 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 	}
 
 	// Get auth context
-	auth, err := h.auth.GetAuthContext(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return response.Error(c,
@@ -614,7 +615,7 @@ func (h *Handler) validateFormAccess(c echo.Context) (*UpdateUserFormData, error
 	}
 
 	// Get auth context
-	auth, err := h.auth.GetAuthContext(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return nil, response.Error(c,

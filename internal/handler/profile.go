@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/DukeRupert/haven/internal/middleware"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/types"
 	"github.com/DukeRupert/haven/web/view/page"
@@ -18,7 +19,7 @@ func (h *Handler) HandleGetUser(c echo.Context, ctx *dto.PageContext) error {
         Str("facility", ctx.Auth.FacilityCode).
         Logger()
     
-    auth, err := h.auth.GetAuthContext(c)
+    auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		logger.Error().
 			Err(err).

@@ -8,11 +8,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/DukeRupert/haven/internal/repository/schedule"
+	"github.com/DukeRupert/haven/internal/middleware"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
 	"github.com/DukeRupert/haven/internal/model/types"
+	"github.com/DukeRupert/haven/internal/repository/schedule"
 	"github.com/DukeRupert/haven/internal/response"
 	"github.com/DukeRupert/haven/web/view/component"
 	"github.com/DukeRupert/haven/web/view/page"
@@ -27,7 +28,7 @@ func (h *Handler) HandleUpdatePublishedThrough(c echo.Context) error {
        Logger()
 
    // Get auth context
-   auth, err := h.auth.GetAuthContext(c)
+   auth, err := middleware.GetAuthContext(c)
    if err != nil {
        logger.Error().Err(err).Msg("failed to get auth context")
        return response.System(c)
@@ -90,7 +91,7 @@ func (h *Handler) HandleCreateSchedule(c echo.Context) error {
 	}
 
 	// Get auth context
-	auth, err := h.auth.GetAuthContext(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return response.System(c)
@@ -160,7 +161,7 @@ func (h *Handler) HandleGetSchedule(c echo.Context) error {
 	}
 
 	// Get auth context
-	auth, err := h.auth.GetAuthContext(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return response.System(c)
@@ -218,7 +219,7 @@ func (h *Handler) HandleAvailabilityToggle(c echo.Context) error {
 		Logger()
 
 	// Get auth context
-	auth, err := h.auth.GetAuthContext(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return response.System(c)
@@ -351,7 +352,7 @@ func (h *Handler) validateScheduleRequest(c echo.Context) (*scheduleRequestConte
 	}
 
 	// Get auth context
-	auth, err := h.auth.GetAuthContext(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		return nil, response.System(c)
 	}
@@ -477,7 +478,7 @@ func (h *Handler) validateScheduleUpdateRequest(c echo.Context) (*scheduleUpdate
 	}
 
 	// Get auth context
-	auth, err := h.auth.GetAuthContext(c)
+	auth, err :=middleware.GetAuthContext(c)
 	if err != nil {
 		return nil, response.System(c)
 	}
@@ -780,7 +781,7 @@ func (h *Handler) validateScheduleUpdate(c echo.Context) (*scheduleUpdateData, *
 	}
 
 	// Get auth context
-	auth, err := h.auth.GetAuthContext(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
 		return nil, nil, response.System(c)
