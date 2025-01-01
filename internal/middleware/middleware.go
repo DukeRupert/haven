@@ -264,6 +264,56 @@ func (m *Middleware) RequireFacilityAccess() echo.MiddlewareFunc {
     }
 }
 
+// RequireProfileAccess checks if user has permission to view the requested profile
+func (m *Middleware) RequireProfileAccess() echo.MiddlewareFunc {
+    return func(next echo.HandlerFunc) echo.HandlerFunc {
+        return func(c echo.Context) error {
+            logger := m.logger.With().
+                Str("path", c.Path()).
+                Logger()
+
+            // Get auth and route contexts
+            auth, err := GetAuthContext(c)
+            if err != nil {
+                logger.Error().Msg("No auth context found")
+                return echo.NewHTTPError(http.StatusUnauthorized, "unauthorized")
+            }
+
+            // Get requested user initials from route parameter
+            requestedInitials := c.Param("user_initials")
+            if requestedInitials == "" {
+                logger.Error().Msg("No user initials in route")
+                return echo.NewHTTPError(http.StatusBadRequest, "user initials required")
+            }
+
+            // Super and Admin users have access to all profiles within their facility scope
+            // (facility scope is already checked by previous middleware)
+            if auth.Role == types.UserRoleSuper || auth.Role == types.UserRoleAdmin {
+                logger.Debug().
+                    Str("user_role", string(auth.Role)).
+                    Str("requested_initials", requestedInitials).
+                    Msg("Access granted based on role")
+                return next(c)
+            }
+
+            // Regular users can only view their own profile
+            if auth.Initials != requestedInitials {
+                logger.Warn().
+                    Str("user_initials", auth.Initials).
+                    Str("requested_initials", requestedInitials).
+                    Msg("Profile access denied")
+                return echo.NewHTTPError(http.StatusForbidden, "insufficient permissions")
+            }
+
+            logger.Debug().
+                Str("user_initials", auth.Initials).
+                Msg("Profile access granted")
+
+            return next(c)
+        }
+    }
+}
+
 // Helper functions
 type authDataProvider struct {
 	repos      *repository.Repositories

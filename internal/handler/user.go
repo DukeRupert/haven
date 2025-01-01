@@ -19,7 +19,7 @@ import (
 )
 
 // HandleUsers renders the users list page for a specific facility
-func (h *Handler) HandleUsers(c echo.Context, ctx *dto.PageContext) error {
+func (h *Handler) HandleUsers(c echo.Context) error {
 	logger := h.logger.With().
 		Str("handler", "HandleUsers").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
@@ -322,40 +322,49 @@ func (h *Handler) HandleAdminUpdateUser(c echo.Context) error {
 	))
 }
 
-func (h *Handler) HandleDeleteUser(c echo.Context, ctx *dto.PageContext) error {
+func (h *Handler) HandleDeleteUser(c echo.Context) error {
 	logger := h.logger.With().
 		Str("handler", "HandleDeleteUser").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
-
-	// Validate user ID
-	userID, err := getUserID(c)
+	
+	// Get auth context
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
-		logger.Debug().
-			Err(err).
-			Str("user_id_param", c.Param("user_id")).
-			Msg("invalid user ID format")
-		return response.Error(c, http.StatusBadRequest,
-			"Invalid Request",
-			[]string{"Please provide a valid user ID"})
+		logger.Error().Msg("missing auth context")
+		return response.System(c)
+	}
+
+	// Get route context
+	route, err := middleware.GetRouteContext(c)
+	if err != nil {
+		logger.Error().Msg("missing route context")
+		return response.System(c)
+	}
+
+	// Verify params exist
+	if route.UserInitials == "" || route.FacilityCode == "" {
+		logger.Error().Msg("missing necessary params")
+		return response.System(c)
 	}
 
 	// Verify user exists and get details for logging
-	user, err := h.repos.User.GetByID(c.Request().Context(), userID)
+	user, err := h.repos.User.GetByInitialsAndFacility(c.Request().Context(), route.UserInitials, route.FacilityCode)
 	if err != nil {
 		logger.Error().
 			Err(err).
-			Int("user_id", userID).
+			Str("facility", route.FacilityCode).
+			Str("initials", route.UserInitials).
 			Msg("failed to fetch user")
 		return response.System(c)
 	}
 
 	// Check permissions using auth context from PageContext
-	if !canDeleteUser(ctx.Auth, user) {
+	if !canDeleteUser(auth, user) {
 		logger.Warn().
-			Int("target_user_id", userID).
-			Int("requesting_user_id", ctx.Auth.UserID).
-			Str("role", string(ctx.Auth.Role)).
+			Int("target_user_id", user.ID).
+			Int("requesting_user_id", auth.UserID).
+			Str("role", string(auth.Role)).
 			Msg("unauthorized deletion attempt")
 		return response.Error(c, http.StatusForbidden,
 			"Access Denied",
@@ -363,10 +372,10 @@ func (h *Handler) HandleDeleteUser(c echo.Context, ctx *dto.PageContext) error {
 	}
 
 	// Delete user
-	if err := h.repos.User.Delete(c.Request().Context(), userID); err != nil {
+	if err := h.repos.User.Delete(c.Request().Context(), user.ID); err != nil {
 		logger.Error().
 			Err(err).
-			Int("user_id", userID).
+			Int("user_id", user.ID).
 			Msg("failed to delete user")
 		return response.System(c)
 	}
@@ -377,8 +386,8 @@ func (h *Handler) HandleDeleteUser(c echo.Context, ctx *dto.PageContext) error {
 		Int("facility_id", user.FacilityID).
 		Msg("user deleted successfully")
 
-	// Handle HTMX response using facility code from auth context
-	return handleDeleteResponse(c, ctx.Auth.FacilityCode)
+	// Handle HTMX response using facility code from route context
+	return handleDeleteResponse(c, route.FacilityCode)
 }
 
 func handleDeleteResponse(c echo.Context, facilityCode string) error {
@@ -551,38 +560,6 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 
 // GetUpdateUserForm renders the form for updating a user
 func (h *Handler) GetUpdateUserForm(c echo.Context) error {
-	logger := h.logger.With().
-		Str("handler", "GetUpdateUserForm").
-		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
-		Logger()
-
-	// Validate input and permissions
-	formData, err := h.validateFormAccess(c)
-	if err != nil {
-		return err // validateFormAccess handles error responses
-	}
-
-	// Get user details
-	user, err := h.repos.User.GetByID(c.Request().Context(), formData.UserID)
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Int("user_id", formData.UserID).
-			Msg("failed to retrieve user")
-		return response.System(c)
-	}
-
-	logger.Debug().
-		Int("user_id", user.ID).
-		Str("email", user.Email).
-		Str("viewer_role", string(formData.Auth.Role)).
-		Msg("rendering update form")
-
-	return render(c, component.UpdateUserForm(*user, *formData.Auth))
-}
-
-// GetUpdateUserForm renders the form for updating a user
-func (h *Handler) GetAdminUpdateUserForm(c echo.Context) error {
 	logger := h.logger.With().
 		Str("handler", "GetUpdateUserForm").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).

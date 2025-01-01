@@ -10,58 +10,55 @@ import (
 )
 
 /*
-OLD
-User Self-service: 	/api/user/*
-Facility admin: 	/api/facility/:facility_id/*
-Super admin: 		/api/admin/facilities/*
-*/
-
-/*
-NEW
 Public: 			/
 Authenticated:		/app/
-Super:				/app/admin/
+Super:				/app/facilities/
 Facility:			/app/facility_code/
 User:				/app/facility_code/user_initials/
-Api: 				/app/api/facility_code/user_initials/
 */
 
+const (
+	PathFacilityID   = "/:facility_id"
+	PathFacilityCode = "/:facility_code"
+	PathUserInitials = "/:user_initials"
+	PathScheduleID   = "/:schedule_id"
+)
+
 func SetupRoutes(e *echo.Echo, h *Handler, m *middleware.Middleware) {
-	// Global middleware
+	setupGlobalMiddleware(e, h)
+	setupPublicRoutes(e, h)
+	setupAppRoutes(e, h, m)
+}
+
+func setupGlobalMiddleware(e *echo.Echo, h *Handler) {
 	e.Pre(echoMiddleware.RemoveTrailingSlash())
-	e.Use(echoMiddleware.RequestID())
-	e.Use(middleware.RequestLogger(h.logger))
-	e.Use(middleware.ErrorLogger(h.logger))
+	e.Use(
+		echoMiddleware.RequestID(),
+		middleware.RequestLogger(h.logger),
+		middleware.ErrorLogger(h.logger),
+		echoMiddleware.Recover(),
+	)
+
+	// CORS configuration
 	e.Use(echoMiddleware.CORSWithConfig(echoMiddleware.CORSConfig{
 		AllowOrigins: []string{h.config.BaseURL, "https://sturdy-train-vq455j4p4rwf666v-8080.app.github.dev"},
 		AllowMethods: []string{echo.GET, echo.PUT, echo.POST, echo.DELETE},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 	}))
-	// Custom error handling
+
+	// Error handling
 	e.HTTPErrorHandler = CustomHTTPErrorHandler
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			err := next(c)
-			if err != nil {
+			if err := next(c); err != nil {
 				c.Echo().HTTPErrorHandler(err, c)
 			}
 			return nil
 		}
 	})
-	e.Use(echoMiddleware.Recover())
+}
 
-	/*
-	   middleware := middleware.NewMiddleware(middleware.Config{
-	       Repos:  repositories,
-	       Logger: logger,
-	   })
-
-	   // In your route setup
-	   e.Use(middleware.Auth())
-	   e.Use(middleware.RouteContext())
-	*/
-
-	// Public routes - no group or additional middleware needed
+func setupPublicRoutes(e *echo.Echo, h *Handler) {
 	e.GET("/", h.GetHome)
 	e.GET("/login", h.GetLogin)
 	e.POST("/login", h.LoginHandler)
@@ -73,113 +70,77 @@ func SetupRoutes(e *echo.Echo, h *Handler, m *middleware.Middleware) {
 	e.GET("/set-password", h.GetSetPassword)
 	e.POST("/set-password", h.HandleSetPassword)
 	e.GET("/resend-verification", h.HandleResendVerification)
+}
 
-	// Protected routes, require successful login to access
-	app := e.Group("/app", m.Auth(), m.RouteContext())
-	app.GET("/calendar", h.HandleCalendar)
-	app.GET("/profile", h.HandleGetUser)
+func setupAppRoutes(e *echo.Echo, h *Handler, m *middleware.Middleware) {
+   // Base app group with auth
+   app := e.Group("/app", m.Auth(), m.RouteContext())
+   // Complete path: /app/calendar
+   app.GET("/calendar", h.HandleCalendar)
+   // Complete path: /app/profile  
+   app.GET("/profile", h.HandleGetUser)
 
-	// Super routes TODO: Add Super requirement
-	admin := e.Group("/admin")
-	admin.GET("/facilities", h.HandleGetFacilities, m.RequireRole(types.UserRoleSuper))
+   // Facility management (require super role)
+   facilities := app.Group("/facilities", m.RequireRole(types.UserRoleSuper))
+   {
+       // Complete path: /app/facilities
+       facilities.GET("", h.HandleGetFacilities)
+       facilities.POST("", h.HandleCreateFacility)
+       // Complete path: /app/facilities/create
+       facilities.GET("/create", h.GetCreateFacilityForm)
+       // Complete path: /app/facilities/edit
+       facilities.GET("/edit", h.GetUpdateFacilityForm)
+       // Complete path: /app/facilities/:facility_id
+       facilities.PUT(PathFacilityID, h.HandleUpdateFacility)
+       facilities.DELETE(PathFacilityID, h.HandleDeleteFacility)
+   }
 
-	/* 	User self-service endpoints
-	/profile
-	*/
-	self := e.Group("/profile", m.Auth())
-	{
-		self.GET("", h.HandleGetUser)
-		self.PUT("/:user_id", h.HandleUpdateUser)
-		self.GET("/:user_id/edit", h.GetUpdateUserForm)
-		self.PUT("/:user_id/password", h.HandleUpdatePassword)
-		self.GET("/:user_id/password", h.GetUpdatePasswordForm)
-		self.POST("/availability/:id", h.HandleAvailabilityToggle)
-	}
+   // Facility routes (require facility access)
+   facility := app.Group(PathFacilityCode, m.RequireFacilityAccess())
+   {
+       // Complete path: /app/:facility_code/calendar
+       facility.GET("/calendar", h.HandleCalendar)
+       // Complete path: /app/:facility_code/publish
+       facility.PUT("/publish", h.HandleUpdatePublishedThrough)
+   }
 
-	/* 	Facility specific endpoints (admin only)
-	/facility/:facility_id
-	*/
-	facility := e.Group("/facility/:facility_id", m.Auth())
-	facility.GET("/calendar", h.HandleCalendar)
+   // User management routes (requires admin role)
+   users := facility.Group("/users", m.RequireRole(types.UserRoleAdmin))
+   {
+       // Complete path: /app/:facility_code/users
+       users.GET("", h.HandleUsers)
+       users.POST("", h.HandleCreateUser)
+       // Complete path: /app/:facility_code/users/create
+       users.GET("/create", h.GetCreateUserForm)
+   }
 
-	/*
-		/facility/:facility_id/users
-	*/
-	users := facility.Group("/users", m.Auth())
-	{
-		users.GET("", h.WithNav(h.HandleUsers))
-		users.POST("", h.HandleCreateUser)
-		users.GET("/new", h.GetCreateUserForm)
-		users.GET("/:user_id", h.HandleGetUser)
-		users.PUT("/:user_id", h.HandleAdminUpdateUser)
-		users.DELETE("/:user_id", h.WithNav(h.HandleDeleteUser))
-		users.GET("/:user_id/edit", h.GetAdminUpdateUserForm)
-		users.GET("/:user_id/password", h.GetUpdatePasswordForm)
-	}
+   // User routes (requires profile access)
+   user := facility.Group(PathUserInitials, m.RequireProfileAccess())
+   {
+       // Complete path: /app/:facility_code/:user_initials
+       user.GET("", h.HandleGetUser)
+       user.PUT("", h.HandleUpdateUser)
+       user.DELETE("", h.HandleDeleteUser, m.RequireRole(types.UserRoleAdmin))
+       // Complete path: /app/:facility_code/:user_initials/edit
+       user.GET("/edit", h.GetUpdateUserForm)
+       // Complete path: /app/:facility_code/:user_initials/password
+       user.GET("/password", h.GetUpdatePasswordForm)
+       user.PUT("/password", h.HandleUpdatePassword)
+       // Complete path: /app/:facility_code/:user_initials/availability/:id
+       user.POST("/availability/:id", h.HandleAvailabilityToggle)
+   }
 
-	// API routes
-	api := e.Group("/api")
-	{
-
-		/* User self-service endpoints
-		/api/user/:user_id
-		*/
-		self := api.Group("/user/:user_id", m.Auth())
-		{
-			self.GET("", h.HandleGetUser)
-			self.PUT("", h.HandleUpdateUser)
-			self.DELETE("", h.WithNav(h.HandleDeleteUser))
-			self.GET("/edit", h.GetUpdateUserForm)
-			self.PUT("/password", h.HandleUpdatePassword)
-			self.GET("/password", h.GetUpdatePasswordForm)
-			self.POST("/availability/:id", h.HandleAvailabilityToggle)
-		}
-
-		/* Facility management (super admin only
-		/api/admin/facilities
-		*/
-		admin := api.Group("/admin", m.Auth())
-		{
-			admin.POST("/facilities", h.HandleCreateFacility)
-			admin.GET("/facilities/new", h.GetCreateFacilityForm)
-			admin.GET("/facilities/edit", h.GetUpdateFacilityForm)
-			admin.PUT("/facilities/:facility_id", h.HandleUpdateFacility)
-			admin.DELETE("/facilities/:facility_id", h.HandleDeleteFacility)
-		}
-
-		/* Facility-specific routes
-		/api/facility/:facility_id
-		*/
-		facility := api.Group("/facility/:facility_id", m.Auth())
-		{
-			facility.PUT("/publish", h.HandleUpdatePublishedThrough)
-
-			/* User management (admin only)
-			/api/facility/:facility_id/users
-			*/
-			users := facility.Group("/users")
-			{
-				users.GET("", h.WithNav(h.HandleUsers))
-				users.POST("", h.HandleCreateUser)
-				users.GET("/new", h.GetCreateUserForm)
-				users.GET("/:user_id",h.HandleGetUser)
-				users.PUT("/:user_id", h.HandleAdminUpdateUser)
-				users.DELETE("/:user_id", h.WithNav(h.HandleDeleteUser))
-				users.GET("/:user_id/edit", h.GetAdminUpdateUserForm)
-				users.GET("/:user_id/password", h.GetUpdatePasswordForm)
-			}
-
-			/* Schedule management
-			/api/facility/:facility_id/schedule
-			*/
-			schedule := facility.Group("/schedule")
-			{
-				schedule.POST("", h.HandleCreateSchedule)
-				schedule.GET("/new/:user_id", h.GetCreateScheduleForm)
-				schedule.GET("/:schedule_id", h.HandleGetSchedule)
-				schedule.PUT("/:schedule_id", h.HandleUpdateSchedule)
-				schedule.GET("/:schedule_id/edit", h.GetUpdateScheduleForm)
-			}
-		}
-	}
+   // Schedule routes
+   schedule := user.Group("/schedule")
+   {
+       // Complete path: /app/:facility_code/:user_initials/schedule
+       schedule.POST("", h.HandleCreateSchedule)
+       // Complete path: /app/:facility_code/:user_initials/schedule/:schedule_id
+       schedule.GET(PathScheduleID, h.HandleGetSchedule)
+       schedule.PUT(PathScheduleID, h.HandleUpdateSchedule)
+       // Complete path: /app/:facility_code/:user_initials/schedule/:user_id/create
+       schedule.GET("/:user_id/create", h.GetCreateScheduleForm)
+       // Complete path: /app/:facility_code/:user_initials/schedule/:schedule_id/edit
+       schedule.GET("/:schedule_id/edit", h.GetUpdateScheduleForm)
+   }
 }
