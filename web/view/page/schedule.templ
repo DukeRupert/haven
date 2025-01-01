@@ -15,9 +15,9 @@ templ ScheduleCard(auth dto.AuthContext, route dto.RouteContext, schedule entity
 					if auth.Role == "admin" || auth.Role == "super" {
 						<button
 							if route.FacilityCode != "" && route.UserInitials != "" {
-								hx-get={ fmt.Sprintf("/app/api/%s/%s/schedule/%d/edit", route.FacilityCode, route.UserInitials, schedule.ID) }
+								hx-get={ fmt.Sprintf("/app/%s/%s/schedule/%d/edit", route.FacilityCode, route.UserInitials, schedule.ID) }
 							} else {
-								hx-get={ fmt.Sprintf("/app/api/%s/%s/schedule/%d/edit", auth.FacilityCode, auth.Initials, schedule.ID) }
+								hx-get={ fmt.Sprintf("/app/%s/%s/schedule/%d/edit", auth.FacilityCode, auth.Initials, schedule.ID) }
 							}
 							hx-target="#schedule-card"
 							hx-swap="outerHTML"

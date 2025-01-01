@@ -13,7 +13,7 @@ import (
 	"github.com/DukeRupert/haven/internal/model/entity"
 )
 
-func UpdateScheduleForm(schedule entity.Schedule, facilityCode string) templ.Component {
+func UpdateScheduleForm(schedule entity.Schedule, facilityCode string, initials string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -39,9 +39,9 @@ func UpdateScheduleForm(schedule entity.Schedule, facilityCode string) templ.Com
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/facility/%s/schedule/%d", facilityCode, schedule.ID))
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/%s/%s/schedule/%d", facilityCode, initials, schedule.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/update_schedule_form.templ`, Line: 17, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/update_schedule_form.templ`, Line: 17, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -205,9 +205,9 @@ func UpdateScheduleForm(schedule entity.Schedule, facilityCode string) templ.Com
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/facility/%s/schedule/%d", facilityCode, schedule.ID))
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/%s/%s/schedule/%d", facilityCode, initials, schedule.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/update_schedule_form.templ`, Line: 73, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/update_schedule_form.templ`, Line: 73, Col: 92}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {

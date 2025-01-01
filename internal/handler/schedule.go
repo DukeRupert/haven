@@ -495,21 +495,74 @@ func (h *Handler) GetUpdateScheduleForm(c echo.Context) error {
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
-	logger.Debug().Msg("GetUpdateScheduleForm()")
-
-	// Validate request and get context
-	reqCtx, err := h.validateScheduleUpdateRequest(c)
+	// Get auth context
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
-		return err
+		logger.Error().Msg("missing auth context")
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			"Authentication is required",
+		)
+	}
+	
+	// Get route context
+	route, err := middleware.GetRouteContext(c)
+	if err != nil {
+		logger.Error().Msg("missing route context")
+		return response.System(c)
 	}
 
+	// Get schedule ID
+	scheduleID, err := getScheduleID(c)
+	if err != nil {
+		h.logger.Debug().
+			Err(err).
+			Str("schedule_id_param", c.Param("id")).
+			Msg("invalid schedule ID")
+		return response.Error(c,
+			http.StatusBadRequest,
+			"Invalid Request",
+			[]string{"Please provide a valid schedule ID"},
+		)
+	}
+
+	// Get schedule
+	schedule, err := h.repos.Schedule.GetByID(c.Request().Context(), scheduleID)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Int("schedule_id", scheduleID).
+			Msg("failed to retrieve schedule")
+		return response.System(c)
+	}
+
+	var facilityCode string
+    // If we're on a facility-specific route, use that facility code
+    if route.FacilityCode != "" {
+        facilityCode = route.FacilityCode
+    } else {
+        // Default to user's facility code for the general calendar route
+        if auth.FacilityCode == "" {
+            return echo.NewHTTPError(http.StatusBadRequest, "no facility available")
+        }
+        facilityCode = auth.FacilityCode
+    }
+
+	var userInitials string
+    // If we're on a user-specific route, use those initials
+    if route.UserInitials != "" {
+        userInitials = route.UserInitials
+    } else {
+        userInitials = auth.Initials
+    }
+
 	logger.Debug().
-		Int("schedule_id", reqCtx.ScheduleID).
-		Int("user_id", reqCtx.Schedule.UserID).
-		Int("facility_id", reqCtx.Facility.ID).
+		Int("schedule_id", scheduleID).
+		Str("user_initials", userInitials).
+		Str("facility_code", facilityCode).
 		Msg("rendering schedule update form")
 
-	return render(c, component.UpdateScheduleForm(*reqCtx.Schedule, reqCtx.Facility.Code))
+	return render(c, component.UpdateScheduleForm(*schedule, facilityCode, userInitials))
 }
 
 func (h *Handler) validateScheduleUpdateRequest(c echo.Context) (*scheduleUpdateContext, error) {
