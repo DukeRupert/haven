@@ -235,9 +235,9 @@ func EmptyScheduleCard(auth dto.AuthContext, route dto.RouteContext, schedule en
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var11 string
-				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/api/%s/%s/schedule/new", route.FacilityCode, route.UserInitials))
+				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/%s/%s/schedule/create", route.FacilityCode, route.UserInitials))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/schedule.templ`, Line: 85, Col: 99}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/schedule.templ`, Line: 85, Col: 98}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -253,9 +253,9 @@ func EmptyScheduleCard(auth dto.AuthContext, route dto.RouteContext, schedule en
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var12 string
-				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/api/%s/%s/schedule/new", auth.FacilityCode, auth.Initials))
+				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/%s/%s/schedule/create", auth.FacilityCode, auth.Initials))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/schedule.templ`, Line: 87, Col: 93}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/schedule.templ`, Line: 87, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {

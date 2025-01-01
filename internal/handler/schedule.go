@@ -83,13 +83,7 @@ func (h *Handler) HandleCreateSchedule(c echo.Context) error {
 		Str("handler", "HandleCreateSchedule").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
-
-	// Validate path parameters and form data
-	createData, err := h.validateCreateSchedule(c)
-	if err != nil {
-		return err // validateCreateSchedule handles error responses
-	}
-
+	
 	// Get auth context
 	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
@@ -104,17 +98,36 @@ func (h *Handler) HandleCreateSchedule(c echo.Context) error {
 		return response.System(c)
 	}
 
-	// Check if user can create schedule
-	if !canCreateSchedule(auth, createData.FacilityCode) {
-		logger.Warn().
-			Str("facility_code", createData.FacilityCode).
-			Str("user_role", string(auth.Role)).
-			Msg("unauthorized schedule creation attempt")
+	if err := ensureRouteParams(route); err != nil {
+        return err
+    }
+
+	// Parse form data
+	var formData params.CreateScheduleRequest
+	if err := c.Bind(&formData); err != nil {
 		return response.Error(c,
-			http.StatusForbidden,
-			"Access Denied",
-			[]string{"You don't have permission to create schedules"},
+			http.StatusBadRequest,
+			"Invalid Form Data",
+			[]string{"Please check your input and try again"},
 		)
+	}
+
+	// Parse and validate date
+	startDate, err := time.Parse("2006-01-02", formData.StartDate)
+	if err != nil {
+		return response.Error(c,
+			http.StatusBadRequest,
+			"Invalid Date",
+			[]string{"Please provide a valid start date (YYYY-MM-DD)"},
+		)
+	}
+
+	createData := &scheduleCreateData{
+		FacilityCode:  route.FacilityCode,
+		UserInitials:  route.UserInitials,
+		FirstWeekday:  time.Weekday(formData.FirstWeekday),
+		SecondWeekday: time.Weekday(formData.SecondWeekday),
+		StartDate:     startDate,
 	}
 
 	// Create schedule
@@ -333,21 +346,50 @@ func (h *Handler) GetCreateScheduleForm(c echo.Context) error {
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
-	// Validate request and get context
-	reqCtx, err := h.validateScheduleRequest(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
-		return err
+		logger.Error().Msg("missing auth context")
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			"Authentication is required",
+		)
+	}
+	
+	// Get route context
+	route, err := middleware.GetRouteContext(c)
+	if err != nil {
+		logger.Error().Msg("missing route context")
+		return response.System(c)
 	}
 
+	var facilityCode string
+    // If we're on a facility-specific route, use that facility code
+    if route.FacilityCode != "" {
+        facilityCode = route.FacilityCode
+    } else {
+        // Default to user's facility code for the general calendar route
+        if auth.FacilityCode == "" {
+            return echo.NewHTTPError(http.StatusBadRequest, "no facility available")
+        }
+        facilityCode = auth.FacilityCode
+    }
+
+	var userInitials string
+    // If we're on a user-specific route, use those initials
+    if route.UserInitials != "" {
+        userInitials = route.UserInitials
+    } else {
+        userInitials = auth.Initials
+    }
+
 	logger.Debug().
-		Str("facility_code", reqCtx.FacilityCode).
-		Str("user_initials", reqCtx.UserInitials).
-		Int("facility_id", reqCtx.Facility.ID).
+		Str("facility_code",facilityCode).
+		Str("user_initials", userInitials).
 		Msg("rendering schedule creation form")
 
 	return render(c, component.CreateScheduleForm(
-		reqCtx.FacilityCode,
-		reqCtx.UserInitials,
+		facilityCode,
+		userInitials,
 	))
 }
 

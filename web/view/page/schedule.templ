@@ -82,9 +82,9 @@ templ EmptyScheduleCard(auth dto.AuthContext, route dto.RouteContext, schedule e
 					if auth.Role  == "admin" || auth.Role == "super" {
 						<button
 							if route.FacilityCode != "" && route.UserInitials != "" {
-								hx-get={ fmt.Sprintf("/app/api/%s/%s/schedule/new", route.FacilityCode, route.UserInitials) }
+								hx-get={ fmt.Sprintf("/app/%s/%s/schedule/create", route.FacilityCode, route.UserInitials) }
 							} else {
-								hx-get={ fmt.Sprintf("/app/api/%s/%s/schedule/new", auth.FacilityCode, auth.Initials) }
+								hx-get={ fmt.Sprintf("/app/%s/%s/schedule/create", auth.FacilityCode, auth.Initials) }
 							}
 							hx-target="#schedule-card"
 							hx-swap="outerHTML"

@@ -130,16 +130,16 @@ func setupAppRoutes(e *echo.Echo, h *Handler, m *middleware.Middleware) {
        user.POST("/availability/:id", h.HandleAvailabilityToggle)
    }
 
-   // Schedule routes
-   schedule := user.Group("/schedule")
+   // Schedule routes (require admin role)
+   schedule := user.Group("/schedule",  m.RequireRole(types.UserRoleAdmin))
    {
        // Complete path: /app/:facility_code/:user_initials/schedule
        schedule.POST("", h.HandleCreateSchedule)
+       // Complete path: /app/:facility_code/:user_initials/schedule/create
+       schedule.GET("/create", h.GetCreateScheduleForm)
        // Complete path: /app/:facility_code/:user_initials/schedule/:schedule_id
        schedule.GET(PathScheduleID, h.HandleGetSchedule)
        schedule.PUT(PathScheduleID, h.HandleUpdateSchedule)
-       // Complete path: /app/:facility_code/:user_initials/schedule/:user_id/create
-       schedule.GET("/:user_id/create", h.GetCreateScheduleForm)
        // Complete path: /app/:facility_code/:user_initials/schedule/:schedule_id/edit
        schedule.GET("/:schedule_id/edit", h.GetUpdateScheduleForm)
    }

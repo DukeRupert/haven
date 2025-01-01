@@ -2,7 +2,7 @@ package component
 
 import "fmt"
 
-templ CreateScheduleForm(facility_code string, initials string) {
+templ CreateScheduleForm(facilityCode string, initials string) {
 	<div id="create-schedule-form" hx-target="this" hx-swap="outerHTML" hx-target-error="#global-alert" hx-indicator="#loading-overlay" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
@@ -11,7 +11,7 @@ templ CreateScheduleForm(facility_code string, initials string) {
 				</div>
 				<div class="mt-6">
 					<form
-						hx-post={ fmt.Sprintf("/api/schedule/%s/%s", facility_code, initials) }
+						hx-post={ fmt.Sprintf("/app/%s/%s/schedule", facilityCode, initials) }
 						hx-target="#create-schedule-form"
 						hx-swap="outerHTML"
 						hx-target-error="#global-alert"
@@ -64,16 +64,12 @@ templ CreateScheduleForm(facility_code string, initials string) {
 								</div>
 							</div>
 							<div class="flex justify-end space-x-3">
-								<button
-									type="button"
-									hx-get="./schedule/cancel"
-									hx-target="closest div.lg\\:col-span-2"
-									hx-target-error="#global-alert" 
-									hx-indicator="#loading-overlay"
+								<a
+									href={templ.URL(fmt.Sprintf("/app/%s/%s", facilityCode, initials))}
 									class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-picton-blue-500 focus:ring-offset-2"
 								>
 									Cancel
-								</button>
+								</a>
 								<button
 									type="submit"
 									class="inline-flex justify-center rounded-md border border-transparent bg-picton-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-picton-blue-700 focus:outline-none focus:ring-2 focus:ring-picton-blue-500 focus:ring-offset-2"

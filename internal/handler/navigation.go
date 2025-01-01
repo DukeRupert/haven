@@ -23,23 +23,22 @@ type RouteConfig struct {
 
 // RouteConfigs maps paths to their configurations
 var RouteConfigs = map[string]RouteConfig{
-	"/app/calendar": {
+	"/calendar": {
 		Title:            "Calendar",
 		Icon:             "calendar",
 		MinRole:          types.UserRoleUser,
-		RequiresFacility: true,
 		Children: []string{
 			"/calendar/:date",
 			"/calendar/:date/events",
 		},
 	},
-	"/app/profile": {
+	"/profile": {
 		Title:    "Profile",
 		Icon:     "user",
 		MinRole:  types.UserRoleUser,
 		Children: []string{"/profile/edit"},
 	},
-	"/app/users": {
+	"/users": {
 		Title:            "Users",
 		Icon:             "users",
 		MinRole:          types.UserRoleAdmin,
@@ -50,7 +49,7 @@ var RouteConfigs = map[string]RouteConfig{
 			"/users/:id/edit",
 		},
 	},
-	"/app/facilities": {
+	"/facilities": {
 		Title:   "Facilities",
 		Icon:    "building",
 		MinRole: types.UserRoleSuper,
@@ -167,6 +166,7 @@ func (n NavItems) Less(i, j int) bool {
 // getRouteContext extracts and validates route context
 func BuildNav(routeCtx *dto.RouteContext, auth *dto.AuthContext, currentPath string) []dto.NavItem {
 	navItems := NavItems{} // Change type to NavItems
+	basePath := "/app"
 
 	for configPath, config := range RouteConfigs {
 		// Skip if user doesn't have required role
@@ -177,7 +177,9 @@ func BuildNav(routeCtx *dto.RouteContext, auth *dto.AuthContext, currentPath str
 		// Build full path using facility code from auth context
 		fullPath := configPath
 		if config.RequiresFacility && auth.FacilityCode != "" {
-			fullPath = fmt.Sprintf("/facility/%s%s", auth.FacilityCode, configPath)
+			fullPath = fmt.Sprintf("%s/%s%s", basePath, auth.FacilityCode, configPath)
+		} else {
+			fullPath = fmt.Sprintf("%s%s", basePath, configPath)
 		}
 
 		navItems = append(navItems, dto.NavItem{
