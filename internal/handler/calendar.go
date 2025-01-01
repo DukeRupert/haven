@@ -15,9 +15,9 @@ import (
 // HandleCalendar renders the calendar view
 func (h *Handler) HandleCalendar(c echo.Context) error {
 	logger := h.logger.With().
-		Str("handler", "HandleCalendar").
-		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
-		Logger()
+        Str("handler", "HandleCalendar").
+        Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+        Logger()
 
 	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
@@ -38,17 +38,23 @@ func (h *Handler) HandleCalendar(c echo.Context) error {
 	}
 
 	// Get view date from query params or default to current month
-	viewDate, err := getViewDate(c.QueryParam("month"))
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Str("month_param", c.QueryParam("month")).
-			Msg("invalid month format")
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			"Invalid month format. Please use YYYY-MM",
-		)
-	}
+    monthParam := c.QueryParam("month")
+    logger.Debug().
+        Str("raw_month_param", monthParam).
+        Bool("has_month_param", monthParam != "").
+        Msg("Month parameter check")
+
+    viewDate, err := getViewDate(monthParam)
+    if err != nil {
+        logger.Error().
+            Err(err).
+            Str("month_param", monthParam).
+            Msg("invalid month format")
+        return echo.NewHTTPError(
+            http.StatusBadRequest,
+            "Invalid month format. Please use YYYY-MM",
+        )
+    }
 
 	var facilityCode string
     // If we're on a facility-specific route, use that facility code
@@ -81,14 +87,23 @@ func (h *Handler) HandleCalendar(c echo.Context) error {
 	// Build nav items
 	navItems := BuildNav(route, auth, c.Request().URL.Path)
 
-	// Build calendar props
-	calendarProps := dto.CalendarProps{
-		CurrentMonth:   viewDate,
-		FacilityCode:   auth.FacilityCode,
-		ProtectedDates: protectedDates,
-		UserRole:       auth.Role,
-		CurrentUserID:  auth.UserID,
-	}
+	 // Build calendar props
+    calendarProps := dto.CalendarProps{
+        CurrentMonth:    viewDate,
+        FacilityCode:   facilityCode,
+        ProtectedDates: protectedDates,
+        UserRole:       auth.Role,
+        CurrentUserID:  auth.UserID,
+    }
+
+    // Log the final calendar props
+    logger.Debug().
+        Time("calendar_month", calendarProps.CurrentMonth).
+        Str("facility_code", calendarProps.FacilityCode).
+        Int("protected_dates_count", len(protectedDates)).
+        Str("user_role", string(calendarProps.UserRole)).
+        Int("user_id", calendarProps.CurrentUserID).
+        Msg("Calendar props constructed")
 
 	// Build page props
 	pageProps := dto.CalendarPageProps{
@@ -99,13 +114,6 @@ func (h *Handler) HandleCalendar(c echo.Context) error {
 		RouteCtx: 	*route,
 		Calendar:    calendarProps,
 	}
-
-	logger.Debug().
-		Str("facility_code", fac).
-		Time("view_date", viewDate).
-		Int("protected_dates_count", len(protectedDates)).
-		Bool("is_htmx", isHtmxRequest(c)).
-		Msg("rendering calendar")
 
 	// Handle HTMX requests
 	if isHtmxRequest(c) {
@@ -129,8 +137,4 @@ func getViewDate(monthStr string) (time.Time, error) {
 	}
 	now := time.Now()
 	return time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local), nil
-}
-
-func isHtmxRequest(c echo.Context) bool {
-	return c.Request().Header.Get("HX-Request") == "true"
 }

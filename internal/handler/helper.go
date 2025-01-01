@@ -32,6 +32,10 @@ func canUpdateUser(auth *dto.AuthContext, targetUserID int) bool {
 	return auth.UserID == targetUserID
 }
 
+func isHtmxRequest(c echo.Context) bool {
+	return c.Request().Header.Get("HX-Request") == "true"
+}
+
 func (h *Handler) validateRoleChange(ctx context.Context, auth *dto.AuthContext,
 	userID int, newRole types.UserRole,
 ) error {

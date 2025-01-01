@@ -12,7 +12,7 @@ templ Calendar(props dto.CalendarProps) {
 			<button
 				type="button"
 				class="-m-1.5 flex flex-none items-center justify-center p-1.5 text-gray-400 hover:text-gray-500"
-				hx-get={ fmt.Sprintf("/%s/calendar?month=%s", props.FacilityCode, props.CurrentMonth.AddDate(0, -1, 0).Format("2006-01")) }
+				hx-get={ fmt.Sprintf("/app/%s/calendar?month=%s", props.FacilityCode, props.CurrentMonth.AddDate(0, -1, 0).Format("2006-01")) }
 				hx-target="closest div.mt-10"
 				hx-target-error="#global-alert"
 				hx-indicator="#loading-overlay"
@@ -28,7 +28,7 @@ templ Calendar(props dto.CalendarProps) {
 			<button
 				type="button"
 				class="-m-1.5 flex flex-none items-center justify-center p-1.5 text-gray-400 hover:text-gray-500"
-				hx-get={ fmt.Sprintf("/%s/calendar?month=%s", props.FacilityCode, props.CurrentMonth.AddDate(0, 1, 0).Format("2006-01")) }
+				hx-get={ fmt.Sprintf("/app/%s/calendar?month=%s", props.FacilityCode, props.CurrentMonth.AddDate(0, 1, 0).Format("2006-01")) }
 				hx-target="closest div.mt-10"
 				hx-target-error="#global-alert"
 				hx-indicator="#loading-overlay"
