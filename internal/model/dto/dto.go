@@ -16,23 +16,22 @@ type PageContext struct {
 }
 
 type AuthContextData struct {
-    UserID       int
-    Role         types.UserRole
-    Initials     string
-    FacilityID   int
-    FacilityCode string
+	UserID       int
+	Role         types.UserRole
+	Initials     string
+	FacilityID   int
+	FacilityCode string
 }
 
 type AuthDataProvider interface {
-    GetUser() (*entity.User, error)
-    GetFacility() (*entity.Facility, error)
+	GetUser() (*entity.User, error)
+	GetFacility() (*entity.Facility, error)
 }
 
 type AuthContext struct {
-    AuthContextData
-    Provider AuthDataProvider
+	AuthContextData
+	Provider AuthDataProvider
 }
-
 
 // RouteContext focuses only on routing/path information
 type RouteContext struct {
@@ -60,17 +59,39 @@ type Route struct {
 	NeedsFacility bool           // Whether route requires facility context
 }
 
-type UserPageProps struct {
-	PageCtx     PageContext
+type FacilityPageProps struct {
 	Title       string
 	Description string
+	NavItems	[]NavItem
+	AuthCtx     AuthContext
+	RouteCtx    RouteContext
+	Facilities []entity.Facility
+}
+
+type UsersPageProps struct {
+	Title       string
+	Description string
+	NavItems	[]NavItem
+	AuthCtx     AuthContext
+	RouteCtx    RouteContext
+	Users 		[]entity.User
+}
+
+type ProfilePageProps struct {
+	Title       string
+	Description string
+	NavItems	[]NavItem
+	AuthCtx     AuthContext
+	RouteCtx    RouteContext
 	Details     *UserDetails
 }
 
 type CalendarPageProps struct {
-	PageCtx     PageContext
 	Title       string
 	Description string
+	NavItems	[]NavItem
+	AuthCtx     AuthContext
+	RouteCtx    RouteContext
 	Calendar    CalendarProps
 }
 

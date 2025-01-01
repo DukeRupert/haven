@@ -9,22 +9,22 @@ import (
 )
 
 // "github.com/DukeRupert/haven/utils"
-templ UserPage(props dto.UserPageProps) {
+templ UserPage(props dto.ProfilePageProps) {
 	@layout.BaseLayout() {
-		@layout.AppLayout(props.PageCtx) {
+		@layout.AppLayout(props.NavItems) {
 			<!-- Bento Grid -->
 			<div class="grid gap-4 lg:grid-cols-3 lg:grid-rows-2">
 				<!-- User Profile Card - Spans 2 rows -->
 				<div class="relative lg:row-span-2">
 					<div class="h-full overflow-hidden rounded-lg bg-white shadow">
-						@UserDetails(props.Details.User, *props.PageCtx.Auth)
+						@UserDetails(props.Details.User, props.AuthCtx)
 					</div>
 				</div>
 				<!-- Schedule Card -->
 				if props.Details.Schedule.ID == 0 {
-					@EmptyScheduleCard(props.PageCtx, props.Details.Schedule)
+					@EmptyScheduleCard(props.AuthCtx, props.RouteCtx, props.Details.Schedule)
 				} else {
-					@ScheduleCard(props.PageCtx.Auth.Role, props.Details.Facility.Code, props.Details.Schedule)
+					@ScheduleCard(props.AuthCtx, props.RouteCtx, props.Details.Schedule)
 				}
 				<!-- Facility Card -->
 				<div class="relative lg:col-span-2">

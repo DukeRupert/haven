@@ -2,7 +2,7 @@ package layout
 
 import "github.com/DukeRupert/haven/internal/model/dto"
 
-templ Navigation(pageCtx dto.PageContext) {
+templ Navigation(NavItems []dto.NavItem) {
 	<nav class="border-b border-gray-200 bg-white" x-data="{ mobileMenuOpen: false, userMenuOpen: false }">
 		<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 			<div class="flex h-16 justify-between">
@@ -31,7 +31,7 @@ templ Navigation(pageCtx dto.PageContext) {
 						</div>
 					</div>
 					<div class="hidden sm:-my-px sm:ml-6 sm:flex sm:space-x-8">
-						for _, item := range pageCtx.Nav {
+						for _, item := range NavItems {
 							if item.Visible {
 								if item.Active {
 									<a
@@ -101,7 +101,7 @@ templ Navigation(pageCtx dto.PageContext) {
 			style="display: none;"
 		>
 			<div class="space-y-1 pb-3 pt-2">
-				for _, item := range pageCtx.Nav {
+				for _, item := range NavItems {
 					if item.Visible {
 						if item.Active {
 							<a

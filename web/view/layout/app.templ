@@ -2,9 +2,9 @@ package layout
 
 import "github.com/DukeRupert/haven/internal/model/dto"
 
-templ AppLayout(pageCtx dto.PageContext) {
+templ AppLayout(NavItems []dto.NavItem) {
 	<div class="min-h-full">
-		@Navigation(pageCtx)
+		@Navigation(NavItems)
 		<div class="py-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
 			{children...}
 		</div>

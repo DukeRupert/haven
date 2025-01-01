@@ -75,15 +75,15 @@ func CalendarPage(props dto.CalendarPageProps) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					if props.PageCtx.Auth.Role == types.UserRoleAdmin {
+					if props.AuthCtx.Role == types.UserRoleAdmin {
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button type=\"button\" class=\"rounded-md bg-picton-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-500\" hx-put=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var5 string
-						templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/facility/%s/publish", props.PageCtx.Auth.FacilityCode))
+						templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/api/facility/%s/publish", props.AuthCtx.FacilityCode))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/calendar.templ`, Line: 21, Col: 105}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/page/calendar.templ`, Line: 21, Col: 104}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 						if templ_7745c5c3_Err != nil {
@@ -136,7 +136,7 @@ func CalendarPage(props dto.CalendarPageProps) templ.Component {
 				}
 				return templ_7745c5c3_Err
 			})
-			templ_7745c5c3_Err = layout.AppLayout(props.PageCtx).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = layout.AppLayout(props.NavItems).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

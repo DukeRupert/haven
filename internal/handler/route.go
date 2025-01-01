@@ -3,6 +3,7 @@ package handler
 
 import (
 	"github.com/DukeRupert/haven/internal/middleware"
+	"github.com/DukeRupert/haven/internal/model/types"
 
 	"github.com/labstack/echo/v4"
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
@@ -63,8 +64,8 @@ func SetupRoutes(e *echo.Echo, h *Handler, m *middleware.Middleware) {
 	// Public routes - no group or additional middleware needed
 	e.GET("/", h.GetHome)
 	e.GET("/login", h.GetLogin)
-	e.POST("/login", h.LoginHandler())
-	e.POST("/logout", h.LogoutHandler())
+	e.POST("/login", h.LoginHandler)
+	e.POST("/logout", h.LogoutHandler)
 	e.GET("/register", h.GetRegistration)
 	e.POST("/register", h.HandleRegistration)
 	e.POST("/verify", h.InitiateEmailVerification)
@@ -75,14 +76,19 @@ func SetupRoutes(e *echo.Echo, h *Handler, m *middleware.Middleware) {
 
 	// Protected routes, require successful login to access
 	app := e.Group("/app", m.Auth(), m.RouteContext())
-	app.GET("/calendar", h.WithNav(h.HandleCalendar))
+	app.GET("/calendar", h.HandleCalendar)
+	app.GET("/profile", h.HandleGetUser)
+
+	// Super routes TODO: Add Super requirement
+	admin := e.Group("/admin")
+	admin.GET("/facilities", h.HandleGetFacilities, m.RequireRole(types.UserRoleSuper))
 
 	/* 	User self-service endpoints
 	/profile
 	*/
 	self := e.Group("/profile", m.Auth())
 	{
-		self.GET("", h.WithNav(h.HandleGetUser))
+		self.GET("", h.HandleGetUser)
 		self.PUT("/:user_id", h.HandleUpdateUser)
 		self.GET("/:user_id/edit", h.GetUpdateUserForm)
 		self.PUT("/:user_id/password", h.HandleUpdatePassword)
@@ -94,7 +100,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, m *middleware.Middleware) {
 	/facility/:facility_id
 	*/
 	facility := e.Group("/facility/:facility_id", m.Auth())
-	facility.GET("/calendar", h.WithNav(h.HandleCalendar))
+	facility.GET("/calendar", h.HandleCalendar)
 
 	/*
 		/facility/:facility_id/users
@@ -104,15 +110,12 @@ func SetupRoutes(e *echo.Echo, h *Handler, m *middleware.Middleware) {
 		users.GET("", h.WithNav(h.HandleUsers))
 		users.POST("", h.HandleCreateUser)
 		users.GET("/new", h.GetCreateUserForm)
-		users.GET("/:user_id", h.WithNav(h.HandleGetUser))
+		users.GET("/:user_id", h.HandleGetUser)
 		users.PUT("/:user_id", h.HandleAdminUpdateUser)
 		users.DELETE("/:user_id", h.WithNav(h.HandleDeleteUser))
 		users.GET("/:user_id/edit", h.GetAdminUpdateUserForm)
 		users.GET("/:user_id/password", h.GetUpdatePasswordForm)
 	}
-
-	// Facility Management (super only)
-	e.GET("/facilities", h.WithNav(h.HandleGetFacilities), m.Auth())
 
 	// API routes
 	api := e.Group("/api")
@@ -123,7 +126,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, m *middleware.Middleware) {
 		*/
 		self := api.Group("/user/:user_id", m.Auth())
 		{
-			self.GET("", h.WithNav(h.HandleGetUser))
+			self.GET("", h.HandleGetUser)
 			self.PUT("", h.HandleUpdateUser)
 			self.DELETE("", h.WithNav(h.HandleDeleteUser))
 			self.GET("/edit", h.GetUpdateUserForm)
@@ -159,7 +162,7 @@ func SetupRoutes(e *echo.Echo, h *Handler, m *middleware.Middleware) {
 				users.GET("", h.WithNav(h.HandleUsers))
 				users.POST("", h.HandleCreateUser)
 				users.GET("/new", h.GetCreateUserForm)
-				users.GET("/:user_id", h.WithNav(h.HandleGetUser))
+				users.GET("/:user_id",h.HandleGetUser)
 				users.PUT("/:user_id", h.HandleAdminUpdateUser)
 				users.DELETE("/:user_id", h.WithNav(h.HandleDeleteUser))
 				users.GET("/:user_id/edit", h.GetAdminUpdateUserForm)

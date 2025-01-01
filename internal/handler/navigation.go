@@ -96,7 +96,7 @@ func getRouteContext(c echo.Context) (*dto.RouteContext, error) {
 	}
 
 	// Always check URL param for facility code to ensure it's current
-	if facilityCode := c.Param("facility_id"); facilityCode != "" {
+	if facilityCode := c.Param("facility_code"); facilityCode != "" {
 		// Update base path with current facility code
 		ctx.BasePath = fmt.Sprintf("/facility/%s", facilityCode)
 	}

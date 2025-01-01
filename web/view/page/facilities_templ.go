@@ -16,7 +16,7 @@ import (
 	"github.com/DukeRupert/haven/web/view/layout"
 )
 
-func Facilities(pageCtx dto.PageContext, title string, description string, facs []entity.Facility) templ.Component {
+func Facilities(props dto.FacilityPageProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -79,7 +79,7 @@ func Facilities(pageCtx dto.PageContext, title string, description string, facs 
 					}
 					return templ_7745c5c3_Err
 				})
-				templ_7745c5c3_Err = PageHeader(title, description).Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = PageHeader(props.Title, props.Description).Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -87,7 +87,7 @@ func Facilities(pageCtx dto.PageContext, title string, description string, facs 
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				for _, f := range facs {
+				for _, f := range props.Facilities {
 					templ_7745c5c3_Err = FacilityListItem(f).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -99,7 +99,7 @@ func Facilities(pageCtx dto.PageContext, title string, description string, facs 
 				}
 				return templ_7745c5c3_Err
 			})
-			templ_7745c5c3_Err = layout.AppLayout(pageCtx).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = layout.AppLayout(props.NavItems).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

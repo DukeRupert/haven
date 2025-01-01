@@ -8,15 +8,15 @@ import (
 	"github.com/DukeRupert/haven/internal/model/entity"
 )
 
-templ Facilities(pageCtx dto.PageContext, title string, description string, facs []entity.Facility) {
+templ Facilities(props dto.FacilityPageProps) {
   @layout.BaseLayout() {
-    @layout.AppLayout(pageCtx) {
-      @PageHeader(title, description) {
+    @layout.AppLayout(props.NavItems) {
+      @PageHeader(props.Title, props.Description) {
 					<button hx-get="/api/admin/facilities/create" hx-target="#facility-list" hx-swap="afterbegin" hx-target-error="#global-alert" hx-indicator="#loading-overlay" type="button" class="ml-3 inline-flex items-center rounded-md bg-picton-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-picton-blue-600">Add</button>
         }
    
   <ul id="facility-list" role="list" class="mt-8 divide-y divide-gray-100">
-    for _, f := range facs {
+    for _, f := range props.Facilities {
       @FacilityListItem(f)
     }
   </ul>

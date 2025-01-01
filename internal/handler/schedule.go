@@ -22,60 +22,60 @@ import (
 )
 
 func (h *Handler) HandleUpdatePublishedThrough(c echo.Context) error {
-   logger := h.logger.With().
-       Str("handler", "HandleUpdatePublishedThrough").
-       Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
-       Logger()
+	logger := h.logger.With().
+		Str("handler", "HandleUpdatePublishedThrough").
+		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
+		Logger()
 
-   // Get auth context
-   auth, err := middleware.GetAuthContext(c)
-   if err != nil {
-       logger.Error().Err(err).Msg("failed to get auth context")
-       return response.System(c)
-   }
+	// Get auth context
+	auth, err := middleware.GetAuthContext(c)
+	if err != nil {
+		logger.Error().Msg("missing auth context")
+		return response.System(c)
+	}
 
-   // Verify admin role
-   if auth.Role != types.UserRoleAdmin {
-       return response.Error(c,
-           http.StatusForbidden,
-           "Access Denied",
-           []string{"Only administrators can update schedule publication dates"},
-       )
-   }
+	// Verify admin role
+	if auth.Role != types.UserRoleAdmin {
+		return response.Error(c,
+			http.StatusForbidden,
+			"Access Denied",
+			[]string{"Only administrators can update schedule publication dates"},
+		)
+	}
 
-   // Parse date from request body
-   var req struct {
-       PublishedThrough time.Time `json:"published_through"`
-   }
-   if err := c.Bind(&req); err != nil {
-       return response.Error(c,
-           http.StatusBadRequest,
-           "Invalid Request",
-           []string{"Invalid date format"},
-       )
-   }
+	// Parse date from request body
+	var req struct {
+		PublishedThrough time.Time `json:"published_through"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return response.Error(c,
+			http.StatusBadRequest,
+			"Invalid Request",
+			[]string{"Invalid date format"},
+		)
+	}
 
-   // Update publication date
-   pub, err := h.repos.Publication.Update(
-       c.Request().Context(),
-       auth.FacilityID,
-       req.PublishedThrough,
-   )
-   if err != nil {
-       logger.Error().
-           Err(err).
-           Int("facility_id", auth.FacilityID).
-           Time("published_through", req.PublishedThrough).
-           Msg("failed to update publication date")
-       return response.System(c)
-   }
+	// Update publication date
+	pub, err := h.repos.Publication.Update(
+		c.Request().Context(),
+		auth.FacilityID,
+		req.PublishedThrough,
+	)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Int("facility_id", auth.FacilityID).
+			Time("published_through", req.PublishedThrough).
+			Msg("failed to update publication date")
+		return response.System(c)
+	}
 
-   logger.Info().
-       Int("facility_id", auth.FacilityID).
-       Time("published_through", pub.PublishedThrough).
-       Msg("publication date updated successfully")
+	logger.Info().
+		Int("facility_id", auth.FacilityID).
+		Time("published_through", pub.PublishedThrough).
+		Msg("publication date updated successfully")
 
-   return response.Success(c, "Success", "Schedule publication date has been updated")
+	return response.Success(c, "Success", "Schedule publication date has been updated")
 }
 
 func (h *Handler) HandleCreateSchedule(c echo.Context) error {
@@ -93,7 +93,14 @@ func (h *Handler) HandleCreateSchedule(c echo.Context) error {
 	// Get auth context
 	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to get auth context")
+		logger.Error().Msg("missing auth context")
+		return response.System(c)
+	}
+
+	// Get route context
+	route, err := middleware.GetRouteContext(c)
+	if err != nil {
+		logger.Error().Msg("missing route context")
 		return response.System(c)
 	}
 
@@ -130,7 +137,7 @@ func (h *Handler) HandleCreateSchedule(c echo.Context) error {
 		Str("second_weekday", schedule.SecondWeekday.String()).
 		Msg("schedule created successfully")
 
-	return render(c, page.ScheduleCard(auth.Role, createData.FacilityCode, *schedule))
+	return render(c, page.ScheduleCard(*auth, *route, *schedule))
 }
 
 // HandleGetSchedule retrieves and displays a schedule
@@ -139,11 +146,19 @@ func (h *Handler) HandleGetSchedule(c echo.Context) error {
 		Str("handler", "HandleGetSchedule").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
-
-	// Get facility code
-	facilityCode, err := ValidateFacilityCode(c, h.logger)
+	
+	// Get auth context
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
-		return err
+		logger.Error().Msg("missing auth context")
+		return response.System(c)
+	}
+
+	// Get route context
+	route, err := middleware.GetRouteContext(c)
+	if err != nil {
+		logger.Error().Msg("missing route context")
+		return response.System(c)
 	}
 
 	// Get and validate schedule ID
@@ -158,13 +173,6 @@ func (h *Handler) HandleGetSchedule(c echo.Context) error {
 			"Invalid Request",
 			[]string{"Please provide a valid schedule ID"},
 		)
-	}
-
-	// Get auth context
-	auth, err := middleware.GetAuthContext(c)
-	if err != nil {
-		logger.Error().Err(err).Msg("failed to get auth context")
-		return response.System(c)
 	}
 
 	// Get schedule
@@ -208,7 +216,7 @@ func (h *Handler) HandleGetSchedule(c echo.Context) error {
 		Str("viewer_role", string(auth.Role)).
 		Msg("rendering schedule card")
 
-	return render(c, page.ScheduleCard(auth.Role, facilityCode, *schedule))
+	return render(c, page.ScheduleCard(*auth, *route, *schedule))
 }
 
 // HandleAvailabilityToggle processes requests to toggle protected date availability
@@ -411,7 +419,7 @@ func (h *Handler) validateUserInFacility(c echo.Context, ctx *scheduleRequestCon
 	user, err := h.repos.User.GetByInitialsAndFacility(
 		c.Request().Context(),
 		ctx.UserInitials,
-		ctx.Facility.ID,
+		ctx.Facility.Code,
 	)
 	if err != nil {
 		h.logger.Error().
@@ -478,7 +486,7 @@ func (h *Handler) validateScheduleUpdateRequest(c echo.Context) (*scheduleUpdate
 	}
 
 	// Get auth context
-	auth, err :=middleware.GetAuthContext(c)
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		return nil, response.System(c)
 	}
@@ -574,10 +582,18 @@ func (h *Handler) HandleUpdateSchedule(c echo.Context) error {
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
-	// Get facility code
-	facilityCode, err := ValidateFacilityCode(c, h.logger)
+	// Get auth context
+	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
-		return err
+		logger.Error().Msg("missing auth context")
+		return response.System(c)
+	}
+
+	// Get route context
+	route, err := middleware.GetRouteContext(c)
+	if err != nil {
+		logger.Error().Msg("missing route context")
+		return response.System(c)
 	}
 
 	// Validate input and permissions
@@ -608,7 +624,7 @@ func (h *Handler) HandleUpdateSchedule(c echo.Context) error {
 		Str("second_weekday", schedule.SecondWeekday.String()).
 		Msg("schedule updated successfully")
 
-	return render(c, page.ScheduleCard(auth.Role, facilityCode, *schedule))
+	return render(c, page.ScheduleCard(*auth, *route, *schedule))
 }
 
 // General helpers

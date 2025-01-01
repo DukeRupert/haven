@@ -37,6 +37,12 @@ const (
 	SessionKeyLastAccess   = "last_access"
 )
 
+// CtxKey define context value keys
+const (
+	CtxKeyAuth  = "auth"
+	CtxKeyRoute = "routeCtx"
+)
+
 // RoleLevel represents the hierarchy level of a role
 type RoleLevel int
 
@@ -68,61 +74,61 @@ func NewMiddleware(cfg Config) *Middleware {
 
 // Auth middleware ensures authentication context is available
 func (m *Middleware) Auth() echo.MiddlewareFunc {
-    return func(next echo.HandlerFunc) echo.HandlerFunc {
-        return func(c echo.Context) error {
-            logger := m.logger.With().
-                Str("path", c.Path()).
-                Str("method", c.Request().Method).
-                Logger()
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			logger := m.logger.With().
+				Str("path", c.Path()).
+				Str("method", c.Request().Method).
+				Logger()
 
-            // Get and validate session
-            sess, err := m.getAndValidateSession(c, logger)
-            if err != nil {
-                return redirectToLogin(c)
-            }
+			// Get and validate session
+			sess, err := m.getAndValidateSession(c, logger)
+			if err != nil {
+				return redirectToLogin(c)
+			}
 
-            // Get user and facility data
-            user, facility, err := m.getUserAndFacility(c.Request().Context(), sess, logger)
-            if err != nil {
-                return err
-            }
+			// Get user and facility data
+			user, facility, err := m.getUserAndFacility(c.Request().Context(), sess, logger)
+			if err != nil {
+				return err
+			}
 
-            // Update session with fresh data
-            if err := m.updateSession(c, sess, user, facility); err != nil {
-                return err
-            }
+			// Update session with fresh data
+			if err := m.updateSession(c, sess, user, facility); err != nil {
+				return err
+			}
 
-            // Create the data provider
-            provider := &authDataProvider{
-                repos:      m.repos,
-                user:      user,
-                facility:  facility,
-                userID:    user.ID,
-                facilityID: user.FacilityID,
-            }
+			// Create the data provider
+			provider := &authDataProvider{
+				repos:      m.repos,
+				user:       user,
+				facility:   facility,
+				userID:     user.ID,
+				facilityID: user.FacilityID,
+			}
 
-            // Create and set auth context
-            authContext := &dto.AuthContext{
-                AuthContextData: dto.AuthContextData{
-                    UserID:       user.ID,
-                    Role:         user.Role,
-                    Initials:     user.Initials,
-                    FacilityID:   user.FacilityID,
-                    FacilityCode: facility.Code,
-                },
-                Provider: provider,
-            }
-            c.Set("auth", authContext)
+			// Create and set auth context
+			authContext := &dto.AuthContext{
+				AuthContextData: dto.AuthContextData{
+					UserID:       user.ID,
+					Role:         user.Role,
+					Initials:     user.Initials,
+					FacilityID:   user.FacilityID,
+					FacilityCode: facility.Code,
+				},
+				Provider: provider,
+			}
+			c.Set("auth", authContext)
 
-            logger.Debug().
-                Int("user_id", user.ID).
-                Str("role", string(user.Role)).
-                Str("facility_code", facility.Code).
-                Msg("authentication successful")
+			logger.Debug().
+				Int("user_id", user.ID).
+				Str("role", string(user.Role)).
+				Str("facility_code", facility.Code).
+				Msg("authentication successful")
 
-            return next(c)
-        }
-    }
+			return next(c)
+		}
+	}
 }
 
 // RouteContext middleware ensures route context is available
@@ -173,37 +179,122 @@ func (m *Middleware) RouteContext() echo.MiddlewareFunc {
 	}
 }
 
+// RequireRole creates middleware that checks if user has sufficient role access
+func (m *Middleware) RequireRole(minimumRole types.UserRole) echo.MiddlewareFunc {
+    return func(next echo.HandlerFunc) echo.HandlerFunc {
+        return func(c echo.Context) error {
+            logger := m.logger.With().
+                Str("path", c.Path()).
+                Str("required_role", string(minimumRole)).
+                Logger()
+
+            // Get auth context
+            auth, ok := c.Get("auth").(*dto.AuthContext)
+            if !ok {
+                logger.Error().Msg("No auth context found")
+                return echo.NewHTTPError(http.StatusUnauthorized, "unauthorized")
+            }
+
+            // Check if user has sufficient role
+            if !HasMinimumRole(auth.Role, minimumRole) {
+                logger.Warn().
+                    Str("user_role", string(auth.Role)).
+                    Str("required_role", string(minimumRole)).
+                    Msg("Insufficient role")
+                return echo.NewHTTPError(http.StatusForbidden, "insufficient permissions")
+            }
+
+            logger.Debug().
+                Str("user_role", string(auth.Role)).
+                Msg("Role check passed")
+
+            return next(c)
+        }
+    }
+}
+
+// RequireFacilityAccess creates middleware that checks if user has access to the facility
+func (m *Middleware) RequireFacilityAccess() echo.MiddlewareFunc {
+    return func(next echo.HandlerFunc) echo.HandlerFunc {
+        return func(c echo.Context) error {
+            logger := m.logger.With().
+                Str("path", c.Path()).
+                Logger()
+
+            // Get auth context
+            auth, ok := c.Get("auth").(*dto.AuthContext)
+            if !ok {
+                logger.Error().Msg("No auth context found")
+                return echo.NewHTTPError(http.StatusUnauthorized, "unauthorized")
+            }
+
+            // Get route parameter
+            facilityCode := c.Param("facility_code")
+            if facilityCode == "" {
+                logger.Error().Msg("No facility code in route")
+                return echo.NewHTTPError(http.StatusBadRequest, "facility code required")
+            }
+
+            // Super users have access to all facilities
+            if auth.Role == types.UserRoleSuper {
+                logger.Debug().
+                    Str("user_role", string(auth.Role)).
+                    Str("facility_code", facilityCode).
+                    Msg("Super user granted facility access")
+                return next(c)
+            }
+
+            // For admin and user roles, check if facility code matches
+            if auth.FacilityCode != facilityCode {
+                logger.Warn().
+                    Str("user_role", string(auth.Role)).
+                    Str("user_facility", auth.FacilityCode).
+                    Str("requested_facility", facilityCode).
+                    Msg("Facility access denied")
+                return echo.NewHTTPError(http.StatusForbidden, "insufficient facility permissions")
+            }
+
+            logger.Debug().
+                Str("user_role", string(auth.Role)).
+                Str("facility_code", facilityCode).
+                Msg("Facility access granted")
+
+            return next(c)
+        }
+    }
+}
+
 // Helper functions
 type authDataProvider struct {
-    repos        *repository.Repositories
-    user         *entity.User
-    facility     *entity.Facility
-    userID       int
-    facilityID   int
+	repos      *repository.Repositories
+	user       *entity.User
+	facility   *entity.Facility
+	userID     int
+	facilityID int
 }
 
 func (p *authDataProvider) GetUser() (*entity.User, error) {
-    if p.user != nil {
-        return p.user, nil
-    }
-    user, err := p.repos.User.GetByID(context.Background(), p.userID)
-    if err != nil {
-        return nil, err
-    }
-    p.user = user
-    return user, nil
+	if p.user != nil {
+		return p.user, nil
+	}
+	user, err := p.repos.User.GetByID(context.Background(), p.userID)
+	if err != nil {
+		return nil, err
+	}
+	p.user = user
+	return user, nil
 }
 
 func (p *authDataProvider) GetFacility() (*entity.Facility, error) {
-    if p.facility != nil {
-        return p.facility, nil
-    }
-    facility, err := p.repos.Facility.GetByID(context.Background(), p.facilityID)
-    if err != nil {
-        return nil, err
-    }
-    p.facility = facility
-    return facility, nil
+	if p.facility != nil {
+		return p.facility, nil
+	}
+	facility, err := p.repos.Facility.GetByID(context.Background(), p.facilityID)
+	if err != nil {
+		return nil, err
+	}
+	p.facility = facility
+	return facility, nil
 }
 
 // HasMinimumRole checks if a role meets or exceeds the minimum required role
@@ -258,7 +349,7 @@ func getRoutePattern(c echo.Context) string {
 
 // Helper functions to get contexts
 func GetAuthContext(c echo.Context) (*dto.AuthContext, error) {
-	auth, ok := c.Get("auth").(*dto.AuthContext)
+	auth, ok := c.Get(CtxKeyAuth).(*dto.AuthContext)
 	if !ok {
 		return nil, echo.NewHTTPError(http.StatusUnauthorized, "no auth context found")
 	}
@@ -266,7 +357,7 @@ func GetAuthContext(c echo.Context) (*dto.AuthContext, error) {
 }
 
 func GetRouteContext(c echo.Context) (*dto.RouteContext, error) {
-	routeCtx, ok := c.Get("routeCtx").(*dto.RouteContext)
+	routeCtx, ok := c.Get(CtxKeyRoute).(*dto.RouteContext)
 	if !ok {
 		return nil, echo.NewHTTPError(http.StatusInternalServerError, "no route context found")
 	}

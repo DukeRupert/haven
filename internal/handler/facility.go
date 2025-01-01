@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/DukeRupert/haven/internal/middleware"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/params"
 	"github.com/DukeRupert/haven/internal/response"
@@ -19,11 +20,29 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func (h *Handler) HandleGetFacilities(c echo.Context, ctx *dto.PageContext) error {
+func (h *Handler) HandleGetFacilities(c echo.Context) error {
 	logger := h.logger.With().
 		Str("handler", "HandleFacilities").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
+	
+	auth, err := middleware.GetAuthContext(c)
+	if err != nil {
+		logger.Error().Msg("missing auth context")
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			"Authentication is required",
+		)
+	}
+
+	route, err := middleware.GetRouteContext(c)
+	if err != nil {
+		logger.Error().Msg("missing route context")
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			"Missing route context",
+		)
+	}
 
 	// Get facilities from repository
 	facilities, err := h.repos.Facility.List(c.Request().Context())
@@ -35,13 +54,17 @@ func (h *Handler) HandleGetFacilities(c echo.Context, ctx *dto.PageContext) erro
 		)
 	}
 
-	// Page metadata
-	pageData := struct {
-		Title       string
-		Description string
-	}{
+	// Build nav items
+	navItems := BuildNav(route, auth, c.Request().URL.Path)
+
+	// Build props
+	props := dto.FacilityPageProps {
 		Title:       "Facilities",
 		Description: "A list of all facilities including their name and code.",
+		NavItems: navItems,
+		AuthCtx: *auth,
+		RouteCtx: *route,
+		Facilities: facilities,
 	}
 
 	logger.Debug().
@@ -50,10 +73,7 @@ func (h *Handler) HandleGetFacilities(c echo.Context, ctx *dto.PageContext) erro
 
 	// Render the page
 	return page.Facilities(
-		*ctx,
-		pageData.Title,
-		pageData.Description,
-		facilities,
+		props,
 	).Render(c.Request().Context(), c.Response().Writer)
 }
 

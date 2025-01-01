@@ -292,9 +292,9 @@ func (r *Repository) UpdatePassword(ctx context.Context, userID int, hashedPassw
 }
 
 // GetDetails retrieves full user details including facility and schedule
-func (r *Repository) GetDetails(ctx context.Context, initials string, facilityID int) (*dto.UserDetails, error) {
+func (r *Repository) GetDetails(ctx context.Context, initials string, facility string) (*dto.UserDetails, error) {
 	// Get user first
-	user, err := r.GetByInitialsAndFacility(ctx, initials, facilityID)
+	user, err := r.GetByInitialsAndFacility(ctx, initials, facility)
 	if err != nil {
 		return nil, fmt.Errorf("getting user: %w", err)
 	}
@@ -349,28 +349,31 @@ func (r *Repository) GetDetails(ctx context.Context, initials string, facilityID
 	}, nil
 }
 
-// GetByInitialsAndFacility finds a user by their initials and facility ID
-func (r *Repository) GetByInitialsAndFacility(ctx context.Context, initials string, facilityID int) (*entity.User, error) {
-	var user entity.User
-	err := r.pool.QueryRow(ctx, `
+// GetByInitialsAndFacility finds a user by their initials and facility code
+func (r *Repository) GetByInitialsAndFacility(ctx context.Context, initials string, facilityCode string) (*entity.User, error) {
+    var user entity.User
+    err := r.pool.QueryRow(ctx, `
         SELECT 
-            id, created_at, updated_at, first_name, last_name, 
-            initials, email, facility_id, role
-        FROM users
-        WHERE initials = $1 AND facility_id = $2
-    `, initials, facilityID).Scan(
-		&user.ID, &user.CreatedAt, &user.UpdatedAt,
-		&user.FirstName, &user.LastName, &user.Initials,
-		&user.Email, &user.FacilityID, &user.Role,
-	)
-	if err == pgx.ErrNoRows {
-		return nil, ErrNotFound
-	}
-	if err != nil {
-		return nil, fmt.Errorf("finding user by initials and facility: %w", err)
-	}
+            u.id, u.created_at, u.updated_at, u.first_name, u.last_name, 
+            u.initials, u.email, u.facility_id, u.role, u.registration_completed,
+            u.password
+        FROM users u
+        JOIN facilities f ON u.facility_id = f.id
+        WHERE u.initials = $1 AND f.code = $2
+    `, initials, facilityCode).Scan(
+        &user.ID, &user.CreatedAt, &user.UpdatedAt,
+        &user.FirstName, &user.LastName, &user.Initials,
+        &user.Email, &user.FacilityID, &user.Role,
+        &user.RegistrationCompleted, &user.Password,
+    )
+    if err == pgx.ErrNoRows {
+        return nil, ErrNotFound
+    }
+    if err != nil {
+        return nil, fmt.Errorf("finding user by initials and facility code: %w", err)
+    }
 
-	return &user, nil
+    return &user, nil
 }
 
 // GetByEmail retrieves a user by their email address

@@ -12,13 +12,13 @@ import (
 
 templ CalendarPage(props dto.CalendarPageProps) {
 @layout.BaseLayout() {
-    @layout.AppLayout(props.PageCtx) {
+    @layout.AppLayout(props.NavItems) {
       @PageHeader(props.Title, props.Description) {
-       if props.PageCtx.Auth.Role == types.UserRoleAdmin {
+       if props.AuthCtx.Role == types.UserRoleAdmin {
                     <button
                         type="button"
                         class="rounded-md bg-picton-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-picton-blue-500"
-                        hx-put={ fmt.Sprintf("/api/facility/%s/publish", props.PageCtx.Auth.FacilityCode) }
+                        hx-put={ fmt.Sprintf("/app/api/facility/%s/publish", props.AuthCtx.FacilityCode) }
                         hx-headers={ fmt.Sprintf(`{"Content-Type": "application/json"}`) }
                         hx-vals={ fmt.Sprintf(`{"published_through": "%s"}`, time.Now().Format("2006-01-02")) }
                         hx-target="#global-alert"

@@ -25,9 +25,22 @@ func (h *Handler) HandleUsers(c echo.Context, ctx *dto.PageContext) error {
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
+	// Get auth context
+	auth, err := middleware.GetAuthContext(c)
+	if err != nil {
+		logger.Error().Msg("missing auth context")
+		return response.System(c)
+	}
+
+	// Get route context
+	route, err := middleware.GetRouteContext(c)
+	if err != nil {
+		logger.Error().Msg("missing route context")
+		return response.System(c)
+	}
+
 	// Get and validate facility code
-	code := c.Param("facility_id")
-	if code == "" {
+	if route.FacilityCode == "" {
 		logger.Error().Msg("missing facility code in request")
 		return echo.NewHTTPError(
 			http.StatusBadRequest,
@@ -36,11 +49,11 @@ func (h *Handler) HandleUsers(c echo.Context, ctx *dto.PageContext) error {
 	}
 
 	// Get users from repository
-	users, err := h.repos.User.GetByFacilityCode(c.Request().Context(), code)
+	users, err := h.repos.User.GetByFacilityCode(c.Request().Context(), route.FacilityCode)
 	if err != nil {
 		logger.Error().
 			Err(err).
-			Str("facility_code", code).
+			Str("facility_code", route.FacilityCode).
 			Msg("failed to retrieve users")
 
 		return echo.NewHTTPError(
@@ -54,40 +67,28 @@ func (h *Handler) HandleUsers(c echo.Context, ctx *dto.PageContext) error {
 		users = []entity.User{}
 	}
 
-	// Get auth context for role information
-	auth, err := middleware.GetAuthContext(c)
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Msg("failed to get auth context")
-		return echo.NewHTTPError(
-			http.StatusInternalServerError,
-			"Unable to verify permissions. Please try again later.",
-		)
-	}
+	// Build nav items
+	navItems := BuildNav(route, auth, c.Request().URL.Path)
 
-	// Page metadata
-	pageData := struct {
-		Title       string
-		Description string
-	}{
+	// Build props
+	props := dto.UsersPageProps{
 		Title:       "Controllers",
 		Description: "A list of all controllers assigned to the facility.",
+		NavItems:    navItems,
+		AuthCtx:     *auth,
+		RouteCtx:    *route,
+		Users:       users,
 	}
 
 	logger.Debug().
-		Str("facility_code", code).
+		Str("facility_code", route.FacilityCode).
 		Int("user_count", len(users)).
 		Str("user_role", string(auth.Role)).
 		Msg("rendering users page")
 
 	// Render the page
 	return page.ShowUsers(
-		*ctx,
-		pageData.Title,
-		pageData.Description,
-		auth.Role,
-		users,
+		props,
 	).Render(c.Request().Context(), c.Response().Writer)
 }
 
@@ -97,6 +98,22 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 		Str("handler", "HandleCreateUser").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
+
+	// Get route context
+	route, err := middleware.GetRouteContext(c)
+	if err != nil {
+		logger.Error().Msg("missing route context")
+		return response.System(c)
+	}
+
+	// Get and validate facility code
+	if route.FacilityCode == "" {
+		logger.Error().Msg("missing facility code in request")
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			"Facility code is required",
+		)
+	}
 
 	// Validate and parse create request
 	createData, err := h.validateCreateUser(c)
@@ -152,11 +169,11 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 					user.Email,
 				),
 			),
-			page.UserListItem(h.RouteCtx, *user),
+			page.UserListItem(route.FacilityCode, *user),
 		))
 	}
 
-	return render(c, page.UserListItem(h.RouteCtx, *user))
+	return render(c, page.UserListItem(route.FacilityCode, *user))
 }
 
 func (h *Handler) HandleUpdateUser(c echo.Context) error {

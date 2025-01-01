@@ -4,18 +4,21 @@ import (
 	"fmt"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
-	"github.com/DukeRupert/haven/internal/model/types"
 )
 
-templ ScheduleCard(role types.UserRole, facility_code string, schedule entity.Schedule) {
+templ ScheduleCard(auth dto.AuthContext, route dto.RouteContext, schedule entity.Schedule) {
 	<div id="schedule-card" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
 				<div class="flex items-center justify-between">
 					<h3 class="text-lg font-medium text-gray-900">Schedule Details</h3>
-					if role == "admin" || role == "super" {
+					if auth.Role == "admin" || auth.Role == "super" {
 						<button
-							hx-get={ fmt.Sprintf("/api/facility/%s/schedule/%d/edit", facility_code, schedule.ID) }
+							if route.FacilityCode != "" && route.UserInitials != "" {
+								hx-get={ fmt.Sprintf("/app/api/%s/%s/schedule/%d/edit", route.FacilityCode, route.UserInitials, schedule.ID) }
+							} else {
+								hx-get={ fmt.Sprintf("/app/api/%s/%s/schedule/%d/edit", auth.FacilityCode, auth.Initials, schedule.ID) }
+							}
 							hx-target="#schedule-card"
 							hx-swap="outerHTML"
 							hx-target-error="#global-alert"
@@ -70,15 +73,19 @@ templ WeekDayBox(day string, isSelected bool) {
 	</div>
 }
 
-templ EmptyScheduleCard(pageCtx dto.PageContext, schedule entity.Schedule) {
+templ EmptyScheduleCard(auth dto.AuthContext, route dto.RouteContext, schedule entity.Schedule) {
 	<div id="schedule-card" class="relative lg:col-span-2">
 		<div class="h-full overflow-hidden rounded-lg bg-white shadow">
 			<div class="px-6 py-8">
 				<div class="flex items-center justify-between">
 					<h3 class="text-lg font-medium text-gray-900">Schedule Details</h3>
-					if pageCtx.Auth.Role  == "admin" || pageCtx.Auth.Role == "super" {
+					if auth.Role  == "admin" || auth.Role == "super" {
 						<button
-							hx-get={ fmt.Sprintf("/api/%s/schedules/new/%s", pageCtx.Route.BasePath) }
+							if route.FacilityCode != "" && route.UserInitials != "" {
+								hx-get={ fmt.Sprintf("/app/api/%s/%s/schedule/new", route.FacilityCode, route.UserInitials) }
+							} else {
+								hx-get={ fmt.Sprintf("/app/api/%s/%s/schedule/new", auth.FacilityCode, auth.Initials) }
+							}
 							hx-target="#schedule-card"
 							hx-swap="outerHTML"
 							hx-target-error="#global-alert"

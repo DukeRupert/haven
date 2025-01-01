@@ -7,9 +7,9 @@ import (
 	"github.com/DukeRupert/haven/web/view/layout"
 )
 
-templ ShowFacilities(pageCtx dto.PageContext, title string, description string, facs []entity.Facility) {
+templ ShowFacilities(props dto.FacilityPageProps) {
 	@layout.BaseLayout() {
-		@layout.AppLayout(pageCtx) {
+		@layout.AppLayout(props.NavItems) {
 			<div class="px-4 sm:px-6 lg:px-8">
 				<div class="sm:flex sm:items-center">
 					<div class="sm:flex-auto">
@@ -23,7 +23,7 @@ templ ShowFacilities(pageCtx dto.PageContext, title string, description string, 
 					</div>
 				</div>
 				<ul id="facility-list" role="list" class="mt-8 divide-y divide-gray-100">
-					for _, f := range facs {
+					for _, f := range props.Facilities {
 						@FacilityListItem(f)
 					}
 				</ul>
