@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/DukeRupert/haven/internal/middleware"
 	"github.com/DukeRupert/haven/internal/model/dto"
 	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/params"
@@ -128,30 +127,10 @@ type passwordUpdateData struct {
 	Password string
 }
 
-func (h *Handler) validatePasswordUpdate(c echo.Context) (*passwordUpdateData, *dto.AuthContext, error) {
-	// Parse user ID
-	userID, err := getUserID(c)
-	if err != nil {
-		return nil, nil, response.Error(c,
-			http.StatusBadRequest,
-			"Invalid Request",
-			[]string{"Invalid user ID provided"},
-		)
-	}
-
-	// Get auth context
-	auth, err := middleware.GetAuthContext(c)
-	if err != nil {
-		return nil, nil, response.Error(c,
-			http.StatusInternalServerError,
-			"System Error",
-			[]string{"Authentication error occurred"},
-		)
-	}
-
+func (h *Handler) validatePasswordUpdate(c echo.Context, user entity.User, auth *dto.AuthContext) (*passwordUpdateData, error) {
 	// Check authorization
-	if !canUpdatePassword(auth, userID) {
-		return nil, nil, response.Error(c,
+	if !canUpdatePassword(auth, user.ID) {
+		return nil, response.Error(c,
 			http.StatusForbidden,
 			"Unauthorized",
 			[]string{"You don't have permission to update this password"},
@@ -161,7 +140,7 @@ func (h *Handler) validatePasswordUpdate(c echo.Context) (*passwordUpdateData, *
 	// Parse and validate form data
 	var formData params.UpdatePasswordParams
 	if err := c.Bind(&formData); err != nil {
-		return nil, nil, response.Error(c,
+		return nil, response.Error(c,
 			http.StatusBadRequest,
 			"Invalid Request",
 			[]string{"Please check your input and try again"},
@@ -170,7 +149,7 @@ func (h *Handler) validatePasswordUpdate(c echo.Context) (*passwordUpdateData, *
 
 	// Validate password
 	if err := validatePassword(formData); err != nil {
-		return nil, nil, response.Error(c,
+		return nil, response.Error(c,
 			http.StatusBadRequest,
 			"Validation Error",
 			[]string{err.Error()},
@@ -178,9 +157,9 @@ func (h *Handler) validatePasswordUpdate(c echo.Context) (*passwordUpdateData, *
 	}
 
 	return &passwordUpdateData{
-		UserID:   userID,
+		UserID:   user.ID,
 		Password: formData.Password,
-	}, auth, nil
+	}, nil
 }
 
 func validatePassword(data params.UpdatePasswordParams) error {

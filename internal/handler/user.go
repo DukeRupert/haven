@@ -324,31 +324,34 @@ func (h *Handler) GetUpdatePasswordForm(c echo.Context) error {
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
-	// Validate user ID
-	userID, err := getUserID(c)
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Str("user_id_param", c.Param("user_id")).
-			Msg("invalid user ID parameter")
-		return response.System(c)
-	}
-
-	// Get auth context for permission check
+	// Get auth context
 	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get auth context")
-		return response.Error(c,
-			http.StatusInternalServerError,
-			"Authentication Error",
-			[]string{"Unable to verify permissions"},
-		)
+		return response.System(c)
 	}
 
+	// Get route context
+	route, err := middleware.GetRouteContext(c)
+	if err != nil {
+		logger.Error().Msg("missing route context")
+		return response.System(c)
+	}
+
+	if err := ensureRouteParams(route); err != nil {
+        return err
+    }
+
+	// Get existing user
+    existingUser, err := h.repos.User.GetByInitialsAndFacility(c.Request().Context(), route.UserInitials, route.FacilityCode)
+    if err != nil {
+        return err
+    }
+
 	// Check if user can update this password
-	if !canUpdatePassword(auth, userID) {
+	if !canUpdatePassword(auth, existingUser.ID) {
 		logger.Warn().
-			Int("target_user_id", userID).
+			Int("target_user_id", existingUser.ID).
 			Int("requesting_user_id", auth.UserID).
 			Str("role", string(auth.Role)).
 			Msg("unauthorized password form access attempt")
@@ -360,10 +363,10 @@ func (h *Handler) GetUpdatePasswordForm(c echo.Context) error {
 	}
 
 	logger.Debug().
-		Int("user_id", userID).
+		Int("user_id", existingUser.ID).
 		Msg("rendering password update form")
 
-	return render(c, component.Update_Password_Form(userID))
+	return render(c, component.Update_Password_Form(route.FacilityCode, route.UserInitials))
 }
 
 // HandleUpdatePassword processes password update requests
@@ -372,9 +375,33 @@ func (h *Handler) HandleUpdatePassword(c echo.Context) error {
 		Str("handler", "HandleUpdatePassword").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
+	
+	// Get auth context
+	auth, err := middleware.GetAuthContext(c)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get auth context")
+		return response.System(c)
+	}
+
+	// Get route context
+	route, err := middleware.GetRouteContext(c)
+	if err != nil {
+		logger.Error().Msg("missing route context")
+		return response.System(c)
+	}
+
+	if err := ensureRouteParams(route); err != nil {
+        return err
+    }
+
+	// Get existing user
+    existingUser, err := h.repos.User.GetByInitialsAndFacility(c.Request().Context(), route.UserInitials, route.FacilityCode)
+    if err != nil {
+        return err
+    }
 
 	// Get and validate form data
-	formData, auth, err := h.validatePasswordUpdate(c)
+	formData, err := h.validatePasswordUpdate(c, *existingUser, auth)
 	if err != nil {
 		return err // validatePasswordUpdate handles error responses
 	}

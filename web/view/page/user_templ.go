@@ -252,7 +252,7 @@ func UserDetails(user entity.User, facilityCode string, auth dto.AuthContext) te
 			return templ_7745c5c3_Err
 		}
 		if user.ID == auth.UserID {
-			templ_7745c5c3_Err = component.Change_Password_Button(user.ID).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = component.Change_Password_Button(facilityCode, user.Initials).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
