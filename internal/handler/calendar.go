@@ -50,21 +50,27 @@ func (h *Handler) HandleCalendar(c echo.Context) error {
 		)
 	}
 
-	// Get facility from parameters, default to user facility
-	fac := c.Param("facility_code")
-	if fac == "" {
-		fac = auth.FacilityCode
-	}
+	var facilityCode string
+    // If we're on a facility-specific route, use that facility code
+    if route.FacilityCode != "" {
+        facilityCode = route.FacilityCode
+    } else {
+        // Default to user's facility code for the general calendar route
+        if auth.FacilityCode == "" {
+            return echo.NewHTTPError(http.StatusBadRequest, "no facility available")
+        }
+        facilityCode = auth.FacilityCode
+    }
 
 	// Get protected dates
 	protectedDates, err := h.repos.Schedule.GetProtectedDatesByFacilityCode(
 		c.Request().Context(),
-		fac,
+		facilityCode,
 	)
 	if err != nil {
 		logger.Error().
 			Err(err).
-			Str("facility_code", fac).
+			Str("facility_code", facilityCode).
 			Msg("failed to fetch protected dates")
 		return echo.NewHTTPError(
 			http.StatusInternalServerError,
