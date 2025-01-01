@@ -8,8 +8,8 @@ import (
 	"fmt"
 )
 
-templ UpdateUserForm(user entity.User, auth dto.AuthContext) {
-	<form hx-put={fmt.Sprintf("/profile/%d", user.ID)} hx-target="this" hx-swap="outerHTML" hx-target-error="#global-alert" hx-indicator="#loading-overlay" class="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0">
+templ UpdateUserForm(user entity.User, facilityCode string, auth dto.AuthContext) {
+	<form hx-put={fmt.Sprintf("/app/%s/%s", facilityCode, user.Initials)} hx-target="this" hx-swap="outerHTML" hx-target-error="#global-alert" hx-indicator="#loading-overlay" class="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0">
 		<input type="hidden" name="facility_id" value={ strconv.Itoa(user.FacilityID) } />
 		<div class="w-full">
 			<label for="first_name" class="block text-sm/6 font-medium text-gray-900">First Name</label>

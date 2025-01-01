@@ -92,7 +92,7 @@ func (h *Handler) HandleGetUser(c echo.Context) error {
 
 	// Handle HTMX requests if needed
 	if isHtmxRequest(c) {
-		return page.UserDetails(details.User, *auth).Render(
+		return page.UserDetails(details.User, route.FacilityCode, *auth).Render(
 			c.Request().Context(),
 			c.Response().Writer,
 		)

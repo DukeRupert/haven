@@ -66,7 +66,7 @@ func UserPage(props dto.ProfilePageProps) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = UserDetails(props.Details.User, props.AuthCtx).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = UserDetails(props.Details.User, props.Details.Facility.Code, props.AuthCtx).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -131,7 +131,7 @@ func UserPage(props dto.ProfilePageProps) templ.Component {
 	})
 }
 
-func UserDetails(user entity.User, auth dto.AuthContext) templ.Component {
+func UserDetails(user entity.User, facilityCode string, auth dto.AuthContext) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -156,7 +156,7 @@ func UserDetails(user entity.User, auth dto.AuthContext) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = component.Edit_User_Button(user.ID).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = component.Edit_User_Button(facilityCode, user.Initials).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

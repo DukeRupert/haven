@@ -17,7 +17,7 @@ templ UserPage(props dto.ProfilePageProps) {
 				<!-- User Profile Card - Spans 2 rows -->
 				<div class="relative lg:row-span-2">
 					<div class="h-full overflow-hidden rounded-lg bg-white shadow">
-						@UserDetails(props.Details.User, props.AuthCtx)
+						@UserDetails(props.Details.User, props.Details.Facility.Code, props.AuthCtx)
 					</div>
 				</div>
 				<!-- Schedule Card -->
@@ -51,12 +51,12 @@ templ UserPage(props dto.ProfilePageProps) {
 	}
 }
 
-templ UserDetails(user entity.User, auth dto.AuthContext) {
+templ UserDetails(user entity.User, facilityCode string, auth dto.AuthContext) {
 	<div id="user-card" class="px-6 py-8">
 		<div class="flex items-center justify-between">
 			<h3 class="text-lg font-medium text-gray-900">User Information</h3>
 			<div class="flex gap-6">
-				@component.Edit_User_Button(user.ID)
+				@component.Edit_User_Button(facilityCode, user.Initials)
 			</div>
 		</div>
 		<div class="mt-6 flex items-center justify-between">

@@ -22,6 +22,25 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// EnsureRouteParams checks if facility_code and user_initials are present in the route context
+func ensureRouteParams(routeCtx *dto.RouteContext) error {
+	if routeCtx.FacilityCode == "" {
+		return response.Error(echo.New().AcquireContext(),
+			http.StatusBadRequest,
+			"Missing params",
+			[]string{"facility_code parameter is required"})
+	}
+
+	if routeCtx.UserInitials == "" {
+		return response.Error(echo.New().AcquireContext(),
+			http.StatusBadRequest,
+			"Missing params",
+			[]string{"user_initials parameter is required"})
+	}
+
+	return nil
+}
+
 func canUpdateUser(auth *dto.AuthContext, targetUserID int) bool {
 	if auth.Role == types.UserRoleSuper {
 		return true
@@ -36,36 +55,29 @@ func isHtmxRequest(c echo.Context) bool {
 	return c.Request().Header.Get("HX-Request") == "true"
 }
 
-func (h *Handler) validateRoleChange(ctx context.Context, auth *dto.AuthContext,
-	userID int, newRole types.UserRole,
-) error {
-	// Get existing user
-	existingUser, err := h.repos.User.GetByID(ctx, userID)
-	if err != nil {
-		return response.System(echo.New().AcquireContext())
-	}
+// Verify if the authenticated user can change the target user's role
+func (h *Handler) verifyRoleChange(auth *dto.AuthContext, existingRole, newRole types.UserRole) error {
+    // No role change, no validation needed
+    if existingRole == newRole {
+        return nil
+    }
 
-	// No role change, no validation needed
-	if existingUser.Role == newRole {
-		return nil
-	}
+    // Validate role change permissions
+    if auth.Role != types.UserRoleSuper && newRole == types.UserRoleSuper {
+        return response.Error(echo.New().AcquireContext(),
+            http.StatusForbidden,
+            "Invalid Role",
+            []string{"Only super admins can assign super admin role"})
+    }
 
-	// Validate role change permissions
-	if auth.Role != types.UserRoleSuper && newRole == types.UserRoleSuper {
-		return response.Error(echo.New().AcquireContext(),
-			http.StatusForbidden,
-			"Invalid Role",
-			[]string{"Only super admins can assign super admin role"})
-	}
+    if auth.Role == types.UserRoleUser {
+        return response.Error(echo.New().AcquireContext(),
+            http.StatusForbidden,
+            "Invalid Role",
+            []string{"Users cannot change roles"})
+    }
 
-	if auth.Role == types.UserRoleUser {
-		return response.Error(echo.New().AcquireContext(),
-			http.StatusForbidden,
-			"Invalid Role",
-			[]string{"Users cannot change roles"})
-	}
-
-	return nil
+    return nil
 }
 
 func getUserID(c echo.Context) (int, error) {

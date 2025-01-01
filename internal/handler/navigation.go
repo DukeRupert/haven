@@ -23,7 +23,7 @@ type RouteConfig struct {
 
 // RouteConfigs maps paths to their configurations
 var RouteConfigs = map[string]RouteConfig{
-	"/calendar": {
+	"/app/calendar": {
 		Title:            "Calendar",
 		Icon:             "calendar",
 		MinRole:          types.UserRoleUser,
@@ -33,13 +33,13 @@ var RouteConfigs = map[string]RouteConfig{
 			"/calendar/:date/events",
 		},
 	},
-	"/profile": {
+	"/app/profile": {
 		Title:    "Profile",
 		Icon:     "user",
 		MinRole:  types.UserRoleUser,
 		Children: []string{"/profile/edit"},
 	},
-	"/users": {
+	"/app/users": {
 		Title:            "Users",
 		Icon:             "users",
 		MinRole:          types.UserRoleAdmin,
@@ -50,7 +50,7 @@ var RouteConfigs = map[string]RouteConfig{
 			"/users/:id/edit",
 		},
 	},
-	"/facilities": {
+	"/app/facilities": {
 		Title:   "Facilities",
 		Icon:    "building",
 		MinRole: types.UserRoleSuper,
