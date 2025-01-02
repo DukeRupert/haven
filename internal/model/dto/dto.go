@@ -97,19 +97,17 @@ type CalendarPageProps struct {
 
 type CalendarProps struct {
 	CurrentMonth   time.Time
-	FacilityCode   string
-	ProtectedDates []entity.ProtectedDate
-	UserRole       types.UserRole
-	CurrentUserID  int
+	ProtectedDates []entity.PD
+	AuthCtx     AuthContext
+	RouteCtx    RouteContext
 }
 
 type CalendarDayProps struct {
 	Date           time.Time
 	CurrentMonth   time.Time
-	ProtectedDates []entity.ProtectedDate
-	UserRole       types.UserRole
-	CurrentUserID  int
-	FacilityCode   string
+	ProtectedDates []entity.PD
+	AuthCtx     AuthContext
+	RouteCtx    RouteContext
 }
 
 type ProtectedDateGroup struct {

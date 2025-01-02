@@ -75,8 +75,8 @@ func groupProtectedDates(dates []entity.ProtectedDate) map[string][]entity.Prote
 }
 
 // Update helper function to return all protected dates for a given day
-func findProtectedDates(date time.Time, dates []entity.ProtectedDate) []entity.ProtectedDate {
-    var dayDates []entity.ProtectedDate
+func findProtectedDates(date time.Time, dates []entity.PD) []entity.PD {
+    var dayDates []entity.PD
     for _, pd := range dates {
         if pd.Date.Year() == date.Year() && 
            pd.Date.Month() == date.Month() && 

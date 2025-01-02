@@ -40,9 +40,9 @@ func Calendar(props dto.CalendarProps) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/%s/calendar?month=%s", props.FacilityCode, props.CurrentMonth.AddDate(0, -1, 0).Format("2006-01")))
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/%s/calendar?month=%s", props.RouteCtx.FacilityCode, props.CurrentMonth.AddDate(0, -1, 0).Format("2006-01")))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 15, Col: 129}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 15, Col: 138}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -66,9 +66,9 @@ func Calendar(props dto.CalendarProps) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/%s/calendar?month=%s", props.FacilityCode, props.CurrentMonth.AddDate(0, 1, 0).Format("2006-01")))
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/%s/calendar?month=%s", props.RouteCtx.FacilityCode, props.CurrentMonth.AddDate(0, 1, 0).Format("2006-01")))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 31, Col: 128}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 31, Col: 137}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -83,9 +83,8 @@ func Calendar(props dto.CalendarProps) templ.Component {
 				Date:           day,
 				CurrentMonth:   props.CurrentMonth,
 				ProtectedDates: findProtectedDates(day, props.ProtectedDates),
-				UserRole:       props.UserRole,
-				CurrentUserID:  props.CurrentUserID,
-				FacilityCode:   props.FacilityCode,
+				AuthCtx:        props.AuthCtx,
+				RouteCtx:       props.RouteCtx,
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -150,7 +149,7 @@ func CalendarDay(props dto.CalendarDayProps) templ.Component {
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d protected dates", len(props.ProtectedDates)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 90, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 89, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -168,7 +167,7 @@ func CalendarDay(props dto.CalendarDayProps) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(props.Date.Format("2006-01-02"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 96, Col: 47}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 95, Col: 47}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -181,7 +180,7 @@ func CalendarDay(props dto.CalendarDayProps) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(props.Date.Day()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 99, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 98, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -192,7 +191,7 @@ func CalendarDay(props dto.CalendarDayProps) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for _, pd := range props.ProtectedDates {
-			templ_7745c5c3_Err = ProtectedDay(props.CurrentUserID, pd).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = ProtectedDay(pd, props.AuthCtx).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -205,7 +204,7 @@ func CalendarDay(props dto.CalendarDayProps) templ.Component {
 	})
 }
 
-func ProtectedDay(currentUserID int, pd entity.ProtectedDate) templ.Component {
+func ProtectedDay(pd entity.PD, auth dto.AuthContext) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -233,7 +232,7 @@ func ProtectedDay(currentUserID int, pd entity.ProtectedDate) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("pd-%d", pd.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 110, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 109, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -243,15 +242,15 @@ func ProtectedDay(currentUserID int, pd entity.ProtectedDate) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if pd.UserID == currentUserID {
+		if pd.UserID == auth.UserID || pd.FacilityID == auth.FacilityID {
 			templ_7745c5c3_Err = templ.WriteWatchModeString(templ_7745c5c3_Buffer, 16)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var13 string
-			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/user/%d/availability/%d", currentUserID, pd.ID))
+			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/%s/%s/availability/%d", pd.FacilityCode, pd.UserInitials, pd.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 112, Col: 86}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 111, Col: 103}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -264,7 +263,7 @@ func ProtectedDay(currentUserID int, pd entity.ProtectedDate) templ.Component {
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("#pd-%d", pd.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 112, Col: 129}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/calendar.templ`, Line: 111, Col: 146}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {

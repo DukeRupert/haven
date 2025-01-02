@@ -90,20 +90,10 @@ func (h *Handler) HandleCalendar(c echo.Context) error {
 	 // Build calendar props
     calendarProps := dto.CalendarProps{
         CurrentMonth:    viewDate,
-        FacilityCode:   facilityCode,
         ProtectedDates: protectedDates,
-        UserRole:       auth.Role,
-        CurrentUserID:  auth.UserID,
+        AuthCtx:       *auth,
+        RouteCtx:  *route,
     }
-
-    // Log the final calendar props
-    logger.Debug().
-        Time("calendar_month", calendarProps.CurrentMonth).
-        Str("facility_code", calendarProps.FacilityCode).
-        Int("protected_dates_count", len(protectedDates)).
-        Str("user_role", string(calendarProps.UserRole)).
-        Int("user_id", calendarProps.CurrentUserID).
-        Msg("Calendar props constructed")
 
 	// Build page props
 	pageProps := dto.CalendarPageProps{

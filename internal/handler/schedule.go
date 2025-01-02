@@ -239,12 +239,28 @@ func (h *Handler) HandleAvailabilityToggle(c echo.Context) error {
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
 
-	// Get auth context
+
 	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to get auth context")
-		return response.System(c)
+		logger.Error().Msg("missing auth context")
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			"Authentication is required",
+		)
 	}
+
+	route, err := middleware.GetRouteContext(c)
+	if err != nil {
+		logger.Error().Msg("missing route context")
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			"Missing route context",
+		)
+	}
+
+	if err := ensureRouteParams(route); err != nil {
+        return err
+    }
 
 	// Get and validate protected date ID
 	dateID, err := getProtectedDateID(c)
@@ -325,8 +341,8 @@ func (h *Handler) HandleAvailabilityToggle(c echo.Context) error {
 		Msg("availability toggled successfully")
 
 	return render(c, component.ProtectedDay(
-		auth.UserID,
 		updatedDate,
+		*auth,
 	))
 }
 
@@ -812,7 +828,7 @@ func getProtectedDateID(c echo.Context) (int, error) {
 }
 
 // Authorization helper function
-func canToggleAvailability(auth *dto.AuthContext, protectedDate *entity.ProtectedDate) bool {
+func canToggleAvailability(auth *dto.AuthContext, protectedDate *entity.PD) bool {
 	// Super admins can toggle any date
 	if auth.Role == types.UserRoleSuper {
 		return true

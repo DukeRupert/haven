@@ -218,49 +218,58 @@ func (r *Repository) GetByUserID(ctx context.Context, userID int) (*entity.Sched
 	return &schedule, nil
 }
 
-func (r *Repository) GetProtectedDateByID(ctx context.Context, id int) (entity.ProtectedDate, error) {
-	var date entity.ProtectedDate
-	err := r.pool.QueryRow(ctx, `
-        SELECT 
-            id,
-            created_at,
-            updated_at,
-            schedule_id,
-            date,
-            available,
-            user_id,
-            facility_id
-        FROM protected_dates
-        WHERE id = $1
-    `, id).Scan(
-		&date.ID,
-		&date.CreatedAt,
-		&date.UpdatedAt,
-		&date.ScheduleID,
-		&date.Date,
-		&date.Available,
-		&date.UserID,
-		&date.FacilityID,
-	)
+func (r *Repository) GetProtectedDateByID(ctx context.Context, id int) (entity.PD, error) {
+   var date entity.PD
+   err := r.pool.QueryRow(ctx, `
+       SELECT 
+           pd.id,
+           pd.created_at,
+           pd.updated_at,
+           pd.schedule_id,
+           pd.date,
+           pd.available,
+           pd.user_id,
+           pd.facility_id,
+           u.initials as user_initials,
+           f.code as facility_code
+       FROM protected_dates pd
+       JOIN facilities f ON pd.facility_id = f.id
+       JOIN users u ON pd.user_id = u.id
+       WHERE pd.id = $1
+   `, id).Scan(
+       &date.ID,
+       &date.CreatedAt,
+       &date.UpdatedAt,
+       &date.ScheduleID,
+       &date.Date,
+       &date.Available,
+       &date.UserID,
+       &date.FacilityID,
+       &date.UserInitials,
+       &date.FacilityCode,
+   )
 
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return date, fmt.Errorf("protected date %d not found: %w", id, err)
-		}
-		return date, fmt.Errorf("error getting protected date %d: %w", id, err)
-	}
+   if err != nil {
+       if errors.Is(err, pgx.ErrNoRows) {
+           return date, fmt.Errorf("protected date %d not found: %w", id, err)
+       }
+       return date, fmt.Errorf("error getting protected date %d: %w", id, err)
+   }
 
-	return date, nil
+   return date, nil
 }
 
-func (r *Repository) GetProtectedDatesByFacilityCode(ctx context.Context, facilityCode string) ([]entity.ProtectedDate, error) {
+func (r *Repository) GetProtectedDatesByFacilityCode(ctx context.Context, facilityCode string) ([]entity.PD, error) {
 	rows, err := r.pool.Query(ctx, `
         SELECT 
             pd.id, pd.created_at, pd.updated_at,
             pd.schedule_id, pd.date, pd.available,
-            pd.user_id, pd.facility_id
+            pd.user_id, pd.facility_id,
+            u.initials as user_initials,
+            f.code as facility_code
         FROM protected_dates pd
         JOIN facilities f ON pd.facility_id = f.id
+        JOIN users u ON pd.user_id = u.id
         WHERE f.code = $1
         ORDER BY pd.date ASC, pd.user_id
     `, facilityCode)
@@ -269,52 +278,80 @@ func (r *Repository) GetProtectedDatesByFacilityCode(ctx context.Context, facili
 	}
 	defer rows.Close()
 
-	return r.scanProtectedDates(rows)
+	result, err := r.scanPDs(rows)
+	if err != nil {
+		return nil, fmt.Errorf("scanning protected dates: %w", err)
+	}
+	return result, nil
 }
 
-func (r *Repository) ToggleProtectedDateAvailability(ctx context.Context, dateID int) (entity.ProtectedDate, error) {
-	var date entity.ProtectedDate
-	err := r.pool.QueryRow(ctx, `
-        WITH publication_check AS (
-            SELECT published_through 
-            FROM schedule_publications sp
-            JOIN protected_dates pd ON pd.facility_id = sp.facility_id
-            WHERE pd.id = $1
-        )
-        UPDATE protected_dates 
-        SET 
-            available = NOT available,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1
-        AND date > (SELECT published_through FROM publication_check)
-        RETURNING 
-            id, created_at, updated_at, schedule_id, 
-            date, available, user_id, facility_id
-    `, dateID).Scan(
-		&date.ID, &date.CreatedAt, &date.UpdatedAt, &date.ScheduleID,
-		&date.Date, &date.Available, &date.UserID, &date.FacilityID,
-	)
-
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			// Check if date exists but is in published schedule
-			var isPublished bool
-			err = r.pool.QueryRow(ctx, `
-                SELECT pd.date <= sp.published_through
-                FROM protected_dates pd
-                JOIN schedule_publications sp ON pd.facility_id = sp.facility_id
-                WHERE pd.id = $1
-            `, dateID).Scan(&isPublished)
-
-			if err == nil && isPublished {
-				return date, ErrSchedulePublished
-			}
-			return date, fmt.Errorf("protected date %d not found: %w", dateID, err)
+func (r *Repository) scanPDs(rows pgx.Rows) ([]entity.PD, error) {
+	var dates []entity.PD
+	for rows.Next() {
+		var date entity.PD
+		err := rows.Scan(
+			&date.ID, &date.CreatedAt, &date.UpdatedAt,
+			&date.ScheduleID, &date.Date, &date.Available,
+			&date.UserID, &date.FacilityID,
+			&date.UserInitials, &date.FacilityCode,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scanning protected date: %w", err)
 		}
-		return date, fmt.Errorf("error toggling protected date %d: %w", dateID, err)
+		dates = append(dates, date)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating protected dates: %w", err)
+	}
+	return dates, nil
+}
 
-	return date, nil
+func (r *Repository) ToggleProtectedDateAvailability(ctx context.Context, dateID int) (entity.PD, error) {
+   var date entity.PD
+   err := r.pool.QueryRow(ctx, `
+       WITH publication_check AS (
+           SELECT published_through 
+           FROM schedule_publications sp
+           JOIN protected_dates pd ON pd.facility_id = sp.facility_id
+           WHERE pd.id = $1
+       )
+       UPDATE protected_dates pd
+       SET 
+           available = NOT available,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE pd.id = $1
+       AND pd.date > (SELECT published_through FROM publication_check)
+       RETURNING 
+           pd.id, pd.created_at, pd.updated_at, pd.schedule_id, 
+           pd.date, pd.available, pd.user_id, pd.facility_id,
+           (SELECT initials FROM users u WHERE u.id = pd.user_id) as user_initials,
+           (SELECT code FROM facilities f WHERE f.id = pd.facility_id) as facility_code
+   `, dateID).Scan(
+       &date.ID, &date.CreatedAt, &date.UpdatedAt, &date.ScheduleID,
+       &date.Date, &date.Available, &date.UserID, &date.FacilityID,
+       &date.UserInitials, &date.FacilityCode,
+   )
+
+   if err != nil {
+       if errors.Is(err, pgx.ErrNoRows) {
+           // Check if date exists but is in published schedule
+           var isPublished bool
+           err = r.pool.QueryRow(ctx, `
+               SELECT pd.date <= sp.published_through
+               FROM protected_dates pd
+               JOIN schedule_publications sp ON pd.facility_id = sp.facility_id
+               WHERE pd.id = $1
+           `, dateID).Scan(&isPublished)
+
+           if err == nil && isPublished {
+               return date, ErrSchedulePublished
+           }
+           return date, fmt.Errorf("protected date %d not found: %w", dateID, err)
+       }
+       return date, fmt.Errorf("error toggling protected date %d: %w", dateID, err)
+   }
+
+   return date, nil
 }
 
 // Helper methods

@@ -12,7 +12,7 @@ templ Calendar(props dto.CalendarProps) {
 			<button
 				type="button"
 				class="-m-1.5 flex flex-none items-center justify-center p-1.5 text-gray-400 hover:text-gray-500"
-				hx-get={ fmt.Sprintf("/app/%s/calendar?month=%s", props.FacilityCode, props.CurrentMonth.AddDate(0, -1, 0).Format("2006-01")) }
+				hx-get={ fmt.Sprintf("/app/%s/calendar?month=%s", props.RouteCtx.FacilityCode, props.CurrentMonth.AddDate(0, -1, 0).Format("2006-01")) }
 				hx-target="closest div.mt-10"
 				hx-target-error="#global-alert"
 				hx-indicator="#loading-overlay"
@@ -28,7 +28,7 @@ templ Calendar(props dto.CalendarProps) {
 			<button
 				type="button"
 				class="-m-1.5 flex flex-none items-center justify-center p-1.5 text-gray-400 hover:text-gray-500"
-				hx-get={ fmt.Sprintf("/app/%s/calendar?month=%s", props.FacilityCode, props.CurrentMonth.AddDate(0, 1, 0).Format("2006-01")) }
+				hx-get={ fmt.Sprintf("/app/%s/calendar?month=%s", props.RouteCtx.FacilityCode, props.CurrentMonth.AddDate(0, 1, 0).Format("2006-01")) }
 				hx-target="closest div.mt-10"
 				hx-target-error="#global-alert"
 				hx-indicator="#loading-overlay"
@@ -54,9 +54,8 @@ templ Calendar(props dto.CalendarProps) {
 					Date:           day,
 					CurrentMonth:   props.CurrentMonth,
 					ProtectedDates: findProtectedDates(day, props.ProtectedDates),
-					UserRole:       props.UserRole,
-					CurrentUserID:  props.CurrentUserID,
-					FacilityCode:   props.FacilityCode,
+					AuthCtx:        props.AuthCtx,
+					RouteCtx:       props.RouteCtx,
 				})
 			}
 		</div>
@@ -100,16 +99,16 @@ templ CalendarDay(props dto.CalendarDayProps) {
 				</time>
 			</div>
 			for _, pd := range props.ProtectedDates {
-				@ProtectedDay(props.CurrentUserID, pd)
+				@ProtectedDay(pd, props.AuthCtx)
 			}
 		</div>
 	</div>
 }
 
-templ ProtectedDay(currentUserID int, pd entity.ProtectedDate) {
+templ ProtectedDay(pd entity.PD, auth dto.AuthContext) {
 	<div id={ fmt.Sprintf("pd-%d", pd.ID) } class="flex items-center justify-center">
-		if pd.UserID == currentUserID {
-			<button hx-post={ fmt.Sprintf("/api/user/%d/availability/%d", currentUserID, pd.ID) } hx-target={ fmt.Sprintf("#pd-%d", pd.ID) } hx-swap="outerHTML" hx-confirm="Are you sure you want to change you availability status?" hx-target-error="#global-alert" hx-indicator="#loading-overlay" type="button">
+		if pd.UserID == auth.UserID || pd.FacilityID == auth.FacilityID {
+			<button hx-post={ fmt.Sprintf("/app/%s/%s/availability/%d", pd.FacilityCode, pd.UserInitials, pd.ID) } hx-target={ fmt.Sprintf("#pd-%d", pd.ID) } hx-swap="outerHTML" hx-confirm="Are you sure you want to change you availability status?" hx-target-error="#global-alert" hx-indicator="#loading-overlay" type="button">
 				if pd.Available {
 					<svg class="size-full fill-picton-blue-400 stroke-picton-blue-400" viewBox="0 0 8 8" aria-hidden="true">
 						<circle cx="4" cy="4" r="3" stroke-width="1"></circle>
