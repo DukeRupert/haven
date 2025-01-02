@@ -2,15 +2,15 @@ package component
 
 import "fmt"
 
-templ CreateUserForm(code string, role string) {
+templ CreateUserForm(facilityCode string, role string) {
 	<li id="create-user-form" class="flex flex-col py-5">
-		<form hx-post={ fmt.Sprintf("/api/facility/%s/users", code)} hx-target="#create-user-form" hx-swap="outerHTML" hx-target-error="#global-alert" hx-indicator="#loading-overlay" class="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0">
+		<form hx-post={ fmt.Sprintf("/app/%s/users", facilityCode) } hx-target="#create-user-form" hx-swap="outerHTML" hx-target-error="#global-alert" hx-indicator="#loading-overlay" class="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0">
 			<!-- Hidden Facility ID -->
 			<input
 				type="hidden"
 				id="facility_code"
 				name="facility_code"
-				value={ code }
+				value={ facilityCode }
 			/>
 			<!-- First Name -->
 			<div class="w-full">
