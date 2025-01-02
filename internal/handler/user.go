@@ -196,14 +196,14 @@ func (h *Handler) HandleUpdateUser(c echo.Context) error {
 	}
 
 	if err := ensureRouteParams(route); err != nil {
-        return err
-    }
+		return err
+	}
 
 	// Get existing user
-    existingUser, err := h.repos.User.GetByInitialsAndFacility(c.Request().Context(), route.UserInitials, route.FacilityCode)
-    if err != nil {
-        return err
-    }
+	existingUser, err := h.repos.User.GetByInitialsAndFacility(c.Request().Context(), route.UserInitials, route.FacilityCode)
+	if err != nil {
+		return err
+	}
 
 	// Bind and validate update params
 	var params params.UpdateUserParams
@@ -215,32 +215,32 @@ func (h *Handler) HandleUpdateUser(c echo.Context) error {
 	}
 
 	// Validate role changes
-    if err := h.verifyRoleChange(auth, existingUser.Role, params.Role); err != nil {
-        return err
-    }
+	if err := h.verifyRoleChange(auth, existingUser.Role, params.Role); err != nil {
+		return err
+	}
 
 	// Perform update
-    updatedUser, err := h.repos.User.Update(c.Request().Context(), existingUser.ID, params)
-    if err != nil {
-        if strings.Contains(err.Error(), "email already exists") {
-            return response.Validation(c, []string{"This email address is already in use"})
-        }
-        logger.Error().Err(err).Int("user_id", existingUser.ID).Msg("failed to update user")
-        return response.System(c)
-    }
+	updatedUser, err := h.repos.User.Update(c.Request().Context(), existingUser.ID, params)
+	if err != nil {
+		if strings.Contains(err.Error(), "email already exists") {
+			return response.Validation(c, []string{"This email address is already in use"})
+		}
+		logger.Error().Err(err).Int("user_id", existingUser.ID).Msg("failed to update user")
+		return response.System(c)
+	}
 
-    logger.Info().
-        Int("user_id", updatedUser.ID).
-        Str("email", updatedUser.Email).
-        Str("role", string(updatedUser.Role)).
-        Msg("user updated successfully")
+	logger.Info().
+		Int("user_id", updatedUser.ID).
+		Str("email", updatedUser.Email).
+		Str("role", string(updatedUser.Role)).
+		Msg("user updated successfully")
 
-    return render(c, ComponentGroup(
-        alert.Success("User Updated",
-            fmt.Sprintf("Successfully updated user %s %s",
-                updatedUser.FirstName, updatedUser.LastName)),
-        page.UserDetails(*updatedUser, route.FacilityCode, *auth),
-    ))
+	return render(c, ComponentGroup(
+		alert.Success("User Updated",
+			fmt.Sprintf("Successfully updated user %s %s",
+				updatedUser.FirstName, updatedUser.LastName)),
+		page.UserDetails(*updatedUser, route.FacilityCode, *auth),
+	))
 }
 
 func (h *Handler) HandleDeleteUser(c echo.Context) error {
@@ -248,7 +248,7 @@ func (h *Handler) HandleDeleteUser(c echo.Context) error {
 		Str("handler", "HandleDeleteUser").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
-	
+
 	// Get auth context
 	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
@@ -339,14 +339,14 @@ func (h *Handler) GetUpdatePasswordForm(c echo.Context) error {
 	}
 
 	if err := ensureRouteParams(route); err != nil {
-        return err
-    }
+		return err
+	}
 
 	// Get existing user
-    existingUser, err := h.repos.User.GetByInitialsAndFacility(c.Request().Context(), route.UserInitials, route.FacilityCode)
-    if err != nil {
-        return err
-    }
+	existingUser, err := h.repos.User.GetByInitialsAndFacility(c.Request().Context(), route.UserInitials, route.FacilityCode)
+	if err != nil {
+		return err
+	}
 
 	// Check if user can update this password
 	if !canUpdatePassword(auth, existingUser.ID) {
@@ -375,7 +375,7 @@ func (h *Handler) HandleUpdatePassword(c echo.Context) error {
 		Str("handler", "HandleUpdatePassword").
 		Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
 		Logger()
-	
+
 	// Get auth context
 	auth, err := middleware.GetAuthContext(c)
 	if err != nil {
@@ -391,14 +391,14 @@ func (h *Handler) HandleUpdatePassword(c echo.Context) error {
 	}
 
 	if err := ensureRouteParams(route); err != nil {
-        return err
-    }
+		return err
+	}
 
 	// Get existing user
-    existingUser, err := h.repos.User.GetByInitialsAndFacility(c.Request().Context(), route.UserInitials, route.FacilityCode)
-    if err != nil {
-        return err
-    }
+	existingUser, err := h.repos.User.GetByInitialsAndFacility(c.Request().Context(), route.UserInitials, route.FacilityCode)
+	if err != nil {
+		return err
+	}
 
 	// Get and validate form data
 	formData, err := h.validatePasswordUpdate(c, *existingUser, auth)
@@ -450,7 +450,7 @@ func (h *Handler) GetCreateUserForm(c echo.Context) error {
 		Logger()
 
 	// Get and validate facility code
-	facilityCode := c.Param("facility_id")
+	facilityCode := c.Param("facility_code")
 	if facilityCode == "" {
 		logger.Error().Msg("missing facility code")
 		return response.Error(c,
@@ -530,10 +530,10 @@ func (h *Handler) GetUpdateUserForm(c echo.Context) error {
 			"Missing route context",
 		)
 	}
-	
+
 	if err := ensureRouteParams(route); err != nil {
-        return err
-    }
+		return err
+	}
 
 	// Get user details
 	user, err := h.repos.User.GetByInitialsAndFacility(c.Request().Context(), route.UserInitials, route.FacilityCode)
