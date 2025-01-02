@@ -94,7 +94,7 @@ func Change_Password_Button(facilityCode string, initials string) templ.Componen
 	})
 }
 
-func Delete_User_Button(user_id int) templ.Component {
+func Delete_User_Button(facilityCode string, initials string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -120,9 +120,9 @@ func Delete_User_Button(user_id int) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/user/%d", user_id))
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/%s/%s", facilityCode, initials))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/password.templ`, Line: 38, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/password.templ`, Line: 38, Col: 63}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -206,7 +206,7 @@ func Update_Password_Form(facilityCode string, initials string) templ.Component 
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/app/%s/%s/password", facilityCode, initials))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/password.templ`, Line: 65, Col: 100}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/component/password.templ`, Line: 64, Col: 100}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {

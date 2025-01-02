@@ -81,7 +81,7 @@ templ UserDetails(user entity.User, facilityCode string, auth dto.AuthContext) {
 			if auth.Role == types.UserRoleAdmin || auth.Role == types.UserRoleSuper {
 				if user.ID != auth.UserID {
 					@component.Resend_Verification_Button(user.Email)
-					@component.Delete_User_Button(user.ID)
+					@component.Delete_User_Button(facilityCode, user.Initials)
 				}
 			}
 		</div>
