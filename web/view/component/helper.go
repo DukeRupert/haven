@@ -4,9 +4,9 @@ import (
 	"strings"
 	"time"
 
-    "github.com/DukeRupert/haven/internal/model/entity"
+	"github.com/DukeRupert/haven/internal/model/dto"
+	"github.com/DukeRupert/haven/internal/model/entity"
 	"github.com/DukeRupert/haven/internal/model/types"
-    "github.com/DukeRupert/haven/internal/model/dto"
 )
 
 // Helper functions (in a separate .go file)
@@ -66,96 +66,107 @@ func findProtectedDate(date time.Time, protectedDates []entity.ProtectedDate) *e
 
 // Helper function to group protected dates by date
 func groupProtectedDates(dates []entity.ProtectedDate) map[string][]entity.ProtectedDate {
-    groups := make(map[string][]entity.ProtectedDate)
-    for _, date := range dates {
-        key := date.Date.Format("2006-01-02")
-        groups[key] = append(groups[key], date)
-    }
-    return groups
+	groups := make(map[string][]entity.ProtectedDate)
+	for _, date := range dates {
+		key := date.Date.Format("2006-01-02")
+		groups[key] = append(groups[key], date)
+	}
+	return groups
 }
 
 // Update helper function to return all protected dates for a given day
 func findProtectedDates(date time.Time, dates []entity.PD) []entity.PD {
-    var dayDates []entity.PD
-    for _, pd := range dates {
-        if pd.Date.Year() == date.Year() && 
-           pd.Date.Month() == date.Month() && 
-           pd.Date.Day() == date.Day() {
-            dayDates = append(dayDates, pd)
-        }
-    }
-    return dayDates
+	var dayDates []entity.PD
+	for _, pd := range dates {
+		if pd.Date.Year() == date.Year() &&
+			pd.Date.Month() == date.Month() &&
+			pd.Date.Day() == date.Day() {
+			dayDates = append(dayDates, pd)
+		}
+	}
+	return dayDates
 }
 
 // Update the day classes to account for multiple protected dates
 func getDayClasses(props dto.CalendarDayProps) string {
-    classes := []string{}
-    
-    // Add position-based classes
-    if isFirstWeek(props.Date) && props.Date.Weekday() == time.Monday {
-        classes = append(classes, "rounded-tl-lg")
-    }
-    if isFirstWeek(props.Date) && props.Date.Weekday() == time.Sunday {
-        classes = append(classes, "rounded-tr-lg")
-    }
-    if isLastWeek(props.Date) && props.Date.Weekday() == time.Monday {
-        classes = append(classes, "rounded-bl-lg")
-    }
-    if isLastWeek(props.Date) && props.Date.Weekday() == time.Sunday {
-        classes = append(classes, "rounded-br-lg")
-    }
+	classes := []string{}
 
-    // Add month-based classes
-    if props.Date.Month() == props.CurrentMonth.Month() {
-        classes = append(classes, "bg-white")
-    } else {
-        classes = append(classes, "bg-gray-50 text-gray-400")
-    }
+	// Add position-based classes
+	if isFirstWeek(props.Date) && props.Date.Weekday() == time.Monday {
+		classes = append(classes, "rounded-tl-lg")
+	}
+	if isFirstWeek(props.Date) && props.Date.Weekday() == time.Sunday {
+		classes = append(classes, "rounded-tr-lg")
+	}
+	if isLastWeek(props.Date) && props.Date.Weekday() == time.Monday {
+		classes = append(classes, "rounded-bl-lg")
+	}
+	if isLastWeek(props.Date) && props.Date.Weekday() == time.Sunday {
+		classes = append(classes, "rounded-br-lg")
+	}
 
-    return strings.Join(classes, " ")
+	// Add month-based classes
+	if props.Date.Month() == props.CurrentMonth.Month() {
+		if isToday(props.Date) {
+			classes = append(classes, "bg-picton-blue-50 text-gray-400")
+		} else {
+			classes = append(classes, "bg-white text-gray-400")
+		}
+	} else {
+		classes = append(classes, "bg-gray-50 text-gray-400")
+	}
+
+	return strings.Join(classes, " ")
+}
+
+func isToday(date time.Time) bool {
+	now := time.Now()
+	return date.Year() == now.Year() &&
+		date.Month() == now.Month() &&
+		date.Day() == now.Day()
 }
 
 // isFirstWeek checks if the given date falls in the first week of the calendar grid
 func isFirstWeek(date time.Time) bool {
-    // Get the first day of the month
-    firstOfMonth := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, time.Local)
-    
-    // Find the Monday that starts the calendar grid
-    var firstGridDay time.Time
-    if firstOfMonth.Weekday() != time.Monday {
-        daysToSubtract := int(firstOfMonth.Weekday() - time.Monday)
-        if daysToSubtract < 0 {
-            daysToSubtract += 7
-        }
-        firstGridDay = firstOfMonth.AddDate(0, 0, -daysToSubtract)
-    } else {
-        firstGridDay = firstOfMonth
-    }
-    
-    // Check if the date is in the first week by comparing with firstGridDay
-    return date.After(firstGridDay.Add(-24*time.Hour)) && 
-           date.Before(firstGridDay.AddDate(0, 0, 7))
+	// Get the first day of the month
+	firstOfMonth := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, time.Local)
+
+	// Find the Monday that starts the calendar grid
+	var firstGridDay time.Time
+	if firstOfMonth.Weekday() != time.Monday {
+		daysToSubtract := int(firstOfMonth.Weekday() - time.Monday)
+		if daysToSubtract < 0 {
+			daysToSubtract += 7
+		}
+		firstGridDay = firstOfMonth.AddDate(0, 0, -daysToSubtract)
+	} else {
+		firstGridDay = firstOfMonth
+	}
+
+	// Check if the date is in the first week by comparing with firstGridDay
+	return date.After(firstGridDay.Add(-24*time.Hour)) &&
+		date.Before(firstGridDay.AddDate(0, 0, 7))
 }
 
 // isLastWeek checks if the given date falls in the last week of the calendar grid
 func isLastWeek(date time.Time) bool {
-    // Get the last day of the month
-    firstOfMonth := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, time.Local)
-    lastOfMonth := firstOfMonth.AddDate(0, 1, -1)
-    
-    // Find the Sunday that ends the calendar grid
-    var lastGridDay time.Time
-    if lastOfMonth.Weekday() != time.Sunday {
-        daysToAdd := int(time.Sunday - lastOfMonth.Weekday())
-        if daysToAdd <= 0 {
-            daysToAdd += 7
-        }
-        lastGridDay = lastOfMonth.AddDate(0, 0, daysToAdd)
-    } else {
-        lastGridDay = lastOfMonth
-    }
-    
-    // Check if the date is in the last week by comparing with lastGridDay
-    return date.After(lastGridDay.AddDate(0, 0, -7).Add(-24*time.Hour)) && 
-           date.Before(lastGridDay.AddDate(0, 0, 1))
+	// Get the last day of the month
+	firstOfMonth := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, time.Local)
+	lastOfMonth := firstOfMonth.AddDate(0, 1, -1)
+
+	// Find the Sunday that ends the calendar grid
+	var lastGridDay time.Time
+	if lastOfMonth.Weekday() != time.Sunday {
+		daysToAdd := int(time.Sunday - lastOfMonth.Weekday())
+		if daysToAdd <= 0 {
+			daysToAdd += 7
+		}
+		lastGridDay = lastOfMonth.AddDate(0, 0, daysToAdd)
+	} else {
+		lastGridDay = lastOfMonth
+	}
+
+	// Check if the date is in the last week by comparing with lastGridDay
+	return date.After(lastGridDay.AddDate(0, 0, -7).Add(-24*time.Hour)) &&
+		date.Before(lastGridDay.AddDate(0, 0, 1))
 }

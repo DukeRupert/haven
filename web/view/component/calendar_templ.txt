@@ -10,7 +10,7 @@
  hx-get=\"
 \"
  hx-target=\"closest div.mt-10\" hx-target-error=\"#global-alert\" hx-indicator=\"#loading-overlay\"><span class=\"sr-only\">Next month</span> <svg class=\"size-5\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z\" clip-rule=\"evenodd\"></path></svg></button></div><div class=\"mt-6 grid grid-cols-7 text-xs/6 text-gray-500\"><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div></div><div class=\"isolate mt-2 grid grid-cols-7 gap-px rounded-lg bg-gray-200 text-sm shadow ring-1 ring-gray-200\">
-</div><div class=\"flex items-center gap-6 mt-4 text-sm text-gray-600\"><!-- Availability states --><div class=\"flex items-center gap-2\"><svg class=\"w-4 h-4 fill-gray-400 stroke-gray-400\" viewBox=\"0 0 8 8\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"4\" r=\"3\" stroke-width=\"1\"></circle></svg> <span>Available</span></div><div class=\"flex items-center gap-2\"><svg class=\"w-4 h-4 fill-none stroke-gray-400\" viewBox=\"0 0 8 8\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"4\" r=\"3\" stroke-width=\"1\"></circle></svg> <span>Protected</span></div><!-- Ownership indicator --><div class=\"flex items-center gap-2\"><div class=\"w-4 h-4 bg-picton-blue-400 rounded-full\"></div><span>Your days</span></div></div></div>
+</div><div class=\"flex items-center gap-6 mt-4 text-sm text-gray-600\"><!-- Availability states --><div class=\"flex items-center gap-2\"><svg class=\"w-4 h-4 fill-picton-blue-400 stroke-picton-blue-400\" viewBox=\"0 0 8 8\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"4\" r=\"3\" stroke-width=\"1\"></circle></svg> <span>Available</span></div><!-- Ownership indicator --><div class=\"flex items-center gap-2\"><p>__</p><span>Your days</span></div></div></div>
 <div class=\"
 \"
  title=\"
@@ -24,11 +24,19 @@
 <button hx-post=\"
 \" hx-target=\"
 \" hx-swap=\"outerHTML\" hx-confirm=\"Are you sure you want to change you availability status?\" hx-target-error=\"#global-alert\" hx-indicator=\"#loading-overlay\" type=\"button\">
-<svg class=\"size-full fill-picton-blue-400 stroke-picton-blue-400\" viewBox=\"0 0 8 8\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"4\" r=\"3\" stroke-width=\"1\"></circle></svg>
-<svg class=\"size-full fill-none stroke-picton-blue-400\" viewBox=\"0 0 8 8\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"4\" r=\"3\" stroke-width=\"1\"></circle></svg>
+<p class=\"text-xs text-picton-blue-400 underline underline-offset-1\">
+</p>
+<p class=\"text-xs text-gray-600 underline underline-offset-1\">
+</p>
+<p class=\"text-xs text-picton-blue-400\">
+</p>
+<p class=\"text-xs text-gray-600\">
+</p>
 </button>
 <div>
-<svg class=\"size-full fill-gray-400 stroke-gray-400\" viewBox=\"0 0 8 8\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"4\" r=\"3\" stroke-width=\"1\"></circle></svg>
-<svg class=\"size-full fill-none stroke-gray-400\" viewBox=\"0 0 8 8\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"4\" r=\"3\" stroke-width=\"1\"></circle></svg>
+<p class=\"text-xs text-picton-blue-400\">
+</p>
+<p class=\"text-xs text-gray-600\">
+</p>
 </div>
 </div>
